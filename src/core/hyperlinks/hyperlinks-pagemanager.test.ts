@@ -305,4 +305,49 @@ describe("Document Integrity & Reopening", () => {
     expect(finalDoc.getPage(3).getWidth()).toBe(612);
     expect(finalDoc.getPage(3).getHeight()).toBe(792);
   });
+
+  it("preserves link annotations and destinations during existing-text editing operations", async () => {
+    const originalBytes = await createSamplePdf();
+    const doc = await PDFDocument.load(originalBytes);
+
+    // Initial check: Link exists on page 1
+    const initialAnnots = doc.getPage(0).node.Annots();
+    expect(initialAnnots).toBeDefined();
+    expect(initialAnnots!.size()).toBe(1);
+
+    // Perform text editing operation (e.g. modify confidential header)
+    const page1 = doc.getPage(0);
+    page1.drawText("UPDATED RECORD", { x: 50, y: 720, size: 16 });
+
+    const editedBytes = await doc.save();
+
+    // Reopen and verify link annotation is 100% preserved
+    const reloadedDoc = await PDFDocument.load(editedBytes);
+    const reloadedAnnots = reloadedDoc.getPage(0).node.Annots();
+    expect(reloadedAnnots).toBeDefined();
+    expect(reloadedAnnots!.size()).toBe(1);
+  });
+
+  it("preserves form elements and interactive field dictionaries without discarding", async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+
+    // Create an interactive text field
+    const form = doc.getForm();
+    const textField = form.createTextField("user.fullName");
+    textField.setText("Jane Doe");
+    textField.addToPage(page, { x: 50, y: 250, width: 200, height: 25 });
+
+    // Rotate page
+    await rotatePage(doc, 0, 90);
+
+    const savedBytes = await doc.save();
+
+    // Reopen and verify the form and text field were preserved
+    const reloadedDoc = await PDFDocument.load(savedBytes);
+    const reloadedForm = reloadedDoc.getForm();
+    const field = reloadedForm.getTextField("user.fullName");
+    expect(field).toBeDefined();
+    expect(field.getText()).toBe("Jane Doe");
+  });
 });
