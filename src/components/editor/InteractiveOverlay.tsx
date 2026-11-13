@@ -58,6 +58,10 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   const [dragStartMouse, setDragStartMouse] = useState<Point | null>(null);
   const [initialOpState, setInitialOpState] = useState<any>(null);
 
+  // Inline text editing for added text elements
+  const [editingOpId, setEditingOpId] = useState<string | null>(null);
+  const [editingTextValue, setEditingTextValue] = useState<string>("");
+
   // Convert Screen pixel coordinates to PDF point coordinates
   const screenToPdf = (screenX: number, screenY: number): Point => {
     return {
@@ -123,13 +127,14 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     }
 
     if (activeTool === "add_text") {
+      const opId = `text-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const newTextOp: AddTextOperation = {
-        id: `text-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: opId,
         pageNumber: currentPageNumber,
         timestamp: Date.now(),
         type: "add_text",
         position: pdfCoord,
-        text: "Click to edit text",
+        text: "New Text",
         fontFamily: activeFormatting.fontFamily,
         fontSize: activeFormatting.fontSize,
         fontWeight: activeFormatting.fontWeight,
@@ -140,6 +145,9 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       };
 
       await executeAddOperation(newTextOp);
+      selectElement(opId);
+      setEditingOpId(opId);
+      setEditingTextValue("New Text");
       setActiveTool("select");
       return;
     }
@@ -412,21 +420,8 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           const isSelected = selectedTokenId === token.id;
           const isEditTool = activeTool === "edit_text";
           return (
-            <rect
+            <g
               key={token.id}
-              x={screenPos.x}
-              y={screenPos.y}
-              width={token.rect.width * scale}
-              height={token.rect.height * scale}
-              fill={isSelected ? "rgba(59, 130, 246, 0.2)" : isEditTool ? "rgba(16, 185, 129, 0.08)" : "transparent"}
-              stroke={isSelected ? "#2563eb" : isEditTool ? "#10b981" : "transparent"}
-              strokeWidth={isEditTool ? 1.5 : 1}
-              strokeDasharray={isSelected || isEditTool ? "2 2" : undefined}
-              className={`${
-                isEditTool
-                  ? "hover:fill-emerald-500/20 hover:stroke-emerald-600 cursor-text"
-                  : "hover:fill-blue-500/10 hover:stroke-blue-400 cursor-pointer"
-              } pointer-events-auto transition-colors`}
               onClick={(e) => {
                 e.stopPropagation();
                 selectToken(token.id);
@@ -438,13 +433,39 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                 e.stopPropagation();
                 openTextEditorForToken(token.id);
               }}
+              className="cursor-pointer pointer-events-auto group"
             >
+              <rect
+                x={screenPos.x}
+                y={screenPos.y}
+                width={token.rect.width * scale}
+                height={token.rect.height * scale}
+                fill={isSelected ? "rgba(59, 130, 246, 0.25)" : isEditTool ? "rgba(16, 185, 129, 0.1)" : "transparent"}
+                stroke={isSelected ? "#2563eb" : isEditTool ? "#10b981" : "transparent"}
+                strokeWidth={isEditTool ? 1.5 : 1}
+                strokeDasharray={isSelected || isEditTool ? "2 2" : undefined}
+                className={`${
+                  isEditTool
+                    ? "group-hover:fill-emerald-500/20 group-hover:stroke-emerald-600 cursor-text"
+                    : "group-hover:fill-blue-500/15 group-hover:stroke-blue-400 cursor-pointer"
+                } transition-colors`}
+              />
+              <text
+                x={screenPos.x}
+                y={screenPos.y + token.rect.height * scale * 0.78}
+                fontSize={token.fontSize * scale}
+                fontFamily="sans-serif"
+                fill="transparent"
+                className="select-text cursor-text"
+              >
+                {token.text}
+              </text>
               <title>
                 {isEditTool
                   ? `Click to modify: "${token.text}"`
-                  : `Extracted text: "${token.text}" (${token.fontSize}pt)`}
+                  : `Extracted text: "${token.text}" (${token.fontSize}pt) • Double-click to modify`}
               </title>
-            </rect>
+            </g>
           );
         })}
 
@@ -541,6 +562,50 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
           case "add_text": {
             const screen = pdfToScreen(op.position.x, op.position.y);
+            const isEditingThis = editingOpId === op.id;
+
+            if (isEditingThis) {
+              const estWidth = Math.max(140, op.text.length * op.fontSize * scale * 0.7 + 40);
+              const estHeight = op.fontSize * 1.8 * scale;
+              return (
+                <foreignObject
+                  key={op.id}
+                  x={screen.x - 2}
+                  y={screen.y - op.fontSize * scale - 4}
+                  width={estWidth}
+                  height={estHeight}
+                  className="overflow-visible pointer-events-auto z-30"
+                >
+                  <input
+                    type="text"
+                    autoFocus
+                    value={editingTextValue}
+                    onChange={(e) => setEditingTextValue(e.target.value)}
+                    onBlur={() => {
+                      executeUpdateElement(op.id, { text: editingTextValue });
+                      setEditingOpId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        executeUpdateElement(op.id, { text: editingTextValue });
+                        setEditingOpId(null);
+                      } else if (e.key === "Escape") {
+                        setEditingOpId(null);
+                      }
+                    }}
+                    style={{
+                      fontSize: `${Math.max(12, op.fontSize * scale)}px`,
+                      fontFamily: op.fontFamily,
+                      color: op.fontColorHex,
+                      fontWeight: op.fontWeight,
+                      fontStyle: op.fontStyle,
+                    }}
+                    className="w-full bg-white/95 border-2 border-blue-500 rounded px-2 py-0.5 shadow-lg focus:outline-hidden text-slate-900"
+                  />
+                </foreignObject>
+              );
+            }
+
             return (
               <text
                 key={op.id}
@@ -560,6 +625,11 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                 }
                 opacity={op.opacity ?? 1.0}
                 onMouseDown={(e) => handleElementMouseDown(e, op)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditingOpId(op.id);
+                  setEditingTextValue(op.text);
+                }}
                 className="cursor-move pointer-events-auto select-none"
               >
                 {op.text}

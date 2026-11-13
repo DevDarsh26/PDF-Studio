@@ -67,7 +67,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
   return (
     <main
       ref={containerRef}
-      className="flex-1 bg-slate-100 flex flex-col items-center justify-start p-8 overflow-auto relative select-none"
+      className="flex-1 bg-slate-100 flex flex-col items-center justify-start p-8 overflow-auto relative"
     >
       {renderError ? (
         <div className="my-auto max-w-md bg-white border border-red-200 rounded-xl p-6 shadow-sm text-center">

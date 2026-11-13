@@ -83,6 +83,8 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     openTextEditorForToken,
     openExportModal,
     openPageManager,
+    executeUpdateElement,
+    copySelectedTextToClipboard,
   } = useEditorStore();
 
   const { state: historyState, undo, redo } = useHistoryStore();
@@ -167,6 +169,10 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     : null;
   const tokenFont = selectedToken
     ? currentStyleProfile?.detectedFonts.get(selectedToken.fontId)
+    : null;
+
+  const selectedOp = selectedElementId
+    ? operations.find((o) => o.id === selectedElementId)
     : null;
 
   return (
@@ -462,6 +468,14 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
           </div>
           <div className="flex items-center space-x-2">
             <button
+              onClick={() => copySelectedTextToClipboard()}
+              title="Copy text to clipboard (Ctrl+C)"
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition flex items-center space-x-1"
+            >
+              <Copy className="w-3 h-3 text-slate-500" />
+              <span>Copy Text</span>
+            </button>
+            <button
               onClick={() => openTextEditorForToken(selectedToken.id)}
               className="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition flex items-center space-x-1"
             >
@@ -478,7 +492,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
               className="px-2.5 py-1 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition flex items-center space-x-1"
             >
               <Sparkles className="w-3 h-3" />
-              <span>Inherit Formatting & Add Text</span>
+              <span>Inherit & Add Text</span>
             </button>
           </div>
         </div>
@@ -486,6 +500,20 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
 
       {/* Secondary Text & Shape Formatting Bar */}
       <div className="h-10 border-t border-slate-100 bg-slate-50/60 px-4 flex items-center space-x-3 text-xs overflow-x-auto">
+        {/* Selected Element Quick Text Editor */}
+        {selectedOp && selectedOp.type === "add_text" && (
+          <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200">
+            <span className="text-[10px] text-blue-600 font-semibold">Edit Text:</span>
+            <input
+              type="text"
+              value={selectedOp.text}
+              onChange={(e) => executeUpdateElement(selectedOp.id, { text: e.target.value })}
+              className="w-44 bg-white border border-blue-400 rounded px-2 py-0.5 text-xs text-slate-800 font-medium shadow-2xs focus:outline-hidden"
+              placeholder="Type text..."
+            />
+          </div>
+        )}
+
         {/* Font Family */}
         <div className="flex items-center space-x-1">
           <span className="text-[10px] text-slate-400 font-medium">Font:</span>

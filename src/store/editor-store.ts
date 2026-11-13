@@ -78,6 +78,9 @@ export interface EditorState {
   activeFormatting: FormattingStyle;
   copiedFormatting: FormattingStyle | null;
 
+  // Toast Feedback
+  toastMessage: string | null;
+
   // Actions
   setEngineType: (type: SupportedEngineType) => void;
   loadDocumentBytes: (data: ArrayBuffer, fileName?: string, password?: string) => Promise<void>;
@@ -118,6 +121,8 @@ export interface EditorState {
   pasteFormatting: () => Promise<void>;
   setActiveFormatting: (formatting: Partial<FormattingStyle>) => void;
   inheritStyleFromSelectedToken: () => FormattingStyle | null;
+  showToast: (message: string) => void;
+  copySelectedTextToClipboard: () => Promise<boolean>;
 }
 
 const DEFAULT_FORMATTING: FormattingStyle = {
@@ -166,6 +171,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   currentStyleProfile: null,
   activeFormatting: DEFAULT_FORMATTING,
   copiedFormatting: null,
+  toastMessage: null,
 
   setEngineType: (type: SupportedEngineType) => {
     const currentAdapter = get().adapter;
@@ -643,5 +649,68 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ activeFormatting: inherited, copiedFormatting: inherited });
     return inherited;
+  },
+
+  showToast: (message: string) => {
+    set({ toastMessage: message });
+    setTimeout(() => {
+      if (get().toastMessage === message) {
+        set({ toastMessage: null });
+      }
+    }, 2800);
+  },
+
+  copySelectedTextToClipboard: async () => {
+    const { selectedTokenId, currentStyleProfile, selectedElementId, operations, showToast } = get();
+
+    // 1. Text token is selected from document
+    if (selectedTokenId && currentStyleProfile) {
+      const token = currentStyleProfile.textTokens.find((t) => t.id === selectedTokenId);
+      if (token && token.text) {
+        try {
+          await navigator.clipboard.writeText(token.text);
+          showToast(`Copied: "${token.text.length > 25 ? token.text.substring(0, 25) + '...' : token.text}"`);
+          return true;
+        } catch {
+          // Clipboard write fallback
+        }
+      }
+    }
+
+    // 2. Added/edited operation element is selected
+    if (selectedElementId) {
+      const op = operations.find((o) => o.id === selectedElementId);
+      if (op) {
+        let textToCopy = "";
+        if (op.type === "add_text") textToCopy = op.text;
+        else if (op.type === "text_edit") textToCopy = op.replacementText;
+
+        if (textToCopy) {
+          try {
+            await navigator.clipboard.writeText(textToCopy);
+            showToast(`Copied: "${textToCopy.length > 25 ? textToCopy.substring(0, 25) + '...' : textToCopy}"`);
+            return true;
+          } catch {
+            // Clipboard write fallback
+          }
+        }
+      }
+    }
+
+    // 3. Fallback to active browser text selection
+    if (typeof window !== "undefined") {
+      const selection = window.getSelection()?.toString();
+      if (selection && selection.trim()) {
+        try {
+          await navigator.clipboard.writeText(selection);
+          showToast(`Copied selection to clipboard`);
+          return true;
+        } catch {
+          // Clipboard write fallback
+        }
+      }
+    }
+
+    return false;
   },
 }));

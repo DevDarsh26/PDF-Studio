@@ -12,6 +12,7 @@ import { TextEditModal } from "@/components/modals/TextEditModal";
 import { ExportModal } from "@/components/modals/ExportModal";
 import { HyperlinkModal } from "@/components/modals/HyperlinkModal";
 import { PageManagerModal } from "@/components/modals/PageManagerModal";
+import { Toast } from "@/components/ui/Toast";
 
 import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
 
@@ -25,6 +26,7 @@ export default function Home() {
     zoomOut,
     setZoomScale,
     rotateViewing,
+    copySelectedTextToClipboard,
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +62,8 @@ export default function Home() {
       } else if (e.key.toLowerCase() === "r" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         rotateViewing("cw");
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        copySelectedTextToClipboard();
       }
     };
 
@@ -71,12 +75,13 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 text-slate-800">
-      {/* Modals */}
+      {/* Modals & Toasts */}
       <PasswordModal />
       <TextEditModal />
       <ExportModal />
       <HyperlinkModal />
       <PageManagerModal />
+      <Toast />
 
       {!hasDocument ? (
         <UploadHomepage />
