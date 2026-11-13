@@ -14,10 +14,12 @@ import {
   BlackoutCommand,
   DeleteElementCommand,
   UpdateElementCommand,
+  TextEditCommand,
 } from "../core/commands/editor-commands";
 
 export type EditorTool =
   | "select"
+  | "edit_text"
   | "add_text"
   | "add_image"
   | "whiteout"
@@ -58,6 +60,7 @@ export interface EditorState {
   activeTool: EditorTool;
   selectedElementId: string | null;
   selectedTokenId: string | null;
+  editingTokenId: string | null;
 
   // Operations Ledger
   operations: EditOperation[];
@@ -88,6 +91,8 @@ export interface EditorState {
   // Interactive Operations & Formatting
   selectElement: (id: string | null) => void;
   selectToken: (id: string | null) => void;
+  openTextEditorForToken: (tokenId: string) => void;
+  closeTextEditor: () => void;
   addOperationDirect: (op: EditOperation) => void;
   removeOperationDirect: (id: string) => void;
   updateOperationDirect: (id: string, updates: Partial<EditOperation>) => void;
@@ -136,6 +141,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: "select",
   selectedElementId: null,
   selectedTokenId: null,
+  editingTokenId: null,
 
   operations: [],
   currentStyleProfile: null,
@@ -347,6 +353,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       operations: [],
       selectedElementId: null,
       selectedTokenId: null,
+      editingTokenId: null,
     });
     useHistoryStore.getState().clearHistory();
   },
@@ -357,11 +364,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Interactive Operations Management
   selectElement: (id: string | null) => {
-    set({ selectedElementId: id, selectedTokenId: null });
+    set({ selectedElementId: id, selectedTokenId: null, editingTokenId: null });
     if (id) {
       const op = get().operations.find((o) => o.id === id);
       if (op) {
-        if (op.type === "add_text") {
+        if (op.type === "add_text" || op.type === "text_edit") {
           set({
             activeFormatting: {
               ...get().activeFormatting,
@@ -391,6 +398,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   selectToken: (id: string | null) => {
     set({ selectedTokenId: id, selectedElementId: null });
+  },
+
+  openTextEditorForToken: (tokenId: string) => {
+    set({ editingTokenId: tokenId, selectedTokenId: tokenId, selectedElementId: null });
+  },
+
+  closeTextEditor: () => {
+    set({ editingTokenId: null });
   },
 
   addOperationDirect: (op: EditOperation) => {
@@ -433,6 +448,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         break;
       case "blackout":
         command = new BlackoutCommand(op, storeCallbacks);
+        break;
+      case "text_edit":
+        command = new TextEditCommand(op, storeCallbacks);
         break;
       default:
         get().addOperationDirect(op);

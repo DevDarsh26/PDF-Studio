@@ -8,6 +8,7 @@ import { ThumbnailSidebar } from "@/components/editor/ThumbnailSidebar";
 import { PdfCanvasViewport } from "@/components/editor/PdfCanvasViewport";
 import { StatusBar } from "@/components/editor/StatusBar";
 import { PasswordModal } from "@/components/modals/PasswordModal";
+import { TextEditModal } from "@/components/modals/TextEditModal";
 
 import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
 
@@ -67,8 +68,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 text-slate-800">
-      {/* Password Protection Modal */}
+      {/* Modals */}
       <PasswordModal />
+      <TextEditModal />
 
       {!hasDocument ? (
         <UploadHomepage />

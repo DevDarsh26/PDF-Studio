@@ -31,6 +31,7 @@ import {
   AlignCenter,
   AlignRight,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 import { useEditorStore, EditorTool } from "@/store/editor-store";
 import { useHistoryStore } from "@/store/history-store";
@@ -76,6 +77,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     setActiveFormatting,
     inheritStyleFromSelectedToken,
     executeAddOperation,
+    openTextEditorForToken,
   } = useEditorStore();
 
   const { state: historyState, undo, redo } = useHistoryStore();
@@ -199,7 +201,20 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
             <MousePointer className="w-3.5 h-3.5" />
           </button>
 
-          {/* 2. Add Text */}
+          {/* 2. Edit Existing Text */}
+          <button
+            onClick={() => setActiveTool("edit_text")}
+            title="Edit Existing Text (Click any text on page)"
+            className={`p-1.5 rounded transition ${
+              activeTool === "edit_text"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-700 hover:bg-white"
+            }`}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+
+          {/* 3. Add Text */}
           <button
             onClick={() => setActiveTool("add_text")}
             title="Add Text (T)"
@@ -406,18 +421,27 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
               <strong>{selectedToken.colorHex}</strong>)
             </span>
           </div>
-          <button
-            onClick={async () => {
-              const inherited = inheritStyleFromSelectedToken();
-              if (inherited) {
-                setActiveTool("add_text");
-              }
-            }}
-            className="px-2.5 py-1 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition flex items-center space-x-1"
-          >
-            <Sparkles className="w-3 h-3" />
-            <span>Inherit Formatting & Add Text</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => openTextEditorForToken(selectedToken.id)}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition flex items-center space-x-1"
+            >
+              <Pencil className="w-3 h-3" />
+              <span>Modify Text</span>
+            </button>
+            <button
+              onClick={async () => {
+                const inherited = inheritStyleFromSelectedToken();
+                if (inherited) {
+                  setActiveTool("add_text");
+                }
+              }}
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition flex items-center space-x-1"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Inherit Formatting & Add Text</span>
+            </button>
+          </div>
         </div>
       )}
 

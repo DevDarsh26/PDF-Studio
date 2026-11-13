@@ -7,7 +7,9 @@ import {
   AddShapeOperation,
   WhiteoutOperation,
   BlackoutOperation,
+  TextEditOperation,
   EditOperation,
+  EditStrategy,
 } from "@/core/models/operations";
 import { Point, Rect } from "@/core/models/geometry";
 
@@ -31,6 +33,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     selectedTokenId,
     selectElement,
     selectToken,
+    openTextEditorForToken,
     executeAddOperation,
     executeUpdateElement,
     deleteSelected,
@@ -170,6 +173,14 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             ...initialOpState.rect,
             x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
             y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
+          },
+        });
+      } else if ("targetRect" in initialOpState) {
+        executeUpdateElement(selectedElementId, {
+          targetRect: {
+            ...initialOpState.targetRect,
+            x: Math.round((initialOpState.targetRect.x + deltaX) * 10) / 10,
+            y: Math.round((initialOpState.targetRect.y + deltaY) * 10) / 10,
           },
         });
       }
@@ -361,12 +372,13 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           : "cursor-crosshair"
       }`}
     >
-      {/* 1. Extracted Text Tokens (Clickable in select mode for Style Matching) */}
-      {activeTool === "select" &&
+      {/* 1. Extracted Text Tokens (Clickable in select mode for Style Matching, or in edit_text mode for modification) */}
+      {(activeTool === "select" || activeTool === "edit_text") &&
         currentStyleProfile &&
         currentStyleProfile.textTokens.map((token) => {
           const screenPos = pdfToScreen(token.rect.x, token.rect.y + token.rect.height);
           const isSelected = selectedTokenId === token.id;
+          const isEditTool = activeTool === "edit_text";
           return (
             <rect
               key={token.id}
@@ -374,17 +386,32 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               y={screenPos.y}
               width={token.rect.width * scale}
               height={token.rect.height * scale}
-              fill={isSelected ? "rgba(59, 130, 246, 0.2)" : "transparent"}
-              stroke={isSelected ? "#2563eb" : "transparent"}
-              strokeWidth={1}
-              strokeDasharray={isSelected ? "2 2" : undefined}
-              className="hover:fill-blue-500/10 hover:stroke-blue-400 cursor-pointer pointer-events-auto transition-colors"
+              fill={isSelected ? "rgba(59, 130, 246, 0.2)" : isEditTool ? "rgba(16, 185, 129, 0.08)" : "transparent"}
+              stroke={isSelected ? "#2563eb" : isEditTool ? "#10b981" : "transparent"}
+              strokeWidth={isEditTool ? 1.5 : 1}
+              strokeDasharray={isSelected || isEditTool ? "2 2" : undefined}
+              className={`${
+                isEditTool
+                  ? "hover:fill-emerald-500/20 hover:stroke-emerald-600 cursor-text"
+                  : "hover:fill-blue-500/10 hover:stroke-blue-400 cursor-pointer"
+              } pointer-events-auto transition-colors`}
               onClick={(e) => {
                 e.stopPropagation();
                 selectToken(token.id);
+                if (isEditTool) {
+                  openTextEditorForToken(token.id);
+                }
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                openTextEditorForToken(token.id);
               }}
             >
-              <title>{`Extracted text: "${token.text}" (${token.fontSize}pt)`}</title>
+              <title>
+                {isEditTool
+                  ? `Click to modify: "${token.text}"`
+                  : `Extracted text: "${token.text}" (${token.fontSize}pt)`}
+              </title>
             </rect>
           );
         })}
@@ -541,6 +568,81 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               );
             }
             return null;
+          }
+
+          case "text_edit": {
+            const screenMask = pdfToScreen(op.targetRect.x, op.targetRect.y + op.targetRect.height);
+            const screenText = pdfToScreen(op.targetRect.x, op.targetRect.y);
+            const isNative = op.strategy === EditStrategy.NativeStreamModification;
+            const isRecon = op.strategy === EditStrategy.LocalReconstruction;
+            const badgeColor = isNative ? "#059669" : isRecon ? "#2563eb" : "#d97706";
+            const badgeLabel = isNative ? "Native" : isRecon ? "Reconstructed" : "Overlay";
+
+            return (
+              <g
+                key={op.id}
+                onMouseDown={(e) => handleElementMouseDown(e, op)}
+                className="cursor-pointer pointer-events-auto group"
+              >
+                {/* Mask original content rectangle */}
+                <rect
+                  x={screenMask.x}
+                  y={screenMask.y}
+                  width={op.targetRect.width * scale}
+                  height={op.targetRect.height * scale}
+                  fill="#ffffff"
+                  opacity={op.opacity ?? 1.0}
+                />
+                {/* Replacement text */}
+                <text
+                  x={screenText.x}
+                  y={screenText.y}
+                  fill={op.fontColorHex}
+                  fontSize={op.fontSize * scale}
+                  fontFamily={op.fontFamily}
+                  fontWeight={op.fontWeight}
+                  fontStyle={op.fontStyle}
+                  opacity={op.opacity ?? 1.0}
+                >
+                  {op.replacementText}
+                </text>
+                {/* Strategy border indicator when selected or hovered */}
+                <rect
+                  x={screenMask.x - 1}
+                  y={screenMask.y - 1}
+                  width={Math.max(op.targetRect.width * scale, op.replacementText.length * op.fontSize * 0.55 * scale) + 2}
+                  height={op.targetRect.height * scale + 2}
+                  fill="none"
+                  stroke={isSelected ? badgeColor : "transparent"}
+                  strokeWidth={1.5}
+                  strokeDasharray="3 2"
+                  className="group-hover:stroke-slate-400"
+                />
+                {/* Strategy Badge Tag */}
+                {isSelected && (
+                  <g transform={`translate(${screenMask.x}, ${screenMask.y - 14})`}>
+                    <rect
+                      x={0}
+                      y={0}
+                      width={badgeLabel.length * 7 + 10}
+                      height={13}
+                      rx={2}
+                      fill={badgeColor}
+                    />
+                    <text
+                      x={5}
+                      y={9}
+                      fill="#ffffff"
+                      fontSize={8}
+                      fontWeight="bold"
+                      fontFamily="sans-serif"
+                    >
+                      {badgeLabel}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
           }
 
           default:

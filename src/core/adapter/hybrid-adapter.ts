@@ -26,6 +26,12 @@ import {
 } from "../models/errors";
 import { validatePdfBytes } from "../utils/validation";
 import { hexToRgb } from "../utils/color";
+import { EditStrategy } from "../models/operations";
+import {
+  applyNativeModification,
+  applyLocalReconstruction,
+  applyVisualOverlayFallback,
+} from "../engine/stream-surgery";
 
 /**
  * HybridPdfAdapter combines Mozilla's PDF.js (for layout, fonts, links, and high-DPI rendering)
@@ -355,7 +361,8 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
     for (const op of options.operations) {
       if ("pageNumber" in op && op.pageNumber <= pdfDoc.getPageCount()) {
-        const page = pdfDoc.getPage(op.pageNumber - 1);
+        const pageIdx = op.pageNumber - 1;
+        const page = pdfDoc.getPage(pageIdx);
 
         switch (op.type) {
           case "whiteout": {
@@ -510,26 +517,60 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
           }
 
           case "text_edit": {
-            page.drawRectangle({
-              x: op.targetRect.x,
-              y: op.targetRect.y,
-              width: op.targetRect.width,
-              height: op.targetRect.height,
-              color: rgb(1, 1, 1),
-            });
-            const rgbColor = hexToRgb(op.fontColorHex) || { r: 0, g: 0, b: 0 };
-            const font = resolveFont(
-              op.fontFamily,
-              op.fontWeight === "bold",
-              op.fontStyle === "italic"
-            );
-            page.drawText(op.replacementText, {
-              x: op.targetRect.x,
-              y: op.targetRect.y,
-              size: op.fontSize,
-              font,
-              color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
-            });
+            if (op.strategy === EditStrategy.NativeStreamModification) {
+              const success = await applyNativeModification(
+                pdfDoc,
+                pageIdx,
+                op.originalText,
+                op.replacementText
+              );
+              if (!success) {
+                // If stream surgery could not find exact byte sequence, gracefully fall back to local reconstruction
+                await applyLocalReconstruction(
+                  pdfDoc,
+                  pageIdx,
+                  op.originalText,
+                  op.replacementText,
+                  op.targetRect,
+                  {
+                    fontFamily: op.fontFamily,
+                    fontSize: op.fontSize,
+                    fontWeight: op.fontWeight,
+                    fontStyle: op.fontStyle,
+                    fontColorHex: op.fontColorHex,
+                  }
+                );
+              }
+            } else if (op.strategy === EditStrategy.LocalReconstruction) {
+              await applyLocalReconstruction(
+                pdfDoc,
+                pageIdx,
+                op.originalText,
+                op.replacementText,
+                op.targetRect,
+                {
+                  fontFamily: op.fontFamily,
+                  fontSize: op.fontSize,
+                  fontWeight: op.fontWeight,
+                  fontStyle: op.fontStyle,
+                  fontColorHex: op.fontColorHex,
+                }
+              );
+            } else {
+              await applyVisualOverlayFallback(
+                pdfDoc,
+                pageIdx,
+                op.targetRect,
+                op.replacementText,
+                {
+                  fontFamily: op.fontFamily,
+                  fontSize: op.fontSize,
+                  fontWeight: op.fontWeight,
+                  fontStyle: op.fontStyle,
+                  fontColorHex: op.fontColorHex,
+                }
+              );
+            }
             break;
           }
         }

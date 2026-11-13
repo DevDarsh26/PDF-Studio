@@ -6,6 +6,7 @@ import {
   AddShapeOperation,
   WhiteoutOperation,
   BlackoutOperation,
+  TextEditOperation,
   FormattingStyle,
 } from "../models/operations";
 
@@ -261,3 +262,39 @@ export class UpdateElementCommand implements Command {
     return null; // Update modifies existing operation in place
   }
 }
+
+/**
+ * Command to modify existing document text (Strategy A, B, or C).
+ */
+export class TextEditCommand implements Command {
+  readonly id: string;
+  readonly type = "text_edit";
+  readonly description: string;
+  readonly timestamp = Date.now();
+  private operation: TextEditOperation;
+  private store: OperationStoreCallback;
+
+  constructor(operation: TextEditOperation, store: OperationStoreCallback) {
+    this.id = operation.id;
+    this.operation = operation;
+    this.store = store;
+    this.description = `Edit text: "${operation.originalText.substring(0, 12)}" → "${operation.replacementText.substring(0, 12)}" [${operation.strategy}]`;
+  }
+
+  execute(): void {
+    this.store.addOperation(this.operation);
+  }
+
+  undo(): void {
+    this.store.removeOperation(this.id);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+
+  getOperation(): TextEditOperation {
+    return this.operation;
+  }
+}
+
