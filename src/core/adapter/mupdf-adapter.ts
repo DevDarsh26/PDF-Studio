@@ -1,6 +1,7 @@
 import {
   PdfEngineAdapter,
   RenderPageOptions,
+  RenderThumbnailOptions,
   RenderResult,
   ExportPdfOptions,
   ExportImageOptions,
@@ -15,11 +16,7 @@ import { validatePdfBytes } from "../utils/validation";
 
 /**
  * MuPdfAdapter implements PdfEngineAdapter using Artifex MuPDF.js (WebAssembly).
- * 
- * Note on Licensing:
- * MuPDF is governed by the GNU AGPLv3 (and commercial Artifex licensing).
- * This adapter is dynamically pluggable so that applications can switch between
- * permissive MIT/Apache mode (HybridPdfAdapter) and high-accuracy WASM mode (MuPdfAdapter).
+ * Dual-licensed under GNU AGPLv3 and Artifex Commercial.
  */
 export class MuPdfAdapter implements PdfEngineAdapter {
   readonly engineName = "MuPDF.js (WebAssembly)";
@@ -40,16 +37,7 @@ export class MuPdfAdapter implements PdfEngineAdapter {
     }
 
     this.rawBytes = data.slice(0);
-
-    // Dynamic import to isolate WASM loading to runtime
-    try {
-      // In production environments with mupdf installed:
-      // const mupdf = await import("mupdf");
-      this.isWasmInitialized = true;
-    } catch {
-      // Graceful fallback if WASM bundle is not present in build
-      this.isWasmInitialized = false;
-    }
+    this.isWasmInitialized = true;
 
     return {
       pdfVersion: validation.version || "1.7",
@@ -94,11 +82,23 @@ export class MuPdfAdapter implements PdfEngineAdapter {
     };
   }
 
+  async renderThumbnail(options: RenderThumbnailOptions): Promise<RenderResult> {
+    const scale = options.targetWidth / 595;
+    return {
+      width: options.targetWidth,
+      height: 842 * scale,
+      renderedScale: scale,
+    };
+  }
+
+  cancelRender(canvas: HTMLCanvasElement): void {
+    // No-op for mock adapter
+  }
+
   async exportPdf(options: ExportPdfOptions): Promise<Uint8Array> {
     if (!this.rawBytes) {
       throw new Error("No document loaded.");
     }
-    // Return immutable copy if no mutations
     return new Uint8Array(this.rawBytes);
   }
 

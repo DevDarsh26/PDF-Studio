@@ -23,3 +23,4 @@ export function createPdfAdapter(type: SupportedEngineType = "hybrid"): PdfEngin
       throw new Error(`Unsupported PDF engine type: ${type}`);
   }
 }
+

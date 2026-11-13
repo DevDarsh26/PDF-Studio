@@ -1,13 +1,20 @@
 import { PdfDocumentMetadata, PageInfo, DocumentValidationResult } from "../models/document";
 import { DocumentStyleProfile } from "../models/style-profile";
 import { EditOperation } from "../models/operations";
-import { Dimensions } from "../models/geometry";
 
 export interface RenderPageOptions {
   pageNumber: number;
   scale: number;
+  rotation?: number; // Additional viewing rotation degrees (0, 90, 180, 270)
   canvas: HTMLCanvasElement;
   renderAnnotations?: boolean;
+  devicePixelRatio?: number;
+}
+
+export interface RenderThumbnailOptions {
+  pageNumber: number;
+  targetWidth: number;
+  canvas: HTMLCanvasElement;
 }
 
 export interface RenderResult {
@@ -46,6 +53,7 @@ export interface PdfEngineAdapter {
 
   /**
    * Initializes a document session from raw immutable bytes.
+   * Throws PasswordRequiredError or InvalidPasswordError if password-protected.
    */
   loadDocument(data: ArrayBuffer, password?: string): Promise<PdfDocumentMetadata>;
 
@@ -63,6 +71,16 @@ export interface PdfEngineAdapter {
    * High-accuracy rasterization of a specific page to an HTML5 canvas.
    */
   renderPage(options: RenderPageOptions): Promise<RenderResult>;
+
+  /**
+   * Quick thumbnail rasterization for the navigation sidebar.
+   */
+  renderThumbnail(options: RenderThumbnailOptions): Promise<RenderResult>;
+
+  /**
+   * Cancels in-flight render task for a given canvas if active.
+   */
+  cancelRender?(canvas: HTMLCanvasElement): void;
 
   /**
    * Applies all recorded operations on top of the immutable source bytes,

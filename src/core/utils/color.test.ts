@@ -28,3 +28,4 @@ describe("Color Utilities", () => {
     expect(normalizePdfColorToHex([1, 0, 0], "RGB")).toBe("#ff0000");
   });
 });
+

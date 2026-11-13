@@ -98,3 +98,4 @@ Hyperlinks (`/Subtype /Link`) are distinct PDF annotation dictionary entries. Du
 - **No Remote Telemetry or Tracking:** No document hashes, metadata, or contents are sent to external analytics or APIs.
 - **Strict Web Worker Sandboxing:** Rendering and parsing operations run inside Web Workers to ensure responsive UI frames and isolate memory.
 - **Memory Lifetime:** When a document is closed or replaced, references to ArrayBuffers are decoupled, canvas contexts cleared, and temporary Blob URLs explicitly revoked via `URL.revokeObjectURL()`.
+

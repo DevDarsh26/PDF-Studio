@@ -104,3 +104,4 @@ describe("CommandLedger", () => {
     expect(ledger.state.isDirty).toBe(true);
   });
 });
+

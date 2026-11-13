@@ -54,3 +54,4 @@ export function quadToBoundingRect(q: Quad): Rect {
     height: maxY - minY,
   };
 }
+

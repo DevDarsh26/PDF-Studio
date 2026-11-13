@@ -30,3 +30,4 @@ export interface Command {
    */
   getOperation(): EditOperation | null;
 }
+

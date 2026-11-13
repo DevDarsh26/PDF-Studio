@@ -55,3 +55,4 @@ export function normalizePdfColorToHex(components: number[], colorSpace: "RGB" |
   }
   return "#000000";
 }
+

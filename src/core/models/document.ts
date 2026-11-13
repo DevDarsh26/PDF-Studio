@@ -28,3 +28,4 @@ export interface DocumentValidationResult {
   version?: string;
   pageCount?: number;
 }
+

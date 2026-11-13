@@ -104,3 +104,4 @@ export class CommandLedger {
     this.dirtyPoint = 0;
   }
 }
+

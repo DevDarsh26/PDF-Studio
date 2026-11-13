@@ -88,3 +88,4 @@ export function validatePdfBytes(buffer: ArrayBuffer): DocumentValidationResult 
 export function isFileExceedingMemoryLimit(fileSizeBytes: number): boolean {
   return fileSizeBytes > MAX_RECOMMENDED_BROWSER_SIZE_BYTES;
 }
+

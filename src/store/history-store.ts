@@ -56,3 +56,4 @@ export const useHistoryStore = create<HistoryStoreState>((set, get) => ({
     set({ state: ledger.state });
   },
 }));
+

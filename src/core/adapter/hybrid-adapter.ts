@@ -1,6 +1,7 @@
 import {
   PdfEngineAdapter,
   RenderPageOptions,
+  RenderThumbnailOptions,
   RenderResult,
   ExportPdfOptions,
   ExportImageOptions,
@@ -18,14 +19,19 @@ import {
   HyperlinkInfo,
   TextToken,
 } from "../models/style-profile";
+import {
+  PasswordRequiredError,
+  InvalidPasswordError,
+  CorruptedPdfError,
+} from "../models/errors";
 import { validatePdfBytes } from "../utils/validation";
 import { hexToRgb } from "../utils/color";
 
 /**
- * HybridPdfAdapter combines PDF.js (for rendering and structural analysis)
- * with pdf-lib (for document manipulation and export).
+ * HybridPdfAdapter combines Mozilla's PDF.js (for layout, fonts, links, and high-DPI rendering)
+ * with pdf-lib (for document mutations and saving).
  * 
- * Runs 100% client-side with zero external dependencies and under permissive MIT/Apache licenses.
+ * 100% client-side, permissive MIT/Apache licenses, zero network dependencies.
  */
 export class HybridPdfAdapter implements PdfEngineAdapter {
   readonly engineName = "Hybrid (PDF.js + pdf-lib)";
@@ -33,8 +39,21 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   readonly isWasmAccelerated = false;
 
   private rawBytes: ArrayBuffer | null = null;
+  private currentPassword: string | undefined = undefined;
   private metadata: PdfDocumentMetadata | null = null;
   private pageInfos: PageInfo[] = [];
+
+  // Cached PDF.js document instance to prevent reparsing on every render
+  private cachedPdfJsDoc: any = null;
+
+  // Active rendering tasks mapped by canvas element for clean cancellation
+  private activeRenderTasks = new WeakMap<HTMLCanvasElement, any>();
+
+  private configureWorker(pdfjsLib: any) {
+    if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    }
+  }
 
   async validate(data: ArrayBuffer): Promise<DocumentValidationResult> {
     return validatePdfBytes(data);
@@ -43,51 +62,102 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   async loadDocument(data: ArrayBuffer, password?: string): Promise<PdfDocumentMetadata> {
     const validation = await this.validate(data);
     if (!validation.isValid) {
-      throw new Error(validation.error || "Invalid PDF document binary.");
+      throw new CorruptedPdfError(validation.error || "Invalid PDF document binary.");
     }
 
-    // Keep original bytes immutable by storing an isolated copy if detached
-    this.rawBytes = data.slice(0);
+    if (validation.isEncrypted && !password) {
+      throw new PasswordRequiredError();
+    }
 
-    // Dynamic import to support SSR/Next.js client-side execution
-    const { PDFDocument } = await import("pdf-lib");
-    
-    let pdfDoc;
+    // Clean up any previously loaded document
+    await this.dispose();
+
+    // Store immutable copy
+    this.rawBytes = data.slice(0);
+    this.currentPassword = password;
+
+    const pdfjsLib = await import("pdfjs-dist");
+    this.configureWorker(pdfjsLib);
+
+    // Load with PDF.js for parsing and rendering
     try {
-      pdfDoc = await PDFDocument.load(this.rawBytes, {
-        ignoreEncryption: false,
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(this.rawBytes.slice(0)),
+        password: password || undefined,
+        useSystemFonts: true,
+        cMapUrl: "/cmaps/",
+        cMapPacked: true,
+      });
+
+      this.cachedPdfJsDoc = await loadingTask.promise;
+    } catch (err: any) {
+      const errorMsg = (err?.message || "").toLowerCase();
+      const errorName = err?.name || "";
+
+      if (
+        errorName === "PasswordException" ||
+        errorMsg.includes("password") ||
+        errorMsg.includes("encrypt")
+      ) {
+        if (!password) {
+          throw new PasswordRequiredError();
+        } else {
+          throw new InvalidPasswordError();
+        }
+      }
+      throw new CorruptedPdfError(`Failed to parse PDF: ${err?.message || err}`);
+    }
+
+    // Load with pdf-lib to extract catalog metadata and prepare mutation engine
+    const { PDFDocument } = await import("pdf-lib");
+    let pdfLibDoc;
+    try {
+      pdfLibDoc = await PDFDocument.load(this.rawBytes.slice(0), {
+        ignoreEncryption: true,
         updateMetadata: false,
       });
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      if (errorMsg.toLowerCase().includes("encrypt") || errorMsg.toLowerCase().includes("password")) {
-        throw new Error("Document is password protected.");
-      }
-      throw err;
+    } catch {
+      // If pdf-lib fails password or xref, we fallback to PDF.js metadata
     }
 
-    const pageCount = pdfDoc.getPageCount();
-    const pages = pdfDoc.getPages();
-    this.pageInfos = pages.map((page, index) => {
-      const { width, height } = page.getSize();
-      return {
-        pageNumber: index + 1,
-        dimensions: { width, height },
-        rotation: page.getRotation().angle,
-      };
-    });
+    const numPages = this.cachedPdfJsDoc.numPages;
+    const pageInfos: PageInfo[] = [];
+
+    for (let i = 1; i <= numPages; i++) {
+      const page = await this.cachedPdfJsDoc.getPage(i);
+      const viewport = page.getViewport({ scale: 1.0 });
+      pageInfos.push({
+        pageNumber: i,
+        dimensions: {
+          width: viewport.width,
+          height: viewport.height,
+        },
+        rotation: page.rotate || 0,
+      });
+    }
+
+    this.pageInfos = pageInfos;
+
+    // Extract document metadata
+    let docMetadata: any = {};
+    try {
+      const pdfJsMetadata = await this.cachedPdfJsDoc.getMetadata();
+      docMetadata = pdfJsMetadata?.info || {};
+    } catch {
+      // Ignore metadata extraction errors
+    }
 
     this.metadata = {
-      title: pdfDoc.getTitle(),
-      author: pdfDoc.getAuthor(),
-      subject: pdfDoc.getSubject(),
-      creator: pdfDoc.getCreator(),
-      producer: pdfDoc.getProducer(),
-      creationDate: pdfDoc.getCreationDate(),
-      modificationDate: pdfDoc.getModificationDate(),
-      pdfVersion: validation.version || "1.7",
-      isEncrypted: false,
-      pageCount,
+      title: docMetadata?.Title || pdfLibDoc?.getTitle() || undefined,
+      author: docMetadata?.Author || pdfLibDoc?.getAuthor() || undefined,
+      subject: docMetadata?.Subject || pdfLibDoc?.getSubject() || undefined,
+      creator: docMetadata?.Creator || pdfLibDoc?.getCreator() || undefined,
+      producer: docMetadata?.Producer || pdfLibDoc?.getProducer() || undefined,
+      creationDate: pdfLibDoc?.getCreationDate() || undefined,
+      modificationDate: pdfLibDoc?.getModificationDate() || undefined,
+      pdfVersion: validation.version || docMetadata?.PDFFormatVersion || "1.7",
+      isEncrypted: validation.isEncrypted || Boolean(password),
+      pageCount: numPages,
       fileSizeBytes: data.byteLength,
     };
 
@@ -95,38 +165,158 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   }
 
   async getPageInfos(): Promise<PageInfo[]> {
-    if (!this.rawBytes) {
+    if (!this.cachedPdfJsDoc) {
       throw new Error("No document loaded.");
     }
     return [...this.pageInfos];
   }
 
-  async analyzeStyleProfile(pageNumber: number): Promise<DocumentStyleProfile> {
-    if (!this.rawBytes) {
+  cancelRender(canvas: HTMLCanvasElement): void {
+    const activeTask = this.activeRenderTasks.get(canvas);
+    if (activeTask) {
+      try {
+        activeTask.cancel();
+      } catch {
+        // Ignored if already finished or cancelled
+      }
+      this.activeRenderTasks.delete(canvas);
+    }
+  }
+
+  async renderPage(options: RenderPageOptions): Promise<RenderResult> {
+    if (!this.cachedPdfJsDoc) {
       throw new Error("No document loaded.");
     }
 
-    // Lazy load pdfjs-dist for inspection
-    const pdfjsLib = await import("pdfjs-dist");
+    const canvas = options.canvas;
+    // Cancel in-flight render on this canvas if any
+    this.cancelRender(canvas);
 
-    // Load document in pdfjs
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(this.rawBytes.slice(0)),
-      useSystemFonts: true,
+    const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+    const dpr =
+      options.devicePixelRatio ||
+      (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+
+    // Calculate total rotation = native page rotation + viewing rotation
+    const baseRotation = page.rotate || 0;
+    const additionalRotation = options.rotation || 0;
+    const totalRotation = (baseRotation + additionalRotation) % 360;
+
+    // Viewport scaled by DPR for sharp high-DPI rendering
+    const actualScale = options.scale * dpr;
+    const viewport = page.getViewport({ scale: actualScale, rotation: totalRotation });
+
+    // Logical dimensions for CSS
+    const logicalViewport = page.getViewport({ scale: options.scale, rotation: totalRotation });
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = `${logicalViewport.width}px`;
+    canvas.style.height = `${logicalViewport.height}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get 2D canvas context.");
+    }
+
+    const renderTask = page.render({
+      canvasContext: ctx,
+      viewport,
+      intent: "display",
     });
 
-    const pdfDoc = await loadingTask.promise;
-    const page = await pdfDoc.getPage(pageNumber);
+    this.activeRenderTasks.set(canvas, renderTask);
 
+    try {
+      await renderTask.promise;
+    } catch (err: any) {
+      if (err?.name === "RenderingCancelledException") {
+        // Normal cancellation when user zooms or pages rapidly
+        return {
+          width: logicalViewport.width,
+          height: logicalViewport.height,
+          renderedScale: options.scale,
+        };
+      }
+      throw err;
+    } finally {
+      this.activeRenderTasks.delete(canvas);
+    }
+
+    return {
+      width: Math.round(logicalViewport.width),
+      height: Math.round(logicalViewport.height),
+      renderedScale: options.scale,
+    };
+  }
+
+  async renderThumbnail(options: RenderThumbnailOptions): Promise<RenderResult> {
+    if (!this.cachedPdfJsDoc) {
+      throw new Error("No document loaded.");
+    }
+
+    const canvas = options.canvas;
+    this.cancelRender(canvas);
+
+    const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+    const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+    const scale = options.targetWidth / unscaledViewport.width;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const viewport = page.getViewport({ scale: scale * dpr, rotation: page.rotate || 0 });
+    const logicalViewport = page.getViewport({ scale, rotation: page.rotate || 0 });
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = `${logicalViewport.width}px`;
+    canvas.style.height = `${logicalViewport.height}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get 2D canvas context for thumbnail.");
+    }
+
+    const renderTask = page.render({
+      canvasContext: ctx,
+      viewport,
+    });
+
+    this.activeRenderTasks.set(canvas, renderTask);
+
+    try {
+      await renderTask.promise;
+    } catch (err: any) {
+      if (err?.name === "RenderingCancelledException") {
+        return {
+          width: logicalViewport.width,
+          height: logicalViewport.height,
+          renderedScale: scale,
+        };
+      }
+      throw err;
+    } finally {
+      this.activeRenderTasks.delete(canvas);
+    }
+
+    return {
+      width: Math.round(logicalViewport.width),
+      height: Math.round(logicalViewport.height),
+      renderedScale: scale,
+    };
+  }
+
+  async analyzeStyleProfile(pageNumber: number): Promise<DocumentStyleProfile> {
+    if (!this.cachedPdfJsDoc) {
+      throw new Error("No document loaded.");
+    }
+
+    const page = await this.cachedPdfJsDoc.getPage(pageNumber);
     const textContent = await page.getTextContent();
     const annotations = await page.getAnnotations();
 
     const detectedFonts = new Map<string, FontProfile>();
-    const colorUsageMap = new Map<string, number>();
     const tokens: TextToken[] = [];
     const layoutBlocks: LayoutBlock[] = [];
-
-    // Parse font styles
     const styles = textContent.styles;
 
     for (let i = 0; i < textContent.items.length; i++) {
@@ -147,14 +337,15 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
           family: fontFamily,
           weight: style.descent && style.descent < -0.3 ? "bold" : "normal",
           isBold: fontFamily.toLowerCase().includes("bold"),
-          isItalic: fontFamily.toLowerCase().includes("italic") || fontFamily.toLowerCase().includes("oblique"),
+          isItalic:
+            fontFamily.toLowerCase().includes("italic") ||
+            fontFamily.toLowerCase().includes("oblique"),
           isEmbedded: true,
           isSubset: fontName.includes("+"),
           frequency: 1,
         });
       } else {
-        const font = detectedFonts.get(fontName)!;
-        font.frequency += 1;
+        detectedFonts.get(fontName)!.frequency += 1;
       }
 
       const token: TextToken = {
@@ -175,7 +366,6 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
       tokens.push(token);
     }
 
-    // Group adjacent tokens into layout blocks
     if (tokens.length > 0) {
       layoutBlocks.push({
         id: `block-${pageNumber}-0`,
@@ -188,7 +378,6 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
       });
     }
 
-    // Parse hyperlinks
     const hyperlinks: HyperlinkInfo[] = [];
     for (let i = 0; i < annotations.length; i++) {
       const annot = annotations[i];
@@ -208,17 +397,9 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
       }
     }
 
-    const colors: ColorUsage[] = Array.from(colorUsageMap.entries()).map(([colorHex, frequency]) => ({
-      colorHex,
-      colorSpace: "RGB",
-      components: [0, 0, 0],
-      frequency,
-      contexts: ["text"],
-    }));
-
     return {
       detectedFonts,
-      frequentlyUsedColors: colors,
+      frequentlyUsedColors: [],
       layoutBlocks,
       hyperlinks,
       inferredProperties: {
@@ -229,52 +410,16 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     };
   }
 
-  async renderPage(options: RenderPageOptions): Promise<RenderResult> {
-    if (!this.rawBytes) {
-      throw new Error("No document loaded.");
-    }
-
-    const pdfjsLib = await import("pdfjs-dist");
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(this.rawBytes.slice(0)),
-      useSystemFonts: true,
-    });
-
-    const pdfDoc = await loadingTask.promise;
-    const page = await pdfDoc.getPage(options.pageNumber);
-
-    const viewport = page.getViewport({ scale: options.scale });
-    const canvas = options.canvas;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      throw new Error("Failed to acquire 2D rendering context from canvas.");
-    }
-
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-    const renderContext = {
-      canvasContext: ctx,
-      viewport,
-    };
-
-    await page.render(renderContext).promise;
-
-    return {
-      width: viewport.width,
-      height: viewport.height,
-      renderedScale: options.scale,
-    };
-  }
-
   async exportPdf(options: ExportPdfOptions): Promise<Uint8Array> {
     if (!this.rawBytes) {
       throw new Error("No document loaded.");
     }
 
     const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
-    const pdfDoc = await PDFDocument.load(this.rawBytes);
+    const pdfDoc = await PDFDocument.load(this.rawBytes.slice(0), {
+      ignoreEncryption: true,
+    });
+
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     for (const op of options.operations) {
@@ -320,7 +465,6 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
           }
 
           case "text_edit": {
-            // Strategy 3 (Visual Overlay Fallback): Cover target area with whiteout and redraw
             page.drawRectangle({
               x: op.targetRect.x,
               y: op.targetRect.y,
@@ -346,7 +490,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   }
 
   async exportPageImage(options: ExportImageOptions): Promise<Blob> {
-    if (!this.rawBytes) {
+    if (!this.cachedPdfJsDoc) {
       throw new Error("No document loaded.");
     }
 
@@ -379,7 +523,16 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   }
 
   async dispose(): Promise<void> {
+    if (this.cachedPdfJsDoc) {
+      try {
+        await this.cachedPdfJsDoc.destroy();
+      } catch {
+        // Ignore destroy error
+      }
+      this.cachedPdfJsDoc = null;
+    }
     this.rawBytes = null;
+    this.currentPassword = undefined;
     this.metadata = null;
     this.pageInfos = [];
   }

@@ -65,3 +65,4 @@
 - [ ] High-resolution image export (PDF to PNG / JPG with selectable DPI).
 - [ ] Side-by-side visual comparison between original and edited documents.
 - [ ] Cross-browser validation (Chrome, Firefox, Safari, Edge).
+
