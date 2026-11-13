@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { PdfDocumentMetadata, PageInfo } from "../core/models/document";
-import { DocumentStyleProfile, TextToken } from "../core/models/style-profile";
+import { DocumentStyleProfile, TextToken, HyperlinkInfo } from "../core/models/style-profile";
+import { Rect } from "../core/models/geometry";
 import { PdfEngineAdapter } from "../core/adapter/types";
 import { createPdfAdapter, SupportedEngineType } from "../core/adapter";
 import { PasswordRequiredError, InvalidPasswordError } from "../core/models/errors";
@@ -15,6 +16,8 @@ import {
   DeleteElementCommand,
   UpdateElementCommand,
   TextEditCommand,
+  RedactionCommand,
+  AddHyperlinkCommand,
 } from "../core/commands/editor-commands";
 
 export type EditorTool =
@@ -24,6 +27,7 @@ export type EditorTool =
   | "add_image"
   | "whiteout"
   | "blackout"
+  | "redaction"
   | "shape_rect"
   | "shape_circle"
   | "shape_line"
@@ -62,6 +66,9 @@ export interface EditorState {
   selectedTokenId: string | null;
   editingTokenId: string | null;
   isExportModalOpen: boolean;
+  isPageManagerOpen: boolean;
+  pendingLinkRect: Rect | null;
+  activeEditingLink: HyperlinkInfo | null;
 
   // Operations Ledger
   operations: EditOperation[];
@@ -96,6 +103,11 @@ export interface EditorState {
   closeTextEditor: () => void;
   openExportModal: () => void;
   closeExportModal: () => void;
+  openPageManager: () => void;
+  closePageManager: () => void;
+  openAddLinkModal: (rect: Rect) => void;
+  openEditLinkModal: (link: HyperlinkInfo) => void;
+  closeLinkModal: () => void;
   addOperationDirect: (op: EditOperation) => void;
   removeOperationDirect: (id: string) => void;
   updateOperationDirect: (id: string, updates: Partial<EditOperation>) => void;
@@ -146,6 +158,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedTokenId: null,
   editingTokenId: null,
   isExportModalOpen: false,
+  isPageManagerOpen: false,
+  pendingLinkRect: null,
+  activeEditingLink: null,
 
   operations: [],
   currentStyleProfile: null,
@@ -359,6 +374,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedTokenId: null,
       editingTokenId: null,
       isExportModalOpen: false,
+  isPageManagerOpen: false,
+  pendingLinkRect: null,
+  activeEditingLink: null,
     });
     useHistoryStore.getState().clearHistory();
   },
@@ -421,6 +439,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ isExportModalOpen: false });
   },
 
+  openPageManager: () => {
+    set({ isPageManagerOpen: true });
+  },
+
+  closePageManager: () => {
+    set({ isPageManagerOpen: false });
+  },
+
+  openAddLinkModal: (rect: Rect) => {
+    set({ pendingLinkRect: rect, activeEditingLink: null });
+  },
+
+  openEditLinkModal: (link: HyperlinkInfo) => {
+    set({ activeEditingLink: link, pendingLinkRect: link.rect });
+  },
+
+  closeLinkModal: () => {
+    set({ pendingLinkRect: null, activeEditingLink: null });
+  },
+
   addOperationDirect: (op: EditOperation) => {
     set({ operations: [...get().operations, op] });
   },
@@ -461,6 +499,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         break;
       case "blackout":
         command = new BlackoutCommand(op, storeCallbacks);
+        break;
+      case "redaction":
+        command = new RedactionCommand(op, storeCallbacks);
+        break;
+      case "add_hyperlink":
+        command = new AddHyperlinkCommand(op, storeCallbacks);
         break;
       case "text_edit":
         command = new TextEditCommand(op, storeCallbacks);

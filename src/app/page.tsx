@@ -10,6 +10,8 @@ import { StatusBar } from "@/components/editor/StatusBar";
 import { PasswordModal } from "@/components/modals/PasswordModal";
 import { TextEditModal } from "@/components/modals/TextEditModal";
 import { ExportModal } from "@/components/modals/ExportModal";
+import { HyperlinkModal } from "@/components/modals/HyperlinkModal";
+import { PageManagerModal } from "@/components/modals/PageManagerModal";
 
 import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
 
@@ -73,6 +75,8 @@ export default function Home() {
       <PasswordModal />
       <TextEditModal />
       <ExportModal />
+      <HyperlinkModal />
+      <PageManagerModal />
 
       {!hasDocument ? (
         <UploadHomepage />

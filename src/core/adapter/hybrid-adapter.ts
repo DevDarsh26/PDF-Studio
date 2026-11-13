@@ -33,6 +33,11 @@ import {
   applyVisualOverlayFallback,
   applyPermanentRedaction,
 } from "../engine/stream-surgery";
+import {
+  addHyperlinkAnnotation,
+  removeHyperlinkAnnotation,
+} from "../hyperlinks/hyperlink-manager";
+import { addBlankPage } from "../page-manager/page-manager";
 
 /**
  * HybridPdfAdapter combines Mozilla's PDF.js (for layout, fonts, links, and high-DPI rendering)
@@ -361,6 +366,11 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     };
 
     for (const op of options.operations) {
+      if (op.type === "add_page") {
+        await addBlankPage(pdfDoc, op.insertAtIndex, op.dimensions);
+        continue;
+      }
+
       if ("pageNumber" in op && op.pageNumber <= pdfDoc.getPageCount()) {
         const pageIdx = op.pageNumber - 1;
         const page = pdfDoc.getPage(pageIdx);
@@ -593,6 +603,16 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
           case "page_delete": {
             pdfDoc.removePage(pageIdx);
+            break;
+          }
+
+          case "add_hyperlink": {
+            await addHyperlinkAnnotation(pdfDoc, pageIdx, op);
+            break;
+          }
+
+          case "delete_hyperlink": {
+            await removeHyperlinkAnnotation(pdfDoc, pageIdx, op.rect);
             break;
           }
         }

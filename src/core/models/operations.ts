@@ -124,6 +124,28 @@ export interface PageDeleteOperation {
   pageNumber: number;
 }
 
+export interface AddHyperlinkOperation extends BaseOperation {
+  type: "add_hyperlink";
+  rect: Rect;
+  targetType: "external_url" | "internal_page";
+  url?: string;
+  targetPage?: number;
+}
+
+export interface DeleteHyperlinkOperation extends BaseOperation {
+  type: "delete_hyperlink";
+  linkId: string;
+  rect: Rect;
+}
+
+export interface AddPageOperation {
+  id: string;
+  type: "add_page";
+  timestamp: number;
+  insertAtIndex: number;
+  dimensions: Dimensions;
+}
+
 export type EditOperation =
   | TextEditOperation
   | WhiteoutOperation
@@ -134,4 +156,7 @@ export type EditOperation =
   | AddShapeOperation
   | PageReorderOperation
   | PageRotateOperation
-  | PageDeleteOperation;
+  | PageDeleteOperation
+  | AddHyperlinkOperation
+  | DeleteHyperlinkOperation
+  | AddPageOperation;

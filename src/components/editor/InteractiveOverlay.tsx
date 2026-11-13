@@ -7,6 +7,8 @@ import {
   AddShapeOperation,
   WhiteoutOperation,
   BlackoutOperation,
+  RedactionOperation,
+  AddHyperlinkOperation,
   TextEditOperation,
   EditOperation,
   EditStrategy,
@@ -34,6 +36,8 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     selectElement,
     selectToken,
     openTextEditorForToken,
+    openAddLinkModal,
+    openEditLinkModal,
     executeAddOperation,
     executeUpdateElement,
     deleteSelected,
@@ -272,6 +276,34 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           opacity: 1.0,
         };
         await executeAddOperation(op);
+      } else if (activeTool === "redaction") {
+        // Collect intersecting text tokens to permanently purge
+        const intersectingText = currentStyleProfile?.textTokens
+          .filter((t) => {
+            const isOverlapX = t.rect.x < rect.x + rect.width && t.rect.x + t.rect.width > rect.x;
+            const isOverlapY = t.rect.y < rect.y + rect.height && t.rect.y + t.rect.height > rect.y;
+            return isOverlapX && isOverlapY;
+          })
+          .map((t) => t.text)
+          .join(" ");
+
+        const op: RedactionOperation = {
+          id,
+          pageNumber: currentPageNumber,
+          timestamp: Date.now(),
+          type: "redaction",
+          rect,
+          isPermanent: true,
+          fillColorHex: "#000000",
+          textToRedact: intersectingText || undefined,
+        };
+        await executeAddOperation(op);
+      } else if (activeTool === "link") {
+        openAddLinkModal(rect);
+        setStartPoint(null);
+        setCurrentPoint(null);
+        setActiveTool("select");
+        return;
       } else if (activeTool.startsWith("shape_")) {
         const shapeType = activeTool.replace("shape_", "") as
           | "rectangle"
@@ -413,6 +445,58 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                   : `Extracted text: "${token.text}" (${token.fontSize}pt)`}
               </title>
             </rect>
+          );
+        })}
+
+      {/* Extracted Hyperlinks (Clickable Link Regions) */}
+      {currentStyleProfile &&
+        currentStyleProfile.hyperlinks.map((link) => {
+          const screenPos = pdfToScreen(link.rect.x, link.rect.y + link.rect.height);
+          const isExt = link.targetType === "external_url";
+          return (
+            <g
+              key={link.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditLinkModal(link);
+              }}
+              className="cursor-pointer pointer-events-auto group"
+            >
+              <rect
+                x={screenPos.x}
+                y={screenPos.y}
+                width={link.rect.width * scale}
+                height={link.rect.height * scale}
+                fill="rgba(37, 99, 235, 0.12)"
+                stroke="#2563eb"
+                strokeWidth={1.5}
+                strokeDasharray="4 2"
+                className="group-hover:fill-blue-500/25 transition-colors"
+              />
+              <rect
+                x={screenPos.x}
+                y={screenPos.y - 12}
+                width={isExt ? 40 : 45}
+                height={12}
+                rx={2}
+                fill="#2563eb"
+              />
+              <text
+                x={screenPos.x + 3}
+                y={screenPos.y - 3}
+                fill="#ffffff"
+                fontSize={8}
+                fontWeight="bold"
+                fontFamily="sans-serif"
+              >
+                {isExt ? "URL ↗" : "Page →"}
+              </text>
+              <title>
+                {isExt
+                  ? `External Link: ${link.target}`
+                  : `Internal Link: Page ${link.target}`}
+              </title>
+            </g>
           );
         })}
 
@@ -645,6 +729,87 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             );
           }
 
+          case "redaction": {
+            const screen = pdfToScreen(op.rect.x, op.rect.y + op.rect.height);
+            return (
+              <g
+                key={op.id}
+                onMouseDown={(e) => handleElementMouseDown(e, op)}
+                className="cursor-move pointer-events-auto group"
+              >
+                <rect
+                  x={screen.x}
+                  y={screen.y}
+                  width={op.rect.width * scale}
+                  height={op.rect.height * scale}
+                  fill="#000000"
+                  stroke="#ef4444"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 2"
+                />
+                <rect
+                  x={screen.x}
+                  y={screen.y - 12}
+                  width={56}
+                  height={12}
+                  rx={2}
+                  fill="#dc2626"
+                />
+                <text
+                  x={screen.x + 3}
+                  y={screen.y - 3}
+                  fill="#ffffff"
+                  fontSize={8}
+                  fontWeight="bold"
+                  fontFamily="sans-serif"
+                >
+                  REDACTED
+                </text>
+              </g>
+            );
+          }
+
+          case "add_hyperlink": {
+            const screen = pdfToScreen(op.rect.x, op.rect.y + op.rect.height);
+            const isExt = op.targetType === "external_url";
+            return (
+              <g
+                key={op.id}
+                onMouseDown={(e) => handleElementMouseDown(e, op)}
+                className="cursor-move pointer-events-auto group"
+              >
+                <rect
+                  x={screen.x}
+                  y={screen.y}
+                  width={op.rect.width * scale}
+                  height={op.rect.height * scale}
+                  fill="rgba(59, 130, 246, 0.15)"
+                  stroke="#2563eb"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 2"
+                />
+                <rect
+                  x={screen.x}
+                  y={screen.y - 12}
+                  width={isExt ? 40 : 45}
+                  height={12}
+                  rx={2}
+                  fill="#2563eb"
+                />
+                <text
+                  x={screen.x + 3}
+                  y={screen.y - 3}
+                  fill="#ffffff"
+                  fontSize={8}
+                  fontWeight="bold"
+                  fontFamily="sans-serif"
+                >
+                  {isExt ? "URL ↗" : "Page →"}
+                </text>
+              </g>
+            );
+          }
+
           default:
             return null;
         }
@@ -672,6 +837,30 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               height={Math.abs(startPoint.y - currentPoint.y) * scale}
               fill="#000000"
               stroke="#475569"
+            />
+          )}
+          {activeTool === "redaction" && (
+            <rect
+              x={Math.min(pdfToScreen(startPoint.x, 0).x, pdfToScreen(currentPoint.x, 0).x)}
+              y={Math.min(pdfToScreen(0, startPoint.y).y, pdfToScreen(0, currentPoint.y).y)}
+              width={Math.abs(startPoint.x - currentPoint.x) * scale}
+              height={Math.abs(startPoint.y - currentPoint.y) * scale}
+              fill="rgba(220, 38, 38, 0.25)"
+              stroke="#dc2626"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+            />
+          )}
+          {activeTool === "link" && (
+            <rect
+              x={Math.min(pdfToScreen(startPoint.x, 0).x, pdfToScreen(currentPoint.x, 0).x)}
+              y={Math.min(pdfToScreen(0, startPoint.y).y, pdfToScreen(0, currentPoint.y).y)}
+              width={Math.abs(startPoint.x - currentPoint.x) * scale}
+              height={Math.abs(startPoint.y - currentPoint.y) * scale}
+              fill="rgba(37, 99, 235, 0.15)"
+              stroke="#2563eb"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
             />
           )}
           {activeTool === "shape_rect" && (

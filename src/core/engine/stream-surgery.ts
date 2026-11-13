@@ -1,4 +1,13 @@
-import { PDFDocument, PDFRawStream, PDFRef, PDFName, rgb, StandardFonts, degrees } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFRawStream,
+  PDFRef,
+  PDFName,
+  rgb,
+  StandardFonts,
+  degrees,
+  decodePDFRawStream,
+} from "pdf-lib";
 import { Rect } from "../models/geometry";
 import { hexToRgb } from "../utils/color";
 
@@ -6,6 +15,37 @@ import { hexToRgb } from "../utils/color";
  * Low-level PDF Content Stream Surgery Engine.
  * Supports Strategy A (Native Modification) and Strategy B (Local Reconstruction).
  */
+
+export async function getStreamText(
+  streamRefOrObj: any,
+  pdfDoc: PDFDocument
+): Promise<string> {
+  const stream =
+    streamRefOrObj instanceof PDFRef
+      ? pdfDoc.context.lookup(streamRefOrObj)
+      : streamRefOrObj;
+
+  if (!stream) return "";
+
+  if (stream instanceof PDFRawStream) {
+    try {
+      const decoded = decodePDFRawStream(stream);
+      return new TextDecoder().decode(decoded.decode());
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (typeof (stream as any).getUnencodedContents === "function") {
+    return new TextDecoder().decode((stream as any).getUnencodedContents());
+  }
+
+  if (typeof (stream as any).getContents === "function") {
+    return await decompressStream((stream as any).getContents());
+  }
+
+  return "";
+}
 
 export async function decompressStream(rawBytes: Uint8Array): Promise<string> {
   // If not compressed (plain ASCII operators)
@@ -79,14 +119,9 @@ export async function applyNativeModification(
 
   // Function to process and patch an individual stream
   const patchStream = async (streamRefOrObj: any): Promise<boolean> => {
-    const stream =
-      streamRefOrObj instanceof PDFRef
-        ? pdfDoc.context.lookup(streamRefOrObj)
-        : streamRefOrObj;
+    const uncompressed = await getStreamText(streamRefOrObj, pdfDoc);
+    if (!uncompressed) return false;
 
-    if (!stream || typeof (stream as any).getContents !== "function") return false;
-
-    const uncompressed = await decompressStream(stream.getContents());
     let modified = uncompressed;
     let found = false;
 
@@ -101,8 +136,7 @@ export async function applyNativeModification(
     }
 
     if (found) {
-      const compressedBytes = await compressStream(modified);
-      const newStream = pdfDoc.context.flateStream(compressedBytes);
+      const newStream = pdfDoc.context.flateStream(modified);
       if (streamRefOrObj instanceof PDFRef) {
         pdfDoc.context.assign(streamRefOrObj, newStream);
       } else {
@@ -158,14 +192,9 @@ export async function applyLocalReconstruction(
   // 1. Suppress the original text token from the content stream
   if (contents) {
     const suppressStream = async (streamRefOrObj: any) => {
-      const stream =
-        streamRefOrObj instanceof PDFRef
-          ? pdfDoc.context.lookup(streamRefOrObj)
-          : streamRefOrObj;
+      const uncompressed = await getStreamText(streamRefOrObj, pdfDoc);
+      if (!uncompressed) return;
 
-      if (!stream || typeof (stream as any).getContents !== "function") return;
-
-      const uncompressed = await decompressStream(stream.getContents());
       let modified = uncompressed;
 
       if (uncompressed.includes(origHex)) {
@@ -175,8 +204,7 @@ export async function applyLocalReconstruction(
       }
 
       if (modified !== uncompressed) {
-        const compressedBytes = await compressStream(modified);
-        const newStream = pdfDoc.context.flateStream(compressedBytes);
+        const newStream = pdfDoc.context.flateStream(modified);
         if (streamRefOrObj instanceof PDFRef) {
           pdfDoc.context.assign(streamRefOrObj, newStream);
         } else {
@@ -304,14 +332,9 @@ export async function applyPermanentRedaction(
     const origLiteral = `(${escapePdfLiteral(textToRedact)})`;
 
     const suppressStream = async (streamRefOrObj: any) => {
-      const stream =
-        streamRefOrObj instanceof PDFRef
-          ? pdfDoc.context.lookup(streamRefOrObj)
-          : streamRefOrObj;
+      const uncompressed = await getStreamText(streamRefOrObj, pdfDoc);
+      if (!uncompressed) return;
 
-      if (!stream || typeof (stream as any).getContents !== "function") return;
-
-      const uncompressed = await decompressStream(stream.getContents());
       let modified = uncompressed;
 
       if (uncompressed.includes(origHex)) {
@@ -321,8 +344,7 @@ export async function applyPermanentRedaction(
       }
 
       if (modified !== uncompressed) {
-        const compressedBytes = await compressStream(modified);
-        const newStream = pdfDoc.context.flateStream(compressedBytes);
+        const newStream = pdfDoc.context.flateStream(modified);
         if (streamRefOrObj instanceof PDFRef) {
           pdfDoc.context.assign(streamRefOrObj, newStream);
         } else {

@@ -32,6 +32,9 @@ import {
   AlignRight,
   Sparkles,
   Pencil,
+  ShieldAlert,
+  Link as LinkIcon,
+  Layers,
 } from "lucide-react";
 import { useEditorStore, EditorTool } from "@/store/editor-store";
 import { useHistoryStore } from "@/store/history-store";
@@ -79,6 +82,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     executeAddOperation,
     openTextEditorForToken,
     openExportModal,
+    openPageManager,
   } = useEditorStore();
 
   const { state: historyState, undo, redo } = useHistoryStore();
@@ -262,7 +266,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
           {/* 5. Blackout */}
           <button
             onClick={() => setActiveTool("blackout")}
-            title="Blackout"
+            title="Blackout (Visual Mask)"
             className={`p-1.5 rounded transition ${
               activeTool === "blackout"
                 ? "bg-blue-600 text-white shadow-2xs"
@@ -270,6 +274,19 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
             }`}
           >
             <div className="w-3.5 h-3.5 rounded bg-black border border-slate-600" />
+          </button>
+
+          {/* 6. Permanent Redaction */}
+          <button
+            onClick={() => setActiveTool("redaction")}
+            title="Permanent Redaction (Purges underlying text & content from PDF stream)"
+            className={`p-1.5 rounded transition ${
+              activeTool === "redaction"
+                ? "bg-red-600 text-white shadow-2xs"
+                : "text-red-700 hover:bg-red-50"
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
           </button>
 
           <div className="w-px h-4 bg-slate-300 mx-0.5" />
@@ -324,6 +341,19 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
             }`}
           >
             <MoveRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* 10. Link */}
+          <button
+            onClick={() => setActiveTool("link")}
+            title="Add Hyperlink (Drag an area to link)"
+            className={`p-1.5 rounded transition ${
+              activeTool === "link"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-700 hover:bg-white"
+            }`}
+          >
+            <LinkIcon className="w-3.5 h-3.5" />
           </button>
 
           <div className="w-px h-4 bg-slate-300 mx-0.5" />
@@ -389,6 +419,15 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
               className="p-1 text-slate-700 hover:bg-white rounded disabled:opacity-30"
             >
               <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-px h-3.5 bg-slate-300 mx-0.5" />
+            <button
+              onClick={openPageManager}
+              title="Organize, merge, extract, or split pages"
+              className="px-2 py-1 text-slate-700 hover:bg-white rounded flex items-center space-x-1"
+            >
+              <Layers className="w-3 h-3" />
+              <span>Pages</span>
             </button>
           </div>
 

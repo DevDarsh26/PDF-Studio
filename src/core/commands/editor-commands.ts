@@ -6,6 +6,9 @@ import {
   AddShapeOperation,
   WhiteoutOperation,
   BlackoutOperation,
+  RedactionOperation,
+  AddHyperlinkOperation,
+  DeleteHyperlinkOperation,
   TextEditOperation,
   FormattingStyle,
 } from "../models/operations";
@@ -297,4 +300,73 @@ export class TextEditCommand implements Command {
     return this.operation;
   }
 }
+
+/**
+ * Command to apply a permanent redaction.
+ */
+export class RedactionCommand implements Command {
+  readonly id: string;
+  readonly type = "redaction";
+  readonly description = "Apply permanent redaction";
+  readonly timestamp = Date.now();
+  private operation: RedactionOperation;
+  private store: OperationStoreCallback;
+
+  constructor(operation: RedactionOperation, store: OperationStoreCallback) {
+    this.id = operation.id;
+    this.operation = operation;
+    this.store = store;
+  }
+
+  execute(): void {
+    this.store.addOperation(this.operation);
+  }
+
+  undo(): void {
+    this.store.removeOperation(this.id);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+
+  getOperation(): RedactionOperation {
+    return this.operation;
+  }
+}
+
+/**
+ * Command to add a hyperlink annotation.
+ */
+export class AddHyperlinkCommand implements Command {
+  readonly id: string;
+  readonly type = "add_hyperlink";
+  readonly description = "Add hyperlink";
+  readonly timestamp = Date.now();
+  private operation: AddHyperlinkOperation;
+  private store: OperationStoreCallback;
+
+  constructor(operation: AddHyperlinkOperation, store: OperationStoreCallback) {
+    this.id = operation.id;
+    this.operation = operation;
+    this.store = store;
+  }
+
+  execute(): void {
+    this.store.addOperation(this.operation);
+  }
+
+  undo(): void {
+    this.store.removeOperation(this.id);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+
+  getOperation(): AddHyperlinkOperation {
+    return this.operation;
+  }
+}
+
 

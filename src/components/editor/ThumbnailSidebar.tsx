@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, LayoutList } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  LayoutList,
+  RotateCw,
+  Trash2,
+  Plus,
+  Layers,
+} from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 
 interface ThumbnailItemProps {
@@ -9,7 +17,10 @@ interface ThumbnailItemProps {
   isActive: boolean;
   dimensions: { width: number; height: number };
   rotation: number;
+  canDelete: boolean;
   onClick: () => void;
+  onRotate: () => void;
+  onDelete: () => void;
 }
 
 const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
@@ -17,7 +28,10 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
   isActive,
   dimensions,
   rotation,
+  canDelete,
   onClick,
+  onRotate,
+  onDelete,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { adapter } = useEditorStore();
@@ -56,7 +70,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`group cursor-pointer rounded-lg p-2 transition-all duration-150 flex flex-col items-center select-none ${
+      className={`group relative rounded-lg p-2 transition-all duration-150 flex flex-col items-center select-none cursor-pointer ${
         isActive
           ? "bg-blue-50/80 ring-2 ring-blue-500 shadow-sm"
           : "hover:bg-slate-100/80 bg-white border border-slate-200/80"
@@ -69,6 +83,32 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
             Loading...
           </div>
         )}
+
+        {/* Hover Quick Action Buttons */}
+        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 bg-white/90 backdrop-blur-xs p-0.5 rounded shadow-xs border border-slate-200">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRotate();
+            }}
+            title="Rotate Page 90° Clockwise"
+            className="p-1 hover:bg-slate-200/80 text-slate-600 rounded transition"
+          >
+            <RotateCw className="w-3 h-3" />
+          </button>
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              title="Delete Page"
+              className="p-1 hover:bg-red-100 text-red-600 rounded transition"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-1.5 flex items-center justify-between w-full px-1 text-[11px]">
@@ -88,7 +128,13 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
 };
 
 export const ThumbnailSidebar: React.FC = () => {
-  const { pageInfos, currentPageNumber, setCurrentPage } = useEditorStore();
+  const {
+    pageInfos,
+    currentPageNumber,
+    setCurrentPage,
+    executeAddOperation,
+    openPageManager,
+  } = useEditorStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +149,38 @@ export const ThumbnailSidebar: React.FC = () => {
       }
     }
   }, [currentPageNumber]);
+
+  const handleRotatePage = (pageNumber: number) => {
+    executeAddOperation({
+      id: `rotate-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: Date.now(),
+      type: "page_rotate",
+      pageNumber,
+      rotationDegrees: 90,
+    });
+  };
+
+  const handleDeletePage = (pageNumber: number) => {
+    if (pageInfos.length <= 1) return;
+    if (confirm(`Are you sure you want to delete Page ${pageNumber}?`)) {
+      executeAddOperation({
+        id: `delete-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        timestamp: Date.now(),
+        type: "page_delete",
+        pageNumber,
+      });
+    }
+  };
+
+  const handleAddBlankPage = () => {
+    executeAddOperation({
+      id: `page-add-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: Date.now(),
+      type: "add_page",
+      insertAtIndex: pageInfos.length,
+      dimensions: { width: 612, height: 792 },
+    });
+  };
 
   if (isCollapsed) {
     return (
@@ -124,7 +202,7 @@ export const ThumbnailSidebar: React.FC = () => {
       <div className="h-10 border-b border-slate-200 px-3 flex items-center justify-between bg-white/70 backdrop-blur-xs">
         <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
           <LayoutList className="w-3.5 h-3.5 text-slate-500" />
-          <span>Thumbnails ({pageInfos.length})</span>
+          <span>Pages ({pageInfos.length})</span>
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
@@ -144,10 +222,31 @@ export const ThumbnailSidebar: React.FC = () => {
               isActive={currentPageNumber === info.pageNumber}
               dimensions={info.dimensions}
               rotation={info.rotation}
+              canDelete={pageInfos.length > 1}
               onClick={() => setCurrentPage(info.pageNumber)}
+              onRotate={() => handleRotatePage(info.pageNumber)}
+              onDelete={() => handleDeletePage(info.pageNumber)}
             />
           </div>
         ))}
+      </div>
+
+      {/* Footer Quick Actions */}
+      <div className="p-2 border-t border-slate-200 bg-white/80 space-y-1.5">
+        <button
+          onClick={handleAddBlankPage}
+          className="w-full flex items-center justify-center space-x-1.5 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition"
+        >
+          <Plus className="w-3.5 h-3.5 text-slate-500" />
+          <span>Add Blank Page</span>
+        </button>
+        <button
+          onClick={openPageManager}
+          className="w-full flex items-center justify-center space-x-1.5 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium transition"
+        >
+          <Layers className="w-3.5 h-3.5 text-blue-600" />
+          <span>Page Manager</span>
+        </button>
       </div>
     </aside>
   );
