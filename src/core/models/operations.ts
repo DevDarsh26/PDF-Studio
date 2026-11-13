@@ -1,9 +1,22 @@
-import { Rect, Point } from "./geometry";
+import { Rect, Point, Dimensions } from "./geometry";
 
 export enum EditStrategy {
   NativeStreamModification = "native_modification",
   LocalReconstruction = "local_reconstruction",
   VisualOverlay = "visual_overlay",
+}
+
+export interface FormattingStyle {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
+  fontColorHex: string;
+  alignment: "left" | "center" | "right";
+  opacity: number;
+  strokeColorHex?: string;
+  fillColorHex?: string;
+  strokeWidth?: number;
 }
 
 export interface BaseOperation {
@@ -19,7 +32,12 @@ export interface TextEditOperation extends BaseOperation {
   replacementText: string;
   fontFamily: string;
   fontSize: number;
+  fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
   fontColorHex: string;
+  alignment: "left" | "center" | "right";
+  opacity: number;
+  rotation?: number;
   strategy: EditStrategy;
 }
 
@@ -27,6 +45,14 @@ export interface WhiteoutOperation extends BaseOperation {
   type: "whiteout";
   rect: Rect;
   fillColorHex: string; // Typically #ffffff or matched background
+  opacity: number;
+}
+
+export interface BlackoutOperation extends BaseOperation {
+  type: "blackout";
+  rect: Rect;
+  fillColorHex: string; // Always #000000
+  opacity: number;
 }
 
 export interface RedactionOperation extends BaseOperation {
@@ -39,21 +65,39 @@ export interface RedactionOperation extends BaseOperation {
 export interface AddTextOperation extends BaseOperation {
   type: "add_text";
   position: Point;
+  dimensions?: Dimensions;
   text: string;
   fontFamily: string;
   fontSize: number;
+  fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
   fontColorHex: string;
+  alignment: "left" | "center" | "right";
   opacity: number;
+  rotation?: number;
+  isStyleInherited?: boolean;
+}
+
+export interface AddImageOperation extends BaseOperation {
+  type: "add_image";
+  rect: Rect;
+  imageDataUrl: string; // Base64 data URL
+  mimeType: "image/png" | "image/jpeg";
+  opacity: number;
+  rotation?: number;
 }
 
 export interface AddShapeOperation extends BaseOperation {
   type: "add_shape";
   shapeType: "rectangle" | "circle" | "line" | "arrow";
   rect: Rect;
+  startPoint?: Point; // Specific for line / arrow
+  endPoint?: Point;
   strokeColorHex: string;
   fillColorHex?: string;
   strokeWidth: number;
   opacity: number;
+  rotation?: number;
 }
 
 export interface PageReorderOperation {
@@ -82,10 +126,11 @@ export interface PageDeleteOperation {
 export type EditOperation =
   | TextEditOperation
   | WhiteoutOperation
+  | BlackoutOperation
   | RedactionOperation
   | AddTextOperation
+  | AddImageOperation
   | AddShapeOperation
   | PageReorderOperation
   | PageRotateOperation
   | PageDeleteOperation;
-

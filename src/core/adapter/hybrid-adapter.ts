@@ -320,12 +320,38 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
       throw new Error("No document loaded.");
     }
 
-    const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+    const { PDFDocument, rgb, StandardFonts, degrees } = await import("pdf-lib");
     const pdfDoc = await PDFDocument.load(this.rawBytes.slice(0), {
       ignoreEncryption: true,
     });
 
-    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Standard Font Dictionaries
+    const fontsMap: Record<string, any> = {
+      helvetica: await pdfDoc.embedFont(StandardFonts.Helvetica),
+      "helvetica-bold": await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+      "helvetica-italic": await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
+      "helvetica-bolditalic": await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
+      times: await pdfDoc.embedFont(StandardFonts.TimesRoman),
+      "times-bold": await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
+      "times-italic": await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
+      "times-bolditalic": await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
+      courier: await pdfDoc.embedFont(StandardFonts.Courier),
+      "courier-bold": await pdfDoc.embedFont(StandardFonts.CourierBold),
+      "courier-italic": await pdfDoc.embedFont(StandardFonts.CourierOblique),
+    };
+
+    const resolveFont = (family: string, isBold: boolean, isItalic: boolean) => {
+      const lower = (family || "helvetica").toLowerCase();
+      let key = "helvetica";
+      if (lower.includes("times")) key = "times";
+      else if (lower.includes("courier")) key = "courier";
+
+      if (isBold && isItalic) key += "-bolditalic";
+      else if (isBold) key += "-bold";
+      else if (isItalic) key += "-italic";
+
+      return fontsMap[key] || fontsMap["helvetica"];
+    };
 
     for (const op of options.operations) {
       if ("pageNumber" in op && op.pageNumber <= pdfDoc.getPageCount()) {
@@ -340,6 +366,19 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
               width: op.rect.width,
               height: op.rect.height,
               color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
+              opacity: op.opacity ?? 1.0,
+            });
+            break;
+          }
+
+          case "blackout": {
+            page.drawRectangle({
+              x: op.rect.x,
+              y: op.rect.y,
+              width: op.rect.width,
+              height: op.rect.height,
+              color: rgb(0, 0, 0),
+              opacity: op.opacity ?? 1.0,
             });
             break;
           }
@@ -358,14 +397,115 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
           case "add_text": {
             const rgbColor = hexToRgb(op.fontColorHex) || { r: 0, g: 0, b: 0 };
+            const font = resolveFont(
+              op.fontFamily,
+              op.fontWeight === "bold",
+              op.fontStyle === "italic"
+            );
+
             page.drawText(op.text, {
               x: op.position.x,
               y: op.position.y,
               size: op.fontSize,
-              font: helvetica,
+              font,
               color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
-              opacity: op.opacity,
+              opacity: op.opacity ?? 1.0,
+              rotate: op.rotation ? degrees(op.rotation) : undefined,
             });
+            break;
+          }
+
+          case "add_shape": {
+            const strokeRgb = hexToRgb(op.strokeColorHex) || { r: 0.1, g: 0.4, b: 0.9 };
+            const fillRgb = op.fillColorHex ? hexToRgb(op.fillColorHex) : null;
+
+            if (op.shapeType === "rectangle") {
+              page.drawRectangle({
+                x: op.rect.x,
+                y: op.rect.y,
+                width: op.rect.width,
+                height: op.rect.height,
+                borderColor: rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255),
+                borderWidth: op.strokeWidth,
+                color: fillRgb ? rgb(fillRgb.r / 255, fillRgb.g / 255, fillRgb.b / 255) : undefined,
+                opacity: op.opacity ?? 1.0,
+                rotate: op.rotation ? degrees(op.rotation) : undefined,
+              });
+            } else if (op.shapeType === "circle") {
+              const xRadius = op.rect.width / 2;
+              const yRadius = op.rect.height / 2;
+              page.drawEllipse({
+                x: op.rect.x + xRadius,
+                y: op.rect.y + yRadius,
+                xScale: xRadius,
+                yScale: yRadius,
+                borderColor: rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255),
+                borderWidth: op.strokeWidth,
+                color: fillRgb ? rgb(fillRgb.r / 255, fillRgb.g / 255, fillRgb.b / 255) : undefined,
+                opacity: op.opacity ?? 1.0,
+              });
+            } else if (op.shapeType === "line" || op.shapeType === "arrow") {
+              const startX = op.startPoint ? op.startPoint.x : op.rect.x;
+              const startY = op.startPoint ? op.startPoint.y : op.rect.y;
+              const endX = op.endPoint ? op.endPoint.x : op.rect.x + op.rect.width;
+              const endY = op.endPoint ? op.endPoint.y : op.rect.y + op.rect.height;
+
+              page.drawLine({
+                start: { x: startX, y: startY },
+                end: { x: endX, y: endY },
+                thickness: op.strokeWidth,
+                color: rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255),
+                opacity: op.opacity ?? 1.0,
+              });
+
+              if (op.shapeType === "arrow") {
+                // Draw arrowhead triangle at endPoint
+                const angle = Math.atan2(endY - startY, endX - startX);
+                const headLen = Math.max(8, op.strokeWidth * 4);
+                const arrowX1 = endX - headLen * Math.cos(angle - Math.PI / 6);
+                const arrowY1 = endY - headLen * Math.sin(angle - Math.PI / 6);
+                const arrowX2 = endX - headLen * Math.cos(angle + Math.PI / 6);
+                const arrowY2 = endY - headLen * Math.sin(angle + Math.PI / 6);
+
+                page.drawLine({
+                  start: { x: endX, y: endY },
+                  end: { x: arrowX1, y: arrowY1 },
+                  thickness: op.strokeWidth,
+                  color: rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255),
+                  opacity: op.opacity ?? 1.0,
+                });
+                page.drawLine({
+                  start: { x: endX, y: endY },
+                  end: { x: arrowX2, y: arrowY2 },
+                  thickness: op.strokeWidth,
+                  color: rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255),
+                  opacity: op.opacity ?? 1.0,
+                });
+              }
+            }
+            break;
+          }
+
+          case "add_image": {
+            try {
+              const base64Data = op.imageDataUrl.split(",")[1] || op.imageDataUrl;
+              const binary = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+              const embeddedImg =
+                op.mimeType === "image/jpeg"
+                  ? await pdfDoc.embedJpg(binary)
+                  : await pdfDoc.embedPng(binary);
+
+              page.drawImage(embeddedImg, {
+                x: op.rect.x,
+                y: op.rect.y,
+                width: op.rect.width,
+                height: op.rect.height,
+                opacity: op.opacity ?? 1.0,
+                rotate: op.rotation ? degrees(op.rotation) : undefined,
+              });
+            } catch {
+              // Image embedding error fallback
+            }
             break;
           }
 
@@ -378,11 +518,16 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
               color: rgb(1, 1, 1),
             });
             const rgbColor = hexToRgb(op.fontColorHex) || { r: 0, g: 0, b: 0 };
+            const font = resolveFont(
+              op.fontFamily,
+              op.fontWeight === "bold",
+              op.fontStyle === "italic"
+            );
             page.drawText(op.replacementText, {
               x: op.targetRect.x,
               y: op.targetRect.y,
               size: op.fontSize,
-              font: helvetica,
+              font,
               color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
             });
             break;

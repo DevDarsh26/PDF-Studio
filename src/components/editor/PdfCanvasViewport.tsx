@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
+import { InteractiveOverlay } from "./InteractiveOverlay";
 
 interface PdfCanvasViewportProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -85,6 +86,15 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
           {/* Canvas Wrapper with White Paper Drop Shadow */}
           <div className="relative bg-white shadow-xl rounded-sm border border-slate-300/60 overflow-hidden transition-all duration-150">
             <canvas ref={canvasRef} className="block" />
+
+            {/* Interactive Drawing & Selection Overlay Layer */}
+            {currentPage && (
+              <InteractiveOverlay
+                pageWidth={currentPage.dimensions.width}
+                pageHeight={currentPage.dimensions.height}
+                scale={zoomScale}
+              />
+            )}
 
             {/* Subtle Loading Overlay for smooth zoom transitions */}
             {isRendering && (
