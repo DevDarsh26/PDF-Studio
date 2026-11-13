@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts, degrees } from "pdf-lib";
+import { PDFDocument, rgb, cmyk, StandardFonts, degrees, PDFName } from "pdf-lib";
 
 /**
  * Creates in-memory synthetic PDF sample buffers for instant browser testing.
@@ -9,6 +9,10 @@ function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
   return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
 }
 
+// 1x1 transparent/red PNG base64 for embedding authentic image XObjects
+const SAMPLE_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 export async function createSinglePageSamplePdf(): Promise<ArrayBuffer> {
   const doc = await PDFDocument.create();
   doc.setTitle("Single Page Sample Document");
@@ -17,6 +21,7 @@ export async function createSinglePageSamplePdf(): Promise<ArrayBuffer> {
   const page = doc.addPage([595.28, 841.89]); // A4
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  const timesFont = await doc.embedFont(StandardFonts.TimesRoman);
 
   page.drawText("PDF Studio — Single Page Document", {
     x: 50,
@@ -44,10 +49,10 @@ export async function createSinglePageSamplePdf(): Promise<ArrayBuffer> {
 
   const bullets = [
     "• High-DPI canvas rasterization with crisp font rendering.",
-    "• Immutable source bytes preservation.",
-    "• Fast zoom in/out, fit-to-width, and fit-to-page calculations.",
-    "• Page rotation in 90-degree increments.",
-    "• Zero telemetry or server data transmissions.",
+    "• Typography extraction (Helvetica, HelveticaBold, Times-Roman).",
+    "• Mixed color detection (RGB & CMYK color spaces).",
+    "• Raster image XObject extraction and positioning.",
+    "• Interactive hyperlink extraction and destination preservation.",
   ];
 
   bullets.forEach((bullet, index) => {
@@ -55,29 +60,77 @@ export async function createSinglePageSamplePdf(): Promise<ArrayBuffer> {
       x: 60,
       y: 660 - index * 24,
       size: 11,
-      font,
-      color: rgb(0.3, 0.3, 0.3),
+      font: index % 2 === 0 ? font : timesFont,
+      color: index % 2 === 0 ? rgb(0.2, 0.2, 0.2) : rgb(0.1, 0.4, 0.8),
     });
   });
 
-  // Draw some sample decorative vector shapes
+  // Draw CMYK colored vector shape
   page.drawRectangle({
     x: 50,
-    y: 460,
+    y: 490,
     width: 495.28,
-    height: 60,
-    color: rgb(0.95, 0.97, 1.0),
-    borderColor: rgb(0.6, 0.7, 0.9),
+    height: 45,
+    color: cmyk(0.1, 0.05, 0.0, 0.05),
+    borderColor: cmyk(0.6, 0.4, 0.0, 0.1),
     borderWidth: 1,
   });
 
-  page.drawText("Status: Engine Active | PDF 1.7 Standard | Client Sandbox Validated", {
+  page.drawText("Status: Color Space CMYK/RGB Validated | Style Profile Active", {
     x: 70,
-    y: 485,
+    y: 510,
     size: 10,
     font: boldFont,
     color: rgb(0.15, 0.35, 0.75),
   });
+
+  // Embed authentic raster image
+  try {
+    const pngBinary = Uint8Array.from(atob(SAMPLE_PNG_BASE64), (c) => c.charCodeAt(0));
+    const embeddedImage = await doc.embedPng(pngBinary);
+    page.drawImage(embeddedImage, {
+      x: 50,
+      y: 360,
+      width: 140,
+      height: 90,
+    });
+    page.drawText("Embedded Raster Image (140x90 pt)", {
+      x: 210,
+      y: 400,
+      size: 11,
+      font,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+  } catch {
+    // Image embedding fallback
+  }
+
+  // Embed interactive hyperlink annotation
+  try {
+    const linkAnnot = doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [50, 290, 300, 320],
+      Border: [0, 0, 0],
+      A: {
+        Type: "Action",
+        S: "URI",
+        URI: "https://github.com/google-deepmind",
+      },
+    });
+    const linkAnnotRef = doc.context.register(linkAnnot);
+    page.node.set(PDFName.of("Annots"), doc.context.obj([linkAnnotRef]));
+
+    page.drawText("Interactive Link: https://github.com/google-deepmind", {
+      x: 50,
+      y: 300,
+      size: 11,
+      font,
+      color: rgb(0.1, 0.3, 0.9),
+    });
+  } catch {
+    // Annotation fallback
+  }
 
   const pdfBytes = await doc.save();
   return toArrayBuffer(pdfBytes);

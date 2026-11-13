@@ -9,6 +9,8 @@ import { PdfCanvasViewport } from "@/components/editor/PdfCanvasViewport";
 import { StatusBar } from "@/components/editor/StatusBar";
 import { PasswordModal } from "@/components/modals/PasswordModal";
 
+import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
+
 export default function Home() {
   const {
     rawBytes,
@@ -75,10 +77,11 @@ export default function Home() {
           {/* Top Application Toolbar */}
           <TopToolbar containerRef={viewportContainerRef} />
 
-          {/* Main Workspace: Left Thumbnails + Center Canvas */}
+          {/* Main Workspace: Left Thumbnails + Center Canvas + Right Analysis Panel */}
           <div className="flex flex-1 overflow-hidden relative">
             <ThumbnailSidebar />
             <PdfCanvasViewport containerRef={viewportContainerRef} />
+            <DocumentAnalysisPanel />
           </div>
 
           {/* Bottom Status Bar */}

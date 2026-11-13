@@ -1,7 +1,27 @@
 import "@testing-library/jest-dom";
 
-// Mock HTMLCanvasElement.getContext and Path2D for Node/jsdom testing environment
+// Mock HTMLCanvasElement.getContext, Path2D, and ImageData for Node/jsdom testing environment
 if (typeof window !== "undefined") {
+  if (typeof globalThis.ImageData === "undefined") {
+    (globalThis as any).ImageData = class ImageData {
+      data: Uint8ClampedArray;
+      width: number;
+      height: number;
+      colorSpace = "srgb";
+      constructor(dataOrWidth: any, widthOrHeight: any, height?: any) {
+        if (dataOrWidth instanceof Uint8ClampedArray) {
+          this.data = dataOrWidth;
+          this.width = widthOrHeight;
+          this.height = height || Math.floor(dataOrWidth.length / (widthOrHeight * 4));
+        } else {
+          this.width = dataOrWidth;
+          this.height = widthOrHeight;
+          this.data = new Uint8ClampedArray(this.width * this.height * 4);
+        }
+      }
+    };
+  }
+
   if (typeof globalThis.Path2D === "undefined") {
     (globalThis as any).Path2D = class Path2D {
       addPath() {}
@@ -38,6 +58,10 @@ if (typeof window !== "undefined") {
           m41: 0, m42: 0, m43: 0, m44: 1,
           is2D: true,
           isIdentity: true,
+          invertSelf() { return this; },
+          multiplySelf() { return this; },
+          translateSelf() { return this; },
+          scaleSelf() { return this; },
         }),
         resetTransform: () => {},
         drawImage: () => {},

@@ -65,11 +65,37 @@ export class MuPdfAdapter implements PdfEngineAdapter {
       detectedFonts: new Map(),
       frequentlyUsedColors: [],
       layoutBlocks: [],
+      textTokens: [],
+      images: [],
       hyperlinks: [],
+      pageMetadata: {
+        pageNumber,
+        dimensions: { width: 595.28, height: 841.89 },
+        rotation: 0,
+        boxTypes: {
+          mediaBox: { x: 0, y: 0, width: 595.28, height: 841.89 },
+        },
+        tokenCount: 0,
+        imageCount: 0,
+        linkCount: 0,
+        hasAnnotations: false,
+      },
       inferredProperties: {
         bodyFontFamily: "Helvetica",
         baseFontSize: 12,
         primaryTextColor: "#000000",
+        pageBackgroundHex: "#ffffff",
+        estimatedColumnLayout: "single",
+      },
+      accuracyReport: {
+        totalTokensExtracted: 0,
+        fontsDirectlyExtractedCount: 0,
+        fontsInferredCount: 0,
+        colorsSampledCount: 0,
+        imagesDetectedCount: 0,
+        linksExtractedCount: 0,
+        nonReusableSubsetFontCount: 0,
+        knownLimitations: [],
       },
     };
   }

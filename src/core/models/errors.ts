@@ -29,3 +29,4 @@ export class UnsupportedFeatureError extends Error {
     this.name = "UnsupportedFeatureError";
   }
 }
+
