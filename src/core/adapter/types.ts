@@ -94,6 +94,11 @@ export interface PdfEngineAdapter {
   exportPageImage(options: ExportImageOptions): Promise<Blob>;
 
   /**
+   * Exports all pages as image Blobs (PNG or JPEG).
+   */
+  exportAllPageImages?(options: Omit<ExportImageOptions, "pageNumber">): Promise<{ pageNumber: number; blob: Blob; fileName: string }[]>;
+
+  /**
    * Destroys in-memory resources, worker instances, or WASM heaps.
    */
   dispose(): Promise<void>;

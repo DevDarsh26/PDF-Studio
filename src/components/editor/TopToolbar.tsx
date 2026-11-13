@@ -78,6 +78,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     inheritStyleFromSelectedToken,
     executeAddOperation,
     openTextEditorForToken,
+    openExportModal,
   } = useEditorStore();
 
   const { state: historyState, undo, redo } = useHistoryStore();
@@ -392,12 +393,11 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
           </div>
 
           <button
-            onClick={handleExportPdf}
-            disabled={isExporting}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-1.5 shadow-sm transition disabled:opacity-50"
+            onClick={openExportModal}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-1.5 shadow-sm transition"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{isExporting ? "Exporting..." : "Export PDF"}</span>
+            <span>Export</span>
           </button>
 
           <button

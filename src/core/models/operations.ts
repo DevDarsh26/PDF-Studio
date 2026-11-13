@@ -60,6 +60,7 @@ export interface RedactionOperation extends BaseOperation {
   rect: Rect;
   isPermanent: boolean; // True = strip bytes from content stream (Tier 2); False = visual blackout
   fillColorHex: string; // Typically #000000
+  textToRedact?: string; // Target text to permanently strip from content stream
 }
 
 export interface AddTextOperation extends BaseOperation {

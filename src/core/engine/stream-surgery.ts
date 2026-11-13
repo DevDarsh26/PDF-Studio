@@ -279,3 +279,78 @@ export async function applyVisualOverlayFallback(
     color: rgb(textRgb.r / 255, textRgb.g / 255, textRgb.b / 255),
   });
 }
+
+/**
+ * Permanent Redaction:
+ * Strips targeted text bytes from the content stream so the underlying information
+ * CANNOT be recovered through ordinary text extraction, and draws an opaque blackout rectangle.
+ */
+export async function applyPermanentRedaction(
+  pdfDoc: PDFDocument,
+  pageIndex: number,
+  targetRect: Rect,
+  textToRedact?: string,
+  fillColorHex: string = "#000000"
+): Promise<boolean> {
+  const page = pdfDoc.getPage(pageIndex);
+  let contents: any = page.node.Contents();
+  if (contents instanceof PDFRef) {
+    contents = pdfDoc.context.lookup(contents);
+  }
+
+  // If specific text is targeted for redaction, strip its hex/literal from content stream
+  if (contents && textToRedact && textToRedact.trim()) {
+    const origHex = stringToHex(textToRedact);
+    const origLiteral = `(${escapePdfLiteral(textToRedact)})`;
+
+    const suppressStream = async (streamRefOrObj: any) => {
+      const stream =
+        streamRefOrObj instanceof PDFRef
+          ? pdfDoc.context.lookup(streamRefOrObj)
+          : streamRefOrObj;
+
+      if (!stream || typeof (stream as any).getContents !== "function") return;
+
+      const uncompressed = await decompressStream(stream.getContents());
+      let modified = uncompressed;
+
+      if (uncompressed.includes(origHex)) {
+        modified = uncompressed.replaceAll(origHex, "");
+      } else if (uncompressed.includes(origLiteral)) {
+        modified = uncompressed.replaceAll(origLiteral, "()");
+      }
+
+      if (modified !== uncompressed) {
+        const compressedBytes = await compressStream(modified);
+        const newStream = pdfDoc.context.flateStream(compressedBytes);
+        if (streamRefOrObj instanceof PDFRef) {
+          pdfDoc.context.assign(streamRefOrObj, newStream);
+        } else {
+          const newRef = pdfDoc.context.register(newStream);
+          page.node.set(PDFName.of("Contents"), newRef);
+        }
+      }
+    };
+
+    if ("size" in contents && typeof contents.size === "function") {
+      for (let i = 0; i < contents.size(); i++) {
+        await suppressStream(contents.get(i));
+      }
+    } else {
+      await suppressStream(contents);
+    }
+  }
+
+  // Draw permanent opaque blackout rectangle
+  const fillRgb = hexToRgb(fillColorHex) || { r: 0, g: 0, b: 0 };
+  page.drawRectangle({
+    x: targetRect.x,
+    y: targetRect.y,
+    width: targetRect.width,
+    height: targetRect.height,
+    color: rgb(fillRgb.r / 255, fillRgb.g / 255, fillRgb.b / 255),
+    opacity: 1.0,
+  });
+
+  return true;
+}

@@ -9,6 +9,7 @@ import { PdfCanvasViewport } from "@/components/editor/PdfCanvasViewport";
 import { StatusBar } from "@/components/editor/StatusBar";
 import { PasswordModal } from "@/components/modals/PasswordModal";
 import { TextEditModal } from "@/components/modals/TextEditModal";
+import { ExportModal } from "@/components/modals/ExportModal";
 
 import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
 
@@ -71,6 +72,7 @@ export default function Home() {
       {/* Modals */}
       <PasswordModal />
       <TextEditModal />
+      <ExportModal />
 
       {!hasDocument ? (
         <UploadHomepage />

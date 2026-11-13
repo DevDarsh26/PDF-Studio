@@ -96,4 +96,17 @@ if (typeof window !== "undefined") {
     }
     return null;
   } as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+  HTMLCanvasElement.prototype.toBlob = function (
+    callback: (blob: Blob | null) => void,
+    type?: string
+  ) {
+    const dummyBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const blob = new Blob([dummyBytes], { type: type || "image/png" });
+    callback(blob);
+  };
+
+  HTMLCanvasElement.prototype.toDataURL = function (type?: string) {
+    return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  };
 }

@@ -31,6 +31,7 @@ import {
   applyNativeModification,
   applyLocalReconstruction,
   applyVisualOverlayFallback,
+  applyPermanentRedaction,
 } from "../engine/stream-surgery";
 
 /**
@@ -391,14 +392,24 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
           }
 
           case "redaction": {
-            const rgbColor = hexToRgb(op.fillColorHex) || { r: 0, g: 0, b: 0 };
-            page.drawRectangle({
-              x: op.rect.x,
-              y: op.rect.y,
-              width: op.rect.width,
-              height: op.rect.height,
-              color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
-            });
+            if (op.isPermanent) {
+              await applyPermanentRedaction(
+                pdfDoc,
+                pageIdx,
+                op.rect,
+                op.textToRedact,
+                op.fillColorHex
+              );
+            } else {
+              const rgbColor = hexToRgb(op.fillColorHex) || { r: 0, g: 0, b: 0 };
+              page.drawRectangle({
+                x: op.rect.x,
+                y: op.rect.y,
+                width: op.rect.width,
+                height: op.rect.height,
+                color: rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255),
+              });
+            }
             break;
           }
 
@@ -573,6 +584,17 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
             }
             break;
           }
+
+          case "page_rotate": {
+            const currentRotation = page.getRotation().angle;
+            page.setRotation(degrees((currentRotation + op.rotationDegrees) % 360));
+            break;
+          }
+
+          case "page_delete": {
+            pdfDoc.removePage(pageIdx);
+            break;
+          }
         }
       }
     }
@@ -599,18 +621,58 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     });
 
     return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("Failed to export canvas to image blob."));
-          }
-        },
-        options.format,
-        options.quality ?? 0.92
-      );
+      if (typeof canvas.toBlob === "function") {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("Failed to export canvas to image blob."));
+            }
+          },
+          options.format,
+          options.quality ?? 0.92
+        );
+      } else {
+        // Fallback for environments lacking canvas.toBlob (e.g. standard JSDOM)
+        try {
+          const dataUrl = canvas.toDataURL(options.format, options.quality ?? 0.92);
+          const base64 = dataUrl.split(",")[1] || "";
+          const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+          resolve(new Blob([binary], { type: options.format }));
+        } catch (err) {
+          reject(err);
+        }
+      }
     });
+  }
+
+  async exportAllPageImages(
+    options: Omit<ExportImageOptions, "pageNumber">
+  ): Promise<{ pageNumber: number; blob: Blob; fileName: string }[]> {
+    if (!this.cachedPdfJsDoc) {
+      throw new Error("No document loaded.");
+    }
+    const pageCount = this.cachedPdfJsDoc.numPages;
+    const results: { pageNumber: number; blob: Blob; fileName: string }[] = [];
+    const ext = options.format === "image/jpeg" ? "jpg" : "png";
+
+    for (let p = 1; p <= pageCount; p++) {
+      const blob = await this.exportPageImage({
+        pageNumber: p,
+        format: options.format,
+        quality: options.quality,
+        dpiScale: options.dpiScale,
+      });
+      const pageStr = String(p).padStart(2, "0");
+      results.push({
+        pageNumber: p,
+        blob,
+        fileName: `page-${pageStr}.${ext}`,
+      });
+    }
+
+    return results;
   }
 
   async dispose(): Promise<void> {

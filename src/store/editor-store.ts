@@ -61,6 +61,7 @@ export interface EditorState {
   selectedElementId: string | null;
   selectedTokenId: string | null;
   editingTokenId: string | null;
+  isExportModalOpen: boolean;
 
   // Operations Ledger
   operations: EditOperation[];
@@ -93,6 +94,8 @@ export interface EditorState {
   selectToken: (id: string | null) => void;
   openTextEditorForToken: (tokenId: string) => void;
   closeTextEditor: () => void;
+  openExportModal: () => void;
+  closeExportModal: () => void;
   addOperationDirect: (op: EditOperation) => void;
   removeOperationDirect: (id: string) => void;
   updateOperationDirect: (id: string, updates: Partial<EditOperation>) => void;
@@ -142,6 +145,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedElementId: null,
   selectedTokenId: null,
   editingTokenId: null,
+  isExportModalOpen: false,
 
   operations: [],
   currentStyleProfile: null,
@@ -354,6 +358,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedElementId: null,
       selectedTokenId: null,
       editingTokenId: null,
+      isExportModalOpen: false,
     });
     useHistoryStore.getState().clearHistory();
   },
@@ -406,6 +411,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   closeTextEditor: () => {
     set({ editingTokenId: null });
+  },
+
+  openExportModal: () => {
+    set({ isExportModalOpen: true });
+  },
+
+  closeExportModal: () => {
+    set({ isExportModalOpen: false });
   },
 
   addOperationDirect: (op: EditOperation) => {
