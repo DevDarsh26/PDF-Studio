@@ -52,8 +52,12 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         if (!isCancelled) {
           setIsRendered(true);
         }
-      } catch {
-        // Thumbnail render error fallback
+      } catch (err: any) {
+        if (!isCancelled && err?.name !== "RenderingCancelledException") {
+          setTimeout(() => {
+            if (!isCancelled) render();
+          }, 120);
+        }
       }
     };
 
@@ -65,7 +69,7 @@ const ThumbnailItem: React.FC<ThumbnailItemProps> = ({
         adapter.cancelRender?.(canvas);
       }
     };
-  }, [pageNumber, adapter]);
+  }, [pageNumber, rotation, adapter]);
 
   return (
     <div

@@ -60,6 +60,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
   // Active rendering tasks mapped by canvas element for clean cancellation
   private activeRenderTasks = new WeakMap<HTMLCanvasElement, any>();
+  private canvasLocks = new WeakMap<HTMLCanvasElement, Promise<any>>();
 
   private configureWorker(pdfjsLib: any) {
     if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -183,15 +184,22 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     return [...this.pageInfos];
   }
 
-  cancelRender(canvas: HTMLCanvasElement): void {
+  async cancelRender(canvas: HTMLCanvasElement): Promise<void> {
     const activeTask = this.activeRenderTasks.get(canvas);
     if (activeTask) {
+      this.activeRenderTasks.delete(canvas);
       try {
         activeTask.cancel();
+        // Wait for PDF.js to release the canvas internal lock
+        await activeTask.promise.catch(() => {});
       } catch {
         // Ignored if already finished or cancelled
       }
-      this.activeRenderTasks.delete(canvas);
+    }
+
+    const currentLock = this.canvasLocks.get(canvas);
+    if (currentLock) {
+      await currentLock.catch(() => {});
     }
   }
 
@@ -201,65 +209,76 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     }
 
     const canvas = options.canvas;
-    // Cancel in-flight render on this canvas if any
-    this.cancelRender(canvas);
+    // Cancel in-flight render on this canvas and await complete release
+    await this.cancelRender(canvas);
 
-    const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
-    const dpr =
-      options.devicePixelRatio ||
-      (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
-
-    // Calculate total rotation = native page rotation + viewing rotation
-    const baseRotation = page.rotate || 0;
-    const additionalRotation = options.rotation || 0;
-    const totalRotation = (baseRotation + additionalRotation) % 360;
-
-    // Viewport scaled by DPR for sharp high-DPI rendering
-    const actualScale = options.scale * dpr;
-    const viewport = page.getViewport({ scale: actualScale, rotation: totalRotation });
-
-    // Logical dimensions for CSS
-    const logicalViewport = page.getViewport({ scale: options.scale, rotation: totalRotation });
-
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.width = `${logicalViewport.width}px`;
-    canvas.style.height = `${logicalViewport.height}px`;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to get 2D canvas context.");
-    }
-
-    const renderTask = page.render({
-      canvasContext: ctx,
-      viewport,
-      intent: "display",
+    let resolveLock: () => void = () => {};
+    const lockPromise = new Promise<void>((res) => {
+      resolveLock = res;
     });
-
-    this.activeRenderTasks.set(canvas, renderTask);
+    this.canvasLocks.set(canvas, lockPromise);
 
     try {
-      await renderTask.promise;
-    } catch (err: any) {
-      if (err?.name === "RenderingCancelledException") {
-        // Normal cancellation when user zooms or pages rapidly
-        return {
-          width: logicalViewport.width,
-          height: logicalViewport.height,
-          renderedScale: options.scale,
-        };
-      }
-      throw err;
-    } finally {
-      this.activeRenderTasks.delete(canvas);
-    }
+      const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+      const dpr =
+        options.devicePixelRatio ||
+        (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
 
-    return {
-      width: Math.round(logicalViewport.width),
-      height: Math.round(logicalViewport.height),
-      renderedScale: options.scale,
-    };
+      // Calculate total rotation = native page rotation + viewing rotation
+      const baseRotation = page.rotate || 0;
+      const additionalRotation = options.rotation || 0;
+      const totalRotation = (baseRotation + additionalRotation) % 360;
+
+      // Viewport scaled by DPR for sharp high-DPI rendering
+      const actualScale = options.scale * dpr;
+      const viewport = page.getViewport({ scale: actualScale, rotation: totalRotation });
+
+      // Logical dimensions for CSS
+      const logicalViewport = page.getViewport({ scale: options.scale, rotation: totalRotation });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${logicalViewport.width}px`;
+      canvas.style.height = `${logicalViewport.height}px`;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Failed to get 2D canvas context.");
+      }
+
+      const renderTask = page.render({
+        canvasContext: ctx,
+        viewport,
+        intent: "display",
+      });
+
+      this.activeRenderTasks.set(canvas, renderTask);
+
+      try {
+        await renderTask.promise;
+      } catch (err: any) {
+        if (err?.name === "RenderingCancelledException") {
+          // Normal cancellation when user zooms or pages rapidly
+          return {
+            width: logicalViewport.width,
+            height: logicalViewport.height,
+            renderedScale: options.scale,
+          };
+        }
+        throw err;
+      } finally {
+        this.activeRenderTasks.delete(canvas);
+      }
+
+      return {
+        width: Math.round(logicalViewport.width),
+        height: Math.round(logicalViewport.height),
+        renderedScale: options.scale,
+      };
+    } finally {
+      this.canvasLocks.delete(canvas);
+      resolveLock();
+    }
   }
 
   async renderThumbnail(options: RenderThumbnailOptions): Promise<RenderResult> {
@@ -268,53 +287,107 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     }
 
     const canvas = options.canvas;
-    this.cancelRender(canvas);
+    await this.cancelRender(canvas);
 
-    const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+    let resolveLock: () => void = () => {};
+    const lockPromise = new Promise<void>((res) => {
+      resolveLock = res;
+    });
+    this.canvasLocks.set(canvas, lockPromise);
+
+    try {
+      const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+      const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+      const scale = options.targetWidth / unscaledViewport.width;
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const viewport = page.getViewport({ scale: scale * dpr, rotation: page.rotate || 0 });
+      const logicalViewport = page.getViewport({ scale, rotation: page.rotate || 0 });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = `${logicalViewport.width}px`;
+      canvas.style.height = `${logicalViewport.height}px`;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Failed to get 2D canvas context for thumbnail.");
+      }
+
+      const renderTask = page.render({
+        canvasContext: ctx,
+        viewport,
+      });
+
+      this.activeRenderTasks.set(canvas, renderTask);
+
+      try {
+        await renderTask.promise;
+      } catch (err: any) {
+        if (err?.name === "RenderingCancelledException") {
+          return {
+            width: logicalViewport.width,
+            height: logicalViewport.height,
+            renderedScale: scale,
+          };
+        }
+        throw err;
+      } finally {
+        this.activeRenderTasks.delete(canvas);
+      }
+
+      return {
+        width: Math.round(logicalViewport.width),
+        height: Math.round(logicalViewport.height),
+        renderedScale: scale,
+      };
+    } finally {
+      this.canvasLocks.delete(canvas);
+      resolveLock();
+    }
+  }
+
+  async extractPageRegionAsImage(
+    pageNumber: number,
+    rect: { x: number; y: number; width: number; height: number }
+  ): Promise<string> {
+    if (!this.cachedPdfJsDoc) {
+      throw new Error("No document loaded.");
+    }
+
+    const page = await this.cachedPdfJsDoc.getPage(pageNumber);
     const unscaledViewport = page.getViewport({ scale: 1.0 });
 
-    const scale = options.targetWidth / unscaledViewport.width;
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const viewport = page.getViewport({ scale: scale * dpr, rotation: page.rotate || 0 });
-    const logicalViewport = page.getViewport({ scale, rotation: page.rotate || 0 });
+    const renderScale = 2.0;
+    const viewport = page.getViewport({ scale: renderScale });
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.width = `${logicalViewport.width}px`;
-    canvas.style.height = `${logicalViewport.height}px`;
+    if (typeof document === "undefined") return "";
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Failed to get 2D canvas context for thumbnail.");
-    }
+    const offscreen = document.createElement("canvas");
+    offscreen.width = viewport.width;
+    offscreen.height = viewport.height;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return "";
 
     const renderTask = page.render({
       canvasContext: ctx,
       viewport,
     });
+    await renderTask.promise;
 
-    this.activeRenderTasks.set(canvas, renderTask);
+    const cropX = Math.max(0, rect.x * renderScale);
+    const cropY = Math.max(0, (unscaledViewport.height - rect.y - rect.height) * renderScale);
+    const cropW = Math.min(offscreen.width - cropX, Math.max(10, rect.width * renderScale));
+    const cropH = Math.min(offscreen.height - cropY, Math.max(10, rect.height * renderScale));
 
-    try {
-      await renderTask.promise;
-    } catch (err: any) {
-      if (err?.name === "RenderingCancelledException") {
-        return {
-          width: logicalViewport.width,
-          height: logicalViewport.height,
-          renderedScale: scale,
-        };
-      }
-      throw err;
-    } finally {
-      this.activeRenderTasks.delete(canvas);
-    }
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const cropCtx = cropCanvas.getContext("2d");
+    if (!cropCtx) return "";
 
-    return {
-      width: Math.round(logicalViewport.width),
-      height: Math.round(logicalViewport.height),
-      renderedScale: scale,
-    };
+    cropCtx.drawImage(offscreen, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    return cropCanvas.toDataURL("image/png");
   }
 
   async analyzeStyleProfile(pageNumber: number): Promise<DocumentStyleProfile> {

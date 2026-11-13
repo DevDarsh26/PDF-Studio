@@ -21,6 +21,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
 
   const [isRendering, setIsRendering] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [renderNonce, setRenderNonce] = useState(0);
 
   useEffect(() => {
     let isCancelled = false;
@@ -28,7 +29,6 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
     if (!canvas || pageInfos.length === 0) return;
 
     setIsRendering(true);
-    setRenderError(null);
 
     const render = async () => {
       try {
@@ -43,9 +43,22 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
 
         if (!isCancelled) {
           setIsRendering(false);
+          setRenderError(null);
         }
       } catch (err: any) {
-        if (!isCancelled && err?.name !== "RenderingCancelledException") {
+        if (!isCancelled) {
+          if (
+            err?.name === "RenderingCancelledException" ||
+            err?.message?.includes("Rendering cancelled")
+          ) {
+            return;
+          }
+          if (err?.message?.includes("Cannot use the same canvas")) {
+            setTimeout(() => {
+              if (!isCancelled) setRenderNonce((n) => n + 1);
+            }, 80);
+            return;
+          }
           setRenderError(err?.message || "Failed to render PDF page.");
           setIsRendering(false);
         }
@@ -60,7 +73,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
         adapter.cancelRender?.(canvas);
       }
     };
-  }, [adapter, currentPageNumber, zoomScale, viewRotation, pageInfos]);
+  }, [adapter, currentPageNumber, zoomScale, viewRotation, pageInfos, renderNonce]);
 
   const currentPage = pageInfos[currentPageNumber - 1];
 
@@ -72,14 +85,25 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
       {renderError ? (
         <div className="my-auto max-w-md bg-white border border-red-200 rounded-xl p-6 shadow-sm text-center">
           <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-          <h4 className="text-sm font-semibold text-slate-800 mb-1">Rendering Error</h4>
+          <h4 className="text-sm font-semibold text-slate-800 mb-1">Rendering Notice</h4>
           <p className="text-xs text-slate-500 mb-4">{renderError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 transition"
-          >
-            Reload Editor
-          </button>
+          <div className="flex items-center justify-center space-x-2">
+            <button
+              onClick={() => {
+                setRenderError(null);
+                setRenderNonce((n) => n + 1);
+              }}
+              className="px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition"
+            >
+              Retry Render
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 transition"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       ) : (
         <div className="relative my-auto flex flex-col items-center">
@@ -98,7 +122,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
 
             {/* Subtle Loading Overlay for smooth zoom transitions */}
             {isRendering && (
-              <div className="absolute inset-0 bg-white/40 backdrop-blur-2xs flex items-center justify-center transition">
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-2xs flex items-center justify-center transition pointer-events-none z-20">
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/90 rounded-full shadow-md border border-slate-200 text-xs font-medium text-slate-700">
                   <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
                   <span>Rendering...</span>

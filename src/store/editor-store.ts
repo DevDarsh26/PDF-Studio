@@ -19,6 +19,11 @@ import {
   RedactionCommand,
   AddHyperlinkCommand,
 } from "../core/commands/editor-commands";
+import {
+  saveDocumentSession,
+  loadDocumentSession,
+  clearDocumentSession,
+} from "../core/persistence/document-persistence";
 
 export type EditorTool =
   | "select"
@@ -123,6 +128,7 @@ export interface EditorState {
   inheritStyleFromSelectedToken: () => FormattingStyle | null;
   showToast: (message: string) => void;
   copySelectedTextToClipboard: () => Promise<boolean>;
+  restoreSession: () => Promise<boolean>;
 }
 
 const DEFAULT_FORMATTING: FormattingStyle = {
@@ -222,6 +228,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       });
 
       useHistoryStore.getState().clearHistory();
+
+      saveDocumentSession({
+        documentName: fileName || get().documentName || "document.pdf",
+        rawBytes: data,
+        operations: [],
+        currentPageNumber: 1,
+        zoomScale: 1.0,
+      });
     } catch (err: unknown) {
       if (err instanceof PasswordRequiredError) {
         set({
@@ -359,6 +373,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   closeDocument: async () => {
+    await clearDocumentSession();
     const { adapter } = get();
     await adapter.dispose();
     set({
@@ -466,20 +481,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addOperationDirect: (op: EditOperation) => {
-    set({ operations: [...get().operations, op] });
+    const updated = [...get().operations, op];
+    set({ operations: updated });
+    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
+    if (documentName && rawBytes) {
+      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
+    }
   },
 
   removeOperationDirect: (id: string) => {
+    const updated = get().operations.filter((o) => o.id !== id);
     set({
-      operations: get().operations.filter((o) => o.id !== id),
+      operations: updated,
       selectedElementId: get().selectedElementId === id ? null : get().selectedElementId,
     });
+    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
+    if (documentName && rawBytes) {
+      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
+    }
   },
 
   updateOperationDirect: (id: string, updates: Partial<EditOperation>) => {
-    set({
-      operations: get().operations.map((o) => (o.id === id ? ({ ...o, ...updates } as EditOperation) : o)),
-    });
+    const updated = get().operations.map((o) => (o.id === id ? ({ ...o, ...updates } as EditOperation) : o));
+    set({ operations: updated });
+    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
+    if (documentName && rawBytes) {
+      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
+    }
   },
 
   executeAddOperation: async (op: EditOperation) => {
@@ -712,5 +740,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     return false;
+  },
+
+  restoreSession: async () => {
+    try {
+      const session = await loadDocumentSession();
+      if (!session || !session.rawBytes) return false;
+
+      const { loadDocumentBytes, setZoomScale, setCurrentPage, showToast } = get();
+      await loadDocumentBytes(session.rawBytes, session.documentName);
+
+      set({
+        operations: session.operations || [],
+        currentPageNumber: session.currentPageNumber || 1,
+        zoomScale: session.zoomScale || 1.0,
+      });
+
+      if (session.currentPageNumber && session.currentPageNumber > 1) {
+        await setCurrentPage(session.currentPageNumber);
+      }
+      if (session.zoomScale) {
+        setZoomScale(session.zoomScale);
+      }
+
+      showToast(`Restored session: ${session.documentName}`);
+      return true;
+    } catch {
+      return false;
+    }
   },
 }));

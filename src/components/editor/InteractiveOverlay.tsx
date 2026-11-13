@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { Copy, Edit3 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
   AddTextOperation,
@@ -41,6 +42,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     executeAddOperation,
     executeUpdateElement,
     deleteSelected,
+    copySelectedTextToClipboard,
     activeFormatting,
     currentStyleProfile,
   } = useEditorStore();
@@ -87,7 +89,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     };
   };
 
-  // Delete key listener
+  // Keyboard listener: Delete, Backspace, Ctrl+C / Cmd+C copy
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -102,10 +104,17 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           deleteSelected();
         }
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        const hasSelection = typeof window !== "undefined" && window.getSelection()?.toString();
+        if (!hasSelection && (selectedTokenId || selectedElementId)) {
+          e.preventDefault();
+          copySelectedTextToClipboard();
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElementId, deleteSelected]);
+  }, [selectedElementId, selectedTokenId, deleteSelected, copySelectedTextToClipboard]);
 
   // Operations on the current page
   const pageOperations = operations.filter(
@@ -460,6 +469,41 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               >
                 {token.text}
               </text>
+              {isSelected && (
+                <foreignObject
+                  x={Math.max(4, screenPos.x)}
+                  y={Math.max(4, screenPos.y - 28)}
+                  width={140}
+                  height={26}
+                  className="overflow-visible pointer-events-auto"
+                >
+                  <div className="flex items-center space-x-1 bg-slate-900/90 text-white rounded-md px-1.5 py-0.5 shadow-md text-[10px] whitespace-nowrap">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await copySelectedTextToClipboard();
+                      }}
+                      className="flex items-center space-x-1 px-1.5 py-0.5 hover:bg-slate-700 rounded transition font-medium"
+                      title="Copy text to clipboard"
+                    >
+                      <Copy className="w-2.5 h-2.5" />
+                      <span>Copy</span>
+                    </button>
+                    <span className="text-slate-600">|</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTextEditorForToken(token.id);
+                      }}
+                      className="flex items-center space-x-1 px-1.5 py-0.5 hover:bg-slate-700 rounded transition font-medium text-emerald-400"
+                      title="Modify this text"
+                    >
+                      <Edit3 className="w-2.5 h-2.5" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </foreignObject>
+              )}
               <title>
                 {isEditTool
                   ? `Click to modify: "${token.text}"`

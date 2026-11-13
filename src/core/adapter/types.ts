@@ -80,7 +80,12 @@ export interface PdfEngineAdapter {
   /**
    * Cancels in-flight render task for a given canvas if active.
    */
-  cancelRender?(canvas: HTMLCanvasElement): void;
+  cancelRender?(canvas: HTMLCanvasElement): Promise<void> | void;
+
+  /**
+   * Extracts a specific rectangular region of a page as an image data URL (PNG).
+   */
+  extractPageRegionAsImage?(pageNumber: number, rect: { x: number; y: number; width: number; height: number }): Promise<string>;
 
   /**
    * Applies all recorded operations on top of the immutable source bytes,

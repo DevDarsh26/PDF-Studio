@@ -27,9 +27,17 @@ export default function Home() {
     setZoomScale,
     rotateViewing,
     copySelectedTextToClipboard,
+    restoreSession,
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
+
+  // Restore previous editing session on initial load so reload never loses work
+  useEffect(() => {
+    if (!rawBytes) {
+      restoreSession();
+    }
+  }, [rawBytes, restoreSession]);
 
   // Global keyboard shortcuts for PDF navigation and viewing
   useEffect(() => {
