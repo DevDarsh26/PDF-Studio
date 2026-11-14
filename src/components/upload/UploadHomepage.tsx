@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   UploadCloud,
   FileCheck2,
@@ -17,10 +17,18 @@ import {
   FileSpreadsheet,
   Presentation,
   Unlock,
-  CheckCircle2,
   Sparkles,
   FilePlus2,
-  Smartphone,
+  Search,
+  X,
+  Clock,
+  CheckCircle2,
+  FileCode2,
+  Command,
+  HelpCircle,
+  FolderOpen,
+  ArrowUpRight,
+  ArrowLeft,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
@@ -30,170 +38,240 @@ import {
 } from "@/core/utils/sample-pdfs";
 import { ToolCategory, ToolId, ToolDefinition } from "@/core/tools/types";
 import { PdfToolsRunnerModal } from "../tools/PdfToolsRunnerModal";
+import { loadDocumentSession } from "@/core/persistence/document-persistence";
 
-const ALL_TOOLS: ToolDefinition[] = [
+const ALL_TOOLS: (ToolDefinition & { keywords?: string[] })[] = [
   // ROW 1: PRIMARY ESSENTIALS
   {
     id: "edit-pdf",
     title: "Edit PDF Text",
-    shortDesc: "Modify existing text, add shapes, whiteout, and annotations in the browser.",
+    shortDesc: "Directly modify original text, add shapes, whiteout, annotations, and signatures.",
     category: "organize",
-    badge: "Native",
+    badge: "Native Engine",
     popular: true,
     acceptedFormats: ".pdf",
     color: "blue",
     gradient: "from-blue-600 to-indigo-600",
+    keywords: ["edit", "text", "modify", "write", "change", "annotate", "type"],
   },
   {
     id: "merge-pdf",
     title: "Merge PDFs",
-    shortDesc: "Combine multiple PDF documents into one unified, perfectly ordered file.",
+    shortDesc: "Combine multiple PDF files into one unified, perfectly ordered document.",
     category: "organize",
+    badge: "Fast Combine",
     popular: true,
     acceptedFormats: ".pdf",
     color: "indigo",
     gradient: "from-indigo-600 to-violet-600",
+    keywords: ["merge", "combine", "join", "unite", "append"],
   },
   {
     id: "split-pdf",
-    title: "Split / Separate PDF",
-    shortDesc: "Extract specific page ranges or split each page into individual documents.",
+    title: "Split / Extract PDF",
+    shortDesc: "Extract custom page ranges or separate all pages into individual PDF files.",
     category: "organize",
+    badge: "Page Ranges",
     popular: true,
     acceptedFormats: ".pdf",
     color: "purple",
     gradient: "from-purple-600 to-pink-600",
+    keywords: ["split", "extract", "separate", "pages", "divide", "range"],
   },
   {
     id: "compress-pdf",
     title: "Compress PDF",
-    shortDesc: "Reduce file size significantly while preserving vector clarity and sharp text.",
+    shortDesc: "Reduce file size up to 70% while preserving sharp typography and vector assets.",
     category: "security",
-    badge: "-60%",
+    badge: "-60% Avg",
     popular: true,
     acceptedFormats: ".pdf",
     color: "emerald",
     gradient: "from-emerald-600 to-teal-600",
+    keywords: ["compress", "reduce", "size", "shrink", "optimize", "minify"],
   },
 
-  // ROW 2: IMAGE CONVERSIONS
+  // ROW 2: OFFICE & DOCUMENT CONVERSIONS
+  {
+    id: "pdf-to-word",
+    title: "PDF to Word (.docx)",
+    shortDesc: "Extract continuous paragraphs, tables, and typography into editable Microsoft Word format.",
+    category: "convert-from-pdf",
+    badge: "OOXML Standard",
+    popular: true,
+    acceptedFormats: ".pdf",
+    color: "sky",
+    gradient: "from-sky-600 to-blue-700",
+    keywords: ["word", "docx", "doc", "microsoft", "office", "editable"],
+  },
+  {
+    id: "pdf-to-excel",
+    title: "PDF to Excel (.xlsx)",
+    shortDesc: "Detect and extract data tables into Excel workbooks or clean structured CSVs.",
+    category: "convert-from-pdf",
+    badge: "Table Extract",
+    acceptedFormats: ".pdf",
+    color: "emerald",
+    gradient: "from-emerald-500 to-green-700",
+    keywords: ["excel", "xlsx", "csv", "spreadsheet", "table", "data", "sheets"],
+  },
+  {
+    id: "pdf-to-ppt",
+    title: "PDF to PowerPoint",
+    shortDesc: "Transform pages into editable presentation slides ready to present or share.",
+    category: "convert-from-pdf",
+    acceptedFormats: ".pdf",
+    color: "red",
+    gradient: "from-red-500 to-amber-600",
+    keywords: ["powerpoint", "ppt", "pptx", "slides", "presentation", "keynote"],
+  },
+  {
+    id: "word-to-pdf",
+    title: "Word & Text to PDF",
+    shortDesc: "Convert rich text, markdown, or Office documents directly into standard PDF format.",
+    category: "convert-to-pdf",
+    acceptedFormats: ".txt,.docx,.md",
+    color: "blue",
+    gradient: "from-blue-500 to-cyan-600",
+    keywords: ["convert", "text", "markdown", "word", "create"],
+  },
+
+  // ROW 3: IMAGE CONVERSIONS
   {
     id: "pdf-to-jpg",
     title: "PDF to JPG",
-    shortDesc: "Convert each PDF page into high-resolution JPG images with custom DPI.",
+    shortDesc: "Convert each PDF page into high-resolution JPG images with custom DPI settings.",
     category: "convert-from-pdf",
     acceptedFormats: ".pdf",
     color: "amber",
     gradient: "from-amber-500 to-orange-600",
+    keywords: ["jpg", "jpeg", "image", "photo", "convert"],
   },
   {
     id: "pdf-to-png",
     title: "PDF to PNG",
-    shortDesc: "Render pages into crisp, lossless PNG images with high pixel fidelity.",
+    shortDesc: "Render pages into crisp, lossless PNG images with pixel-perfect vector clarity.",
     category: "convert-from-pdf",
     badge: "Lossless",
     acceptedFormats: ".pdf",
     color: "orange",
     gradient: "from-orange-500 to-red-600",
+    keywords: ["png", "lossless", "image", "transparent", "photo"],
   },
   {
     id: "jpg-to-pdf",
     title: "JPG to PDF",
-    shortDesc: "Transform JPG photos and scans into a clean, formatted PDF document.",
+    shortDesc: "Transform photos, receipts, and scans into a clean, formatted PDF document.",
     category: "convert-to-pdf",
     acceptedFormats: "image/jpeg,image/jpg",
     color: "amber",
     gradient: "from-amber-600 to-yellow-600",
+    keywords: ["photo", "scan", "receipt", "jpg", "jpeg"],
   },
   {
     id: "images-to-pdf",
     title: "PNG & Images to PDF",
-    shortDesc: "Convert multiple PNG, WebP, or BMP images into a multi-page PDF.",
+    shortDesc: "Combine multiple PNG, WebP, or SVG graphics into a multi-page PDF.",
     category: "convert-to-pdf",
     acceptedFormats: "image/*",
     color: "rose",
     gradient: "from-rose-500 to-pink-600",
+    keywords: ["images", "gallery", "portfolio", "webp", "combine"],
   },
 
-  // ROW 3: OFFICE & DOCUMENTS
-  {
-    id: "pdf-to-word",
-    title: "PDF to Word (.docx)",
-    shortDesc: "Extract text flow, paragraphs, and headings into editable Microsoft Word format.",
-    category: "convert-from-pdf",
-    badge: "OOXML",
-    popular: true,
-    acceptedFormats: ".pdf",
-    color: "sky",
-    gradient: "from-sky-600 to-blue-700",
-  },
-  {
-    id: "pdf-to-excel",
-    title: "PDF to Excel (.xlsx)",
-    shortDesc: "Detect and extract data tables into Excel spreadsheets or clean CSV files.",
-    category: "convert-from-pdf",
-    acceptedFormats: ".pdf",
-    color: "emerald",
-    gradient: "from-emerald-500 to-green-700",
-  },
-  {
-    id: "pdf-to-ppt",
-    title: "PDF to PowerPoint",
-    shortDesc: "Convert PDF pages into presentation slides ready to present or share.",
-    category: "convert-from-pdf",
-    acceptedFormats: ".pdf",
-    color: "red",
-    gradient: "from-red-500 to-amber-600",
-  },
-  {
-    id: "word-to-pdf",
-    title: "Word & Text to PDF",
-    shortDesc: "Convert text or Office documents directly into a formatted PDF document.",
-    category: "convert-to-pdf",
-    acceptedFormats: ".txt,.docx,.md",
-    color: "blue",
-    gradient: "from-blue-500 to-cyan-600",
-  },
-
-  // ROW 4: SECURITY & ACCESS
+  // ROW 4: SECURITY & STRUCTURAL
   {
     id: "protect-pdf",
-    title: "Add Password",
-    shortDesc: "Secure and encrypt your PDF document with client-side password protection.",
+    title: "Protect with Password",
+    shortDesc: "Encrypt your PDF document with AES-256 client-side cryptographic security.",
     category: "security",
     badge: "AES-256",
     acceptedFormats: ".pdf",
     color: "violet",
     gradient: "from-violet-600 to-purple-800",
+    keywords: ["password", "lock", "encrypt", "protect", "security", "aes"],
   },
   {
     id: "unlock-pdf",
     title: "Unlock PDF",
-    shortDesc: "Remove password security from your document and export an open PDF.",
+    shortDesc: "Remove password security restrictions and export an open document.",
     category: "security",
     acceptedFormats: ".pdf",
     color: "teal",
     gradient: "from-teal-600 to-emerald-700",
+    keywords: ["unlock", "decrypt", "remove password", "open"],
   },
   {
     id: "excel-to-pdf",
     title: "Excel / CSV to PDF",
-    shortDesc: "Convert tables and CSV spreadsheets into formatted, styled PDF pages.",
+    shortDesc: "Format tables, financial figures, and CSV datasets into styled PDF reports.",
     category: "convert-to-pdf",
     acceptedFormats: ".csv,.xlsx",
     color: "green",
     gradient: "from-green-600 to-teal-700",
+    keywords: ["table", "csv", "excel", "sheets", "accounting"],
   },
 ];
 
-export const UploadHomepage: React.FC = () => {
+interface UploadHomepageProps {
+  onBackToLanding?: () => void;
+}
+
+export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeRunnerTool, setActiveRunnerTool] = useState<ToolId | null>(null);
 
-  const { loadDocumentBytes, isLoading, loadingProgress, errorMessage, clearError } =
-    useEditorStore();
+  // Resume session check
+  const [recentSession, setRecentSession] = useState<{
+    documentName: string;
+    timestamp: number;
+    currentPageNumber: number;
+  } | null>(null);
+
+  const {
+    loadDocumentBytes,
+    isLoading,
+    loadingProgress,
+    errorMessage,
+    clearError,
+    restoreSession,
+    showToast,
+  } = useEditorStore();
+
+  useEffect(() => {
+    let isCancelled = false;
+    loadDocumentSession().then((session) => {
+      if (!isCancelled && session && session.rawBytes && session.rawBytes.byteLength > 0) {
+        setRecentSession({
+          documentName: session.documentName,
+          timestamp: session.timestamp,
+          currentPageNumber: session.currentPageNumber || 1,
+        });
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // Keyboard shortcut Ctrl+O / Cmd+O to open file dialog and / to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      } else if (e.key === "/" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,7 +291,7 @@ export const UploadHomepage: React.FC = () => {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-      alert("Please upload a valid PDF document to open in editor.");
+      alert("Please upload a valid PDF document to open in PDF Studio.");
       return;
     }
 
@@ -231,13 +309,13 @@ export const UploadHomepage: React.FC = () => {
       let name: string;
       if (type === "single") {
         buffer = await createSinglePageSamplePdf();
-        name = "Sample-SinglePage.pdf";
+        name = "Sample-InvoiceContract.pdf";
       } else if (type === "multi") {
         buffer = await createMultiPageSamplePdf();
-        name = "Sample-MultiPage.pdf";
+        name = "Sample-AnnualReport.pdf";
       } else {
         buffer = await createRotatedPageSamplePdf();
-        name = "Sample-RotatedPages.pdf";
+        name = "Sample-RotatedPresentation.pdf";
       }
       await loadDocumentBytes(buffer, name);
     } catch {
@@ -253,10 +331,21 @@ export const UploadHomepage: React.FC = () => {
     }
   };
 
-  const filteredTools =
-    activeCategory === "all"
-      ? ALL_TOOLS
-      : ALL_TOOLS.filter((t) => t.category === activeCategory);
+  // Filter tools by category and search query
+  const query = searchQuery.trim().toLowerCase();
+  const filteredTools = ALL_TOOLS.filter((tool) => {
+    const matchesCategory = activeCategory === "all" || tool.category === activeCategory;
+    if (!matchesCategory) return false;
+    if (!query) return true;
+
+    return (
+      tool.title.toLowerCase().includes(query) ||
+      tool.shortDesc.toLowerCase().includes(query) ||
+      tool.category.toLowerCase().includes(query) ||
+      tool.badge?.toLowerCase().includes(query) ||
+      tool.keywords?.some((k) => k.toLowerCase().includes(query))
+    );
+  });
 
   const getToolIcon = (id: ToolId) => {
     switch (id) {
@@ -292,86 +381,162 @@ export const UploadHomepage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 relative overflow-y-auto min-h-screen">
+    <div className="flex-1 flex flex-col bg-[#0B0F17] text-slate-100 min-h-screen relative overflow-y-auto selection:bg-blue-500/30 selection:text-blue-200">
+      {/* Ambient background glow accents */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-blue-600/15 via-indigo-600/10 to-transparent blur-[140px] rounded-full" />
+        <div className="absolute top-1/3 -left-40 w-[600px] h-[600px] bg-blue-500/5 blur-[160px] rounded-full" />
+        <div className="absolute top-2/3 -right-40 w-[600px] h-[600px] bg-indigo-500/5 blur-[160px] rounded-full" />
+      </div>
+
       {/* Interactive Tool Runner Modal */}
       <PdfToolsRunnerModal
         toolId={activeRunnerTool}
         onClose={() => setActiveRunnerTool(null)}
       />
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-20 backdrop-blur-md bg-white/85 border-b border-slate-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <span className="font-extrabold text-sm tracking-tight">PS</span>
+      {/* Top Application Navbar */}
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0B0F17]/85 border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all">
+        <div className="flex items-center space-x-3.5">
+          {onBackToLanding && (
+            <button
+              onClick={onBackToLanding}
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700/80 transition flex items-center space-x-1.5 cursor-pointer mr-1"
+              title="Return to Overview / Landing Page"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Overview</span>
+            </button>
+          )}
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 border border-white/20">
+            <span className="font-black text-sm tracking-tight">PS</span>
           </div>
           <div>
-            <span className="font-bold text-slate-900 text-sm sm:text-base tracking-tight block leading-tight">
-              PDF Studio
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium hidden sm:block">
-              Client-Side Suite
+            <div className="flex items-center space-x-2">
+              <span className="font-extrabold text-white text-base tracking-tight">
+                PDF Studio
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                PRO SUITE
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              Client-Side WebAssembly Workspace
             </span>
           </div>
         </div>
 
-        {/* Center Privacy Badge */}
-        <div className="hidden md:inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>100% In-Browser • Zero Cloud Uploads</span>
+        {/* Center Live Privacy Status Badge */}
+        <div className="hidden md:inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>100% In-Browser Sandbox • Zero Data Uploads</span>
         </div>
 
-        {/* Right Action */}
-        <div className="flex items-center space-x-2">
+        {/* Right CTA */}
+        <div className="flex items-center space-x-2.5">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center space-x-1.5"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2 border border-white/10 active:scale-95 cursor-pointer"
           >
             <FilePlus2 className="w-3.5 h-3.5" />
-            <span>Open PDF</span>
+            <span>Open Document</span>
+            <span className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-black/30 text-[10px] text-blue-200 font-mono">
+              ⌘O
+            </span>
           </button>
         </div>
       </header>
 
-      {/* Error Alert */}
+      {/* Error Alert Notice */}
       {errorMessage && (
-        <div className="max-w-2xl mx-auto mt-4 px-4 w-full">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-xs flex items-start space-x-3 text-red-800 animate-in fade-in">
-            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+        <div className="max-w-3xl mx-auto mt-6 px-4 w-full relative z-10 animate-fade-in">
+          <div className="bg-red-950/60 border border-red-800/80 rounded-2xl p-4 shadow-xl flex items-start space-x-3.5 text-red-200 backdrop-blur-md">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div className="flex-1 text-xs">
-              <p className="font-semibold text-red-900 mb-0.5">Failed to open file</p>
-              <p className="text-red-700">{errorMessage}</p>
+              <p className="font-bold text-red-100 text-sm mb-1">Failed to open document</p>
+              <p className="text-red-300 leading-relaxed">{errorMessage}</p>
             </div>
-            <button onClick={clearError} className="text-red-500 hover:text-red-700 font-bold text-sm px-1">
+            <button
+              onClick={clearError}
+              className="text-red-400 hover:text-white font-bold text-base px-2 py-1 rounded-lg hover:bg-red-900/50 transition cursor-pointer"
+            >
               ✕
             </button>
           </div>
         </div>
       )}
 
-      {/* Main Content Container */}
-      <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex flex-col items-center">
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center relative z-10">
         {/* Hero Section */}
-        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium mb-4 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Complete PDF Editor & Conversion Suite</span>
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-slate-300 text-xs font-medium mb-5 shadow-inner backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <span>Complete PDF Studio • Native Text Editing • 15+ Free Converters</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-3 sm:mb-4 leading-tight">
-            Every PDF Tool You Need. <br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight mb-4 leading-[1.12]">
+            Professional PDF Tools. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
               100% Private in Your Browser.
             </span>
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
             Directly edit original text, convert to Word, Excel, JPG, compress, split, merge, and protect PDFs without uploading your files anywhere.
           </p>
         </div>
 
-        {/* Dropzone Card */}
-        <div className="w-full max-w-2xl mb-12">
+        {/* Resume Session Banner (If Previous Document Exists in Local Storage) */}
+        {recentSession && (
+          <div className="w-full max-w-3xl mb-8 animate-fade-in">
+            <div className="bg-gradient-to-r from-blue-950/40 via-slate-900/70 to-indigo-950/40 border border-blue-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl shadow-xl">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0">
+                  <FolderOpen className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">
+                      Previous Session
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Page {recentSession.currentPageNumber}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-white truncate max-w-md mt-0.5">
+                    {recentSession.documentName}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 self-end sm:self-auto shrink-0">
+                <button
+                  onClick={() => setRecentSession(null)}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white transition rounded-lg hover:bg-slate-800"
+                >
+                  Dismiss
+                </button>
+                <button
+                  onClick={async () => {
+                    await restoreSession();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
+                >
+                  <span>Resume Workspace</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Master Dropzone & Document Command Hub */}
+        <div className="w-full max-w-3xl mb-14">
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -380,12 +545,15 @@ export const UploadHomepage: React.FC = () => {
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`w-full bg-white rounded-2xl border-2 border-dashed p-8 sm:p-10 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md flex flex-col items-center justify-center relative overflow-hidden ${
+            className={`w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl border-2 border-dashed p-8 sm:p-12 cursor-pointer transition-all duration-300 shadow-2xl relative overflow-hidden group ${
               isDragging
-                ? "border-blue-500 bg-blue-50/50 scale-[1.01] shadow-lg"
-                : "border-slate-300 hover:border-blue-400"
+                ? "border-blue-400 bg-blue-600/15 scale-[1.01] shadow-blue-500/25 ring-4 ring-blue-500/20"
+                : "border-slate-700/80 hover:border-blue-500/80 hover:bg-slate-900/80"
             }`}
           >
+            {/* Ambient inner glow */}
+            <div className="absolute inset-0 bg-radial from-blue-600/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
             <input
               type="file"
               ref={fileInputRef}
@@ -394,219 +562,339 @@ export const UploadHomepage: React.FC = () => {
               className="hidden"
             />
 
-            <div
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-4 transition ${
-                isDragging
-                  ? "bg-blue-600 text-white scale-110 shadow-lg shadow-blue-500/30"
-                  : "bg-blue-50 text-blue-600"
-              }`}
-            >
-              <UploadCloud className="w-7 h-7 sm:w-8 sm:h-8" />
-            </div>
-
-            <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-1">
-              Select PDF file or drop it here
-            </h3>
-            <p className="text-xs text-slate-500 mb-5 text-center">
-              Opens instantly in the high-fidelity PDF Studio Editor
-            </p>
-
-            <button
-              type="button"
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition flex items-center space-x-2"
-            >
-              <FileCheck2 className="w-4 h-4" />
-              <span>Choose Local PDF</span>
-            </button>
-
-            {isLoading && (
-              <div className="w-full max-w-xs mt-6">
-                <div className="flex justify-between text-xs text-slate-600 mb-1 font-medium">
-                  <span>Loading & analyzing document...</span>
-                  <span className="font-mono">{loadingProgress}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-200"
-                    style={{ width: `${loadingProgress}%` }}
-                  />
-                </div>
+            <div className="flex flex-col items-center justify-center relative z-10">
+              <div
+                className={`w-18 h-18 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mb-5 transition-all duration-300 shadow-xl ${
+                  isDragging
+                    ? "bg-blue-600 text-white scale-110 shadow-blue-500/40"
+                    : "bg-gradient-to-tr from-slate-800 to-slate-700/80 text-blue-400 border border-slate-700 group-hover:scale-105 group-hover:text-blue-300 group-hover:border-blue-500/40"
+                }`}
+              >
+                <UploadCloud className="w-9 h-9 sm:w-10 sm:h-10 transition-transform group-hover:-translate-y-0.5" />
               </div>
-            )}
+
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-2 text-center tracking-tight">
+                Select PDF file or drop it anywhere
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 mb-6 text-center max-w-md leading-relaxed">
+                Opens instantly in the high-fidelity PDF Studio Editor. Vector glyphs, interactive links, and embedded styles preserved.
+              </p>
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center space-x-2 border border-white/10 group-hover:shadow-blue-500/40"
+                >
+                  <FileCheck2 className="w-4 h-4" />
+                  <span>Choose Local PDF</span>
+                </button>
+              </div>
+
+              {/* Supported format badges */}
+              <div className="flex items-center space-x-2 mt-6 text-[11px] text-slate-500">
+                <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded text-slate-400 border border-slate-700/60">
+                  .pdf (All Standards 1.4 - 2.0)
+                </span>
+                <span>•</span>
+                <span>Encrypted & Scanned PDFs supported</span>
+              </div>
+
+              {/* Loading Bar Indicator */}
+              {isLoading && (
+                <div className="w-full max-w-sm mt-6 animate-fade-in">
+                  <div className="flex justify-between text-xs text-slate-300 mb-2 font-medium">
+                    <span className="flex items-center space-x-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                      <span>Parsing & analyzing document structure...</span>
+                    </span>
+                    <span className="font-mono text-blue-400 font-bold">{loadingProgress}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/80">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 shadow-md shadow-blue-500/50"
+                      style={{ width: `${loadingProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Quick Sample Launchers */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-            <span className="text-[11px] font-medium text-slate-400">Or test right now:</span>
-            <button
-              onClick={() => loadSample("single")}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-[11px] font-medium transition"
-            >
-              Single Page
-            </button>
-            <button
-              onClick={() => loadSample("multi")}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-[11px] font-medium transition"
-            >
-              Multi-Page (5 Pgs)
-            </button>
-            <button
-              onClick={() => loadSample("rotated")}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-[11px] font-medium transition"
-            >
-              Rotated Document
-            </button>
+          {/* Quick Interactive Sample Document Launchers */}
+          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 px-4 backdrop-blur-md">
+            <span className="text-xs text-slate-400 font-medium flex items-center space-x-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Or explore with instant sample templates:</span>
+            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => loadSample("single")}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
+              >
+                <FileText aria-hidden="true" className="w-3.5 h-3.5 text-blue-300" />
+                <span>Contract & Terms (1 Pg)</span>
+              </button>
+              <button
+                onClick={() => loadSample("multi")}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
+              >
+                <Layers aria-hidden="true" className="w-3.5 h-3.5 text-violet-300" />
+                <span>Annual Report (5 Pgs)</span>
+              </button>
+              <button
+                onClick={() => loadSample("rotated")}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
+              >
+                <Presentation aria-hidden="true" className="w-3.5 h-3.5 text-cyan-300" />
+                <span>Landscape Slides</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Tools Suite Navigation Tabs */}
+        {/* Tools Suite Section with Live Search & Category Filtering */}
         <section className="w-full space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                All PDF Tools
-              </h2>
-              <p className="text-xs text-slate-500">
-                Click any tool to convert, optimize, or reorganize your documents.
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  All PDF Tools & Converters
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                  {filteredTools.length}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Run any tool directly inside your browser. No registration, no queues, no file limits.
               </p>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs self-start sm:self-auto">
-              <button
-                onClick={() => setActiveCategory("all")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                  activeCategory === "all"
-                    ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                All Tools
-              </button>
-              <button
-                onClick={() => setActiveCategory("convert-from-pdf")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                  activeCategory === "convert-from-pdf"
-                    ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                From PDF
-              </button>
-              <button
-                onClick={() => setActiveCategory("convert-to-pdf")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                  activeCategory === "convert-to-pdf"
-                    ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                To PDF
-              </button>
-              <button
-                onClick={() => setActiveCategory("organize")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                  activeCategory === "organize"
-                    ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Organize
-              </button>
-              <button
-                onClick={() => setActiveCategory("security")}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                  activeCategory === "security"
-                    ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Security & Size
-              </button>
+            {/* Search Input Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative min-w-[240px] sm:min-w-[280px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search tools (e.g. compress, word, merge...)"
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap gap-1 p-1 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
+                <button
+                  onClick={() => setActiveCategory("all")}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    activeCategory === "all"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  All ({ALL_TOOLS.length})
+                </button>
+                <button
+                  onClick={() => setActiveCategory("convert-from-pdf")}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    activeCategory === "convert-from-pdf"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  From PDF
+                </button>
+                <button
+                  onClick={() => setActiveCategory("convert-to-pdf")}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    activeCategory === "convert-to-pdf"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  To PDF
+                </button>
+                <button
+                  onClick={() => setActiveCategory("organize")}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    activeCategory === "organize"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Organize
+                </button>
+                <button
+                  onClick={() => setActiveCategory("security")}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
+                    activeCategory === "security"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Security
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Tools Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredTools.map((tool) => {
-              const Icon = getToolIcon(tool.id);
-              return (
-                <div
-                  key={tool.id}
-                  onClick={() => handleToolClick(tool)}
-                  className="group bg-white rounded-2xl border border-slate-200/90 hover:border-blue-400 p-5 cursor-pointer shadow-xs hover:shadow-lg transition-all duration-200 flex flex-col justify-between relative overflow-hidden"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div
-                        className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${tool.gradient} text-white flex items-center justify-center shadow-md transition-transform group-hover:scale-105`}
-                      >
-                        <Icon className="w-5 h-5" />
+          {/* Tools Grid Display */}
+          {filteredTools.length === 0 ? (
+            <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-slate-800/80">
+              <Search className="w-8 h-8 text-slate-500 mx-auto mb-3" />
+              <h4 className="text-sm font-semibold text-slate-300 mb-1">
+                No tools found matching &quot;{searchQuery}&quot;
+              </h4>
+              <p className="text-xs text-slate-500 mb-4">
+                Try searching for words like &quot;merge&quot;, &quot;compress&quot;, &quot;word&quot;, or &quot;excel&quot;.
+              </p>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setActiveCategory("all");
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition"
+              >
+                Reset Search & Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredTools.map((tool) => {
+                const Icon = getToolIcon(tool.id);
+                return (
+                  <div
+                    key={tool.id}
+                    onClick={() => handleToolClick(tool)}
+                    className="group bg-slate-900/70 hover:bg-slate-850 rounded-2xl border border-slate-800 hover:border-blue-500/60 p-5 cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-200 flex flex-col justify-between relative overflow-hidden backdrop-blur-md hover:-translate-y-1"
+                  >
+                    {/* Top ambient hover gradient */}
+                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                    <div className="space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div
+                          className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${tool.gradient} text-white flex items-center justify-center shadow-lg shadow-black/40 transition-transform group-hover:scale-105 border border-white/20`}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        {tool.badge && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                            {tool.badge}
+                          </span>
+                        )}
                       </div>
-                      {tool.badge && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                          {tool.badge}
-                        </span>
-                      )}
+
+                      <div>
+                        <h3 className="font-bold text-white text-sm group-hover:text-blue-400 transition-colors flex items-center justify-between">
+                          <span>{tool.title}</span>
+                          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-blue-400 transition-opacity" />
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                          {tool.shortDesc}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors flex items-center justify-between">
-                        <span>{tool.title}</span>
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                        {tool.shortDesc}
-                      </p>
+                    <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-blue-400">
+                      <span className="group-hover:translate-x-0.5 transition-transform">Launch Tool</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-                  <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
-                    <span className="group-hover:translate-x-0.5 transition-transform">Use Tool</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-blue-500 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              );
-            })}
+        {/* Enterprise Architecture & Security Pillar Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-16 text-left w-full pt-12 border-t border-slate-800/80">
+          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+              <Lock className="w-5 h-5" />
+            </div>
+            <h4 className="text-sm font-bold text-white">100% In-Browser Confidential</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Your confidential contracts, financials, and legal files never leave your computer. All WebAssembly parsing, rendering, and conversion run inside your isolated browser sandbox.
+            </p>
+          </div>
+
+          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+              <Layers className="w-5 h-5" />
+            </div>
+            <h4 className="text-sm font-bold text-white">True Vector & Font Preservation</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Unlike web tools that degrade PDFs into blurry flattened raster images, PDF Studio maintains exact vector glyphs, embedded OpenType fonts, form fields, and clickable URLs.
+            </p>
+          </div>
+
+          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+              <Zap className="w-5 h-5" />
+            </div>
+            <h4 className="text-sm font-bold text-white">Zero Limits & Multi-Threaded</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              No uploading or downloading over slow connections. Process massive documents up to 250MB instantly with multi-threaded Web Workers and zero rate limits.
+            </p>
           </div>
         </section>
 
-        {/* Client-Side Advantage Cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-16 text-left w-full pt-12 border-t border-slate-200">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2.5 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-              <Lock className="w-4 h-4" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">100% Confidential</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Your sensitive contracts, medical records, and financial statements never leave your computer. All operations execute inside your browser sandbox.
-            </p>
+        {/* Global Keyboard Shortcuts Strip */}
+        <section className="w-full mt-10 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 backdrop-blur-md">
+          <div className="flex items-center space-x-2 font-medium text-slate-300">
+            <Command className="w-4 h-4 text-blue-400" />
+            <span>Editor Shortcuts:</span>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2.5 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-              <Layers className="w-4 h-4" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">Format Preservation</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Unlike ordinary web tools that flatten pages into low-res bitmaps, PDF Studio preserves original vector glyphs, embedded fonts, and clickable hyperlinks.
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-2.5 shadow-2xs">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-              <Zap className="w-4 h-4" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900">Zero Limits & Instant</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              No waiting for file uploads or downloads over slow networks. Process large PDFs up to 250MB instantly with multi-threaded Web Workers.
-            </p>
+          <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">V</kbd>
+              <span className="text-slate-400 font-sans">Select</span>
+            </span>
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">H</kbd>
+              <span className="text-slate-400 font-sans">Grab & Position</span>
+            </span>
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Space</kbd>
+              <span className="text-slate-400 font-sans">Quick Grab</span>
+            </span>
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">T</kbd>
+              <span className="text-slate-400 font-sans">Add Text</span>
+            </span>
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ctrl+D</kbd>
+              <span className="text-slate-400 font-sans">Duplicate</span>
+            </span>
+            <span className="flex items-center space-x-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ctrl+Z</kbd>
+              <span className="text-slate-400 font-sans">Undo</span>
+            </span>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200 bg-white py-6 px-4 text-center text-xs text-slate-400">
-        <p>PDF Studio • High-Fidelity Client-Side PDF Platform • 100% Free & Open Source</p>
+      <footer className="mt-auto border-t border-slate-800/80 bg-[#0B0F17]/95 py-6 px-4 text-center text-xs text-slate-500 relative z-10">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>PDF Studio Engine v2.4 • Client-Side Operational</span>
+          </div>
+          <p>© 2026 PDF Studio Platform • 100% Client-Side Privacy Guaranteed</p>
+        </div>
       </footer>
     </div>
   );

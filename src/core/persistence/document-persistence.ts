@@ -29,29 +29,39 @@ function openDatabase(): Promise<IDBDatabase> {
 
     const timer = setTimeout(() => {
       reject(new Error("IndexedDB connection timed out."));
-    }, 3000);
+    }, 1200);
 
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
+      request.onupgradeneeded = (event) => {
+        try {
+          const db = (event.target as IDBOpenDBRequest).result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        } catch (e) {
+          console.warn("Error in onupgradeneeded:", e);
+        }
+      };
 
-    request.onsuccess = () => {
+      request.onsuccess = () => {
+        clearTimeout(timer);
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        clearTimeout(timer);
+        reject(request.error || new Error("IndexedDB open error"));
+      };
+      request.onblocked = () => {
+        clearTimeout(timer);
+        console.warn("IndexedDB upgrade blocked by another tab/connection.");
+        reject(new Error("IndexedDB upgrade blocked."));
+      };
+    } catch (err) {
       clearTimeout(timer);
-      resolve(request.result);
-    };
-    request.onerror = () => {
-      clearTimeout(timer);
-      reject(request.error);
-    };
-    request.onblocked = () => {
-      clearTimeout(timer);
-      console.warn("IndexedDB upgrade blocked.");
-    };
+      reject(err);
+    }
   });
 }
 
@@ -86,7 +96,14 @@ export async function saveDocumentSession(session: {
       };
 
       const putRequest = store.put(record, SESSION_KEY);
-      putRequest.onsuccess = () => resolve();
+      putRequest.onsuccess = () => {
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("pdf_has_session", "1");
+          }
+        } catch {}
+        resolve();
+      };
       putRequest.onerror = () => {
         console.warn("IndexedDB save failed:", putRequest.error);
         resolve(); // Don't throw to avoid disrupting UI
@@ -111,6 +128,11 @@ export async function loadDocumentSession(): Promise<StoredDocumentSession | nul
       getRequest.onsuccess = () => {
         const result = getRequest.result as StoredDocumentSession | undefined;
         if (!result || !result.rawBytes || result.rawBytes.byteLength === 0) {
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("pdf_has_session");
+            }
+          } catch {}
           resolve(null);
           return;
         }
@@ -149,6 +171,11 @@ export async function loadDocumentSession(): Promise<StoredDocumentSession | nul
  */
 export async function clearDocumentSession(): Promise<void> {
   try {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("pdf_has_session");
+      } catch {}
+    }
     const db = await openDatabase();
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, "readwrite");

@@ -17,11 +17,85 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
     zoomScale,
     viewRotation,
     pageInfos,
+    activeTool,
   } = useEditorStore();
 
   const [isRendering, setIsRendering] = useState(true);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderNonce, setRenderNonce] = useState(0);
+
+  // Spacebar hold quick-grab pan support
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      if (e.code === "Space" && !e.repeat) {
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const isGrabActive = activeTool === "grab" || isSpacePressed;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isGrabActive) return;
+    if (e.button !== 0 && e.button !== 1) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    panStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    setIsPanning(true);
+  };
+
+  useEffect(() => {
+    if (!isPanning) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!panStartRef.current || !containerRef.current) return;
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      containerRef.current.scrollLeft = panStartRef.current.scrollLeft - dx;
+      containerRef.current.scrollTop = panStartRef.current.scrollTop - dy;
+    };
+
+    const onPointerUp = () => {
+      setIsPanning(false);
+      panStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [isPanning, containerRef]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -80,7 +154,14 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
   return (
     <main
       ref={containerRef}
-      className="flex-1 bg-slate-100 flex flex-col items-center justify-start p-8 overflow-auto relative"
+      onPointerDown={handlePointerDown}
+      className={`editor-workbench flex-1 flex flex-col items-center justify-start p-5 sm:p-8 lg:p-10 overflow-auto relative select-none ${
+        isGrabActive
+          ? isPanning
+            ? "cursor-grabbing"
+            : "cursor-grab"
+          : ""
+      }`}
     >
       {renderError ? (
         <div className="my-auto max-w-md bg-white border border-red-200 rounded-xl p-6 shadow-sm text-center">
@@ -108,7 +189,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
       ) : (
         <div className="relative my-auto flex flex-col items-center">
           {/* Canvas Wrapper with White Paper Drop Shadow */}
-          <div className="relative bg-white shadow-xl rounded-sm border border-slate-300/60 overflow-hidden transition-all duration-150">
+          <div className="editor-paper relative bg-white overflow-hidden transition-[box-shadow,transform] duration-150">
             <canvas ref={canvasRef} className="block" />
 
             {/* Interactive Drawing & Selection Overlay Layer */}
@@ -117,6 +198,8 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
                 pageWidth={currentPage.dimensions.width}
                 pageHeight={currentPage.dimensions.height}
                 scale={zoomScale}
+                containerRef={containerRef}
+                isSpacePressed={isSpacePressed}
               />
             )}
 
@@ -133,7 +216,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
 
           {/* Floating Page Footnote */}
           {currentPage && (
-            <div className="mt-4 text-[11px] text-slate-400 font-mono flex items-center space-x-2">
+            <div className="editor-page-meta mt-4 text-[11px] font-mono flex items-center space-x-2">
               <span>
                 Page {currentPageNumber} of {pageInfos.length}
               </span>

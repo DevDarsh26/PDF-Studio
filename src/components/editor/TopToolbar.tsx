@@ -33,6 +33,7 @@ import {
   Sparkles,
   Pencil,
   ShieldAlert,
+  Hand,
   Link as LinkIcon,
   Layers,
   LayoutList,
@@ -216,6 +217,19 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
             }`}
           >
             <MousePointer className="w-3.5 h-3.5" />
+          </button>
+
+          {/* 1.5 Grab / Position Tool */}
+          <button
+            onClick={() => setActiveTool("grab")}
+            title="Grab & position objects (H). Drag blank page to pan; hold Space to pan anywhere."
+            className={`p-1.5 rounded transition ${
+              activeTool === "grab"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-700 hover:bg-white"
+            }`}
+          >
+            <Hand className="w-3.5 h-3.5" />
           </button>
 
           {/* 2. Edit Existing Text */}

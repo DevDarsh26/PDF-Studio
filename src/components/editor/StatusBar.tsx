@@ -12,6 +12,7 @@ export const StatusBar: React.FC = () => {
     zoomScale,
     viewRotation,
     engineType,
+    activeTool,
     setZoomScale,
     zoomIn,
     zoomOut,
@@ -48,10 +49,19 @@ export const StatusBar: React.FC = () => {
         )}
       </div>
 
-      {/* Center Privacy Badge — hidden on mobile */}
-      <div className="hidden lg:flex items-center space-x-1 text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-        <ShieldCheck className="w-3 h-3" />
-        <span>Local Browser Sandbox • Zero Network Calls</span>
+      {/* Center Tool Tip or Privacy Badge */}
+      <div className="hidden lg:flex items-center space-x-2">
+        {activeTool === "grab" ? (
+          <span className="text-blue-700 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200/80 flex items-center space-x-1">
+            <span>Grab & Position active</span>
+            <span className="text-slate-400">• Drag an element to move it, a blank page to pan, or hold Space to pan</span>
+          </span>
+        ) : (
+          <div className="flex items-center space-x-1 text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+            <ShieldCheck className="w-3 h-3" />
+            <span>Local Browser Sandbox • Zero Network Calls</span>
+          </div>
+        )}
       </div>
 
       {/* Right Zoom Controls */}

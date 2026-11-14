@@ -150,4 +150,39 @@ describe("useEditorStore — State & Control Actions", () => {
     expect(state.rawBytes).toBeNull();
     expect(state.pageInfos.length).toBe(0);
   });
+
+  it("supports switching to grab tool and moving elements", async () => {
+    const store = useEditorStore.getState();
+    expect(store.activeTool).toBe("select");
+
+    // Switch to grab tool
+    store.setActiveTool("grab");
+    expect(useEditorStore.getState().activeTool).toBe("grab");
+
+    // Switch back to select
+    store.setActiveTool("select");
+    expect(useEditorStore.getState().activeTool).toBe("select");
+
+    // Add and move an operation via direct update
+    const op = {
+      id: "text-1",
+      pageNumber: 1,
+      timestamp: Date.now(),
+      type: "add_text" as const,
+      position: { x: 100, y: 200 },
+      text: "Move Me",
+      fontFamily: "Helvetica",
+      fontSize: 14,
+      fontColorHex: "#000000",
+    };
+    useEditorStore.getState().addOperationDirect(op);
+    expect(useEditorStore.getState().operations.length).toBe(1);
+
+    // Direct move update during drag
+    useEditorStore.getState().updateOperationDirect("text-1", {
+      position: { x: 150, y: 250 },
+    });
+    const updated = useEditorStore.getState().operations.find((o) => o.id === "text-1");
+    expect((updated as any).position).toEqual({ x: 150, y: 250 });
+  });
 });

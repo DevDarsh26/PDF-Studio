@@ -68,6 +68,7 @@ function _immediateSaveSession(state: EditorState): void {
 
 export type EditorTool =
   | "select"
+  | "grab"
   | "edit_text"
   | "add_text"
   | "add_image"
@@ -900,7 +901,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   restoreSession: async () => {
     try {
-      const session = await loadDocumentSession();
+      const sessionPromise = loadDocumentSession();
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000));
+      const session = await Promise.race([sessionPromise, timeoutPromise]);
+
       if (!session || !session.rawBytes || session.rawBytes.byteLength === 0) return false;
 
       const { loadDocumentBytes, showToast } = get();

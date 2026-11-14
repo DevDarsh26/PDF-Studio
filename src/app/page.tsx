@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { useHistoryStore } from "@/store/history-store";
 import { UploadHomepage } from "@/components/upload/UploadHomepage";
+import { ScrollytellingLandingPage } from "@/components/landing/ScrollytellingLandingPage";
 import { TopToolbar } from "@/components/editor/TopToolbar";
 import { ThumbnailSidebar } from "@/components/editor/ThumbnailSidebar";
 import { PdfCanvasViewport } from "@/components/editor/PdfCanvasViewport";
@@ -34,10 +35,39 @@ export default function Home() {
     showAnalysisPanel,
     toggleThumbnails,
     toggleAnalysisPanel,
+    setActiveTool,
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("pdf_has_session") === "1";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+  const [currentView, setCurrentView] = useState<"landing" | "dashboard">("landing");
+
+  // Sync view with URL hash or search params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (window.location.hash === "#dashboard" || window.location.search.includes("dashboard")) {
+        setCurrentView("dashboard");
+      }
+      const handleHashChange = () => {
+        if (window.location.hash === "#dashboard") {
+          setCurrentView("dashboard");
+        } else if (!window.location.hash) {
+          setCurrentView("landing");
+        }
+      };
+      window.addEventListener("hashchange", handleHashChange);
+      return () => window.removeEventListener("hashchange", handleHashChange);
+    }
+  }, []);
 
   // Responsive drawer visibility for mobile/tablet screens
   const [mobileShowThumbnails, setMobileShowThumbnails] = useState(false);
@@ -46,6 +76,14 @@ export default function Home() {
   // Restore previous editing session on initial mount so reload NEVER loses work or redirects to home
   useEffect(() => {
     let isCancelled = false;
+
+    // Safety timeout: never let splash screen stay stuck for more than 500ms under any circumstances
+    const safetyTimer = setTimeout(() => {
+      if (!isCancelled) {
+        setIsCheckingSession(false);
+      }
+    }, 500);
+
     const initSession = async () => {
       try {
         if (!useEditorStore.getState().rawBytes) {
@@ -54,6 +92,7 @@ export default function Home() {
       } catch (e) {
         console.warn("Session restore error:", e);
       } finally {
+        clearTimeout(safetyTimer);
         if (!isCancelled) {
           setIsCheckingSession(false);
         }
@@ -79,6 +118,7 @@ export default function Home() {
 
     return () => {
       isCancelled = true;
+      clearTimeout(safetyTimer);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [restoreSession]);
@@ -95,6 +135,14 @@ export default function Home() {
       }
 
       if (!metadata) return;
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "h") {
+        setActiveTool("grab");
+        return;
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "v") {
+        setActiveTool("select");
+        return;
+      }
 
       if (e.key === "PageDown" || (e.key === "ArrowRight" && !e.ctrlKey)) {
         e.preventDefault();
@@ -144,7 +192,7 @@ export default function Home() {
 
   if (isCheckingSession) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-slate-900 text-white select-none">
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#0B0F17] text-white select-none">
         <div className="flex items-center space-x-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
             PS
@@ -155,12 +203,18 @@ export default function Home() {
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
           <span>Restoring document workspace...</span>
         </div>
+        <button
+          onClick={() => setIsCheckingSession(false)}
+          className="mt-4 px-3 py-1.5 text-xs text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg transition-colors cursor-pointer"
+        >
+          Skip to home &rarr;
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 antialiased select-none">
+    <div className="editor-app-shell flex flex-col h-screen w-screen overflow-hidden text-slate-800 antialiased select-none">
       {/* Modals & Toasts */}
       <PasswordModal />
       <TextEditModal />
@@ -170,7 +224,25 @@ export default function Home() {
       <Toast />
 
       {!hasDocument ? (
-        <UploadHomepage />
+        currentView === "landing" ? (
+          <ScrollytellingLandingPage
+            onGoToDashboard={() => {
+              setCurrentView("dashboard");
+              if (typeof window !== "undefined") {
+                window.location.hash = "dashboard";
+              }
+            }}
+          />
+        ) : (
+          <UploadHomepage
+            onBackToLanding={() => {
+              setCurrentView("landing");
+              if (typeof window !== "undefined") {
+                window.location.hash = "";
+              }
+            }}
+          />
+        )
       ) : (
         <>
           {/* Top Application Toolbar */}

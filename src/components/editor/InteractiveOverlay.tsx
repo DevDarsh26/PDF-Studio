@@ -22,12 +22,16 @@ interface InteractiveOverlayProps {
   pageWidth: number; // in points
   pageHeight: number; // in points
   scale: number;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  isSpacePressed?: boolean;
 }
 
 export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   pageWidth,
   pageHeight,
   scale,
+  containerRef,
+  isSpacePressed = false,
 }) => {
   const {
     activeTool,
@@ -43,6 +47,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     openEditLinkModal,
     executeAddOperation,
     executeUpdateElement,
+    updateOperationDirect,
     deleteSelected,
     duplicateSelected,
     copySelectedTextToClipboard,
@@ -52,6 +57,12 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   } = useEditorStore();
 
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Overlay document panning state (Grab tool or Spacebar hold)
+  const [isOverlayPanning, setIsOverlayPanning] = useState(false);
+  const overlayPanStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  const isGrabMode = activeTool === "grab" || isSpacePressed;
 
   // Drawing state for shapes, marks, and whiteout
   const [isDrawing, setIsDrawing] = useState(false);
@@ -253,6 +264,20 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
   // Mouse Down handler
   const handleMouseDown = async (e: React.MouseEvent) => {
+    if (isGrabMode) {
+      const container = containerRef?.current;
+      if (container) {
+        overlayPanStartRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          scrollLeft: container.scrollLeft,
+          scrollTop: container.scrollTop,
+        };
+        setIsOverlayPanning(true);
+      }
+      return;
+    }
+
     const screenCoord = getSvgCoordinates(e);
     const pdfCoord = screenToPdf(screenCoord.x, screenCoord.y);
 
@@ -303,6 +328,354 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     setCurrentPoint(pdfCoord);
   };
 
+  // Perform live element movement using lightweight updateOperationDirect
+  const applyDragMovement = (pdfCoord: Point) => {
+    if (!selectedElementId || !initialOpState || !dragStartMouse) return;
+    const deltaX = pdfCoord.x - dragStartMouse.x;
+    const deltaY = pdfCoord.y - dragStartMouse.y;
+
+    if ("position" in initialOpState) {
+      updateOperationDirect(selectedElementId, {
+        position: {
+          x: Math.round((initialOpState.position.x + deltaX) * 10) / 10,
+          y: Math.round((initialOpState.position.y + deltaY) * 10) / 10,
+        },
+      });
+    } else if (
+      initialOpState.type === "add_shape" &&
+      (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
+    ) {
+      const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
+      const p2 = initialOpState.endPoint || {
+        x: initialOpState.rect.x + initialOpState.rect.width,
+        y: initialOpState.rect.y + initialOpState.rect.height,
+      };
+      updateOperationDirect(selectedElementId, {
+        rect: {
+          ...initialOpState.rect,
+          x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
+          y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
+        },
+        startPoint: {
+          x: Math.round((p1.x + deltaX) * 10) / 10,
+          y: Math.round((p1.y + deltaY) * 10) / 10,
+        },
+        endPoint: {
+          x: Math.round((p2.x + deltaX) * 10) / 10,
+          y: Math.round((p2.y + deltaY) * 10) / 10,
+        },
+      });
+    } else if ("rect" in initialOpState) {
+      updateOperationDirect(selectedElementId, {
+        rect: {
+          ...initialOpState.rect,
+          x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
+          y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
+        },
+      });
+    } else if ("targetRect" in initialOpState) {
+      updateOperationDirect(selectedElementId, {
+        targetRect: {
+          ...initialOpState.targetRect,
+          x: Math.round((initialOpState.targetRect.x + deltaX) * 10) / 10,
+          y: Math.round((initialOpState.targetRect.y + deltaY) * 10) / 10,
+        },
+      });
+    } else if ("points" in initialOpState && Array.isArray((initialOpState as any).points)) {
+      const initialPoints = (initialOpState as any).points as Point[];
+      updateOperationDirect(selectedElementId, {
+        points: initialPoints.map((pt) => ({
+          x: Math.round((pt.x + deltaX) * 10) / 10,
+          y: Math.round((pt.y + deltaY) * 10) / 10,
+        })),
+      });
+    }
+  };
+
+  // Perform live element resize using lightweight updateOperationDirect
+  const applyResizeMovement = (pdfCoord: Point, handle: string) => {
+    if (!selectedElementId || !initialOpState || !dragStartMouse) return;
+    const deltaX = pdfCoord.x - dragStartMouse.x;
+    const deltaY = pdfCoord.y - dragStartMouse.y;
+
+    if (initialOpState.type === "add_text") {
+      const prevSize = initialOpState.fontSize || 14;
+      let scaleDelta = 0;
+      if (handle.includes("e")) scaleDelta += deltaX;
+      if (handle.includes("w")) scaleDelta -= deltaX;
+      if (handle.includes("s")) scaleDelta -= deltaY;
+      if (handle.includes("n")) scaleDelta += deltaY;
+
+      const scaleFactor = Math.max(0.35, 1 + scaleDelta / 120);
+      const newFontSize = Math.max(6, Math.min(120, Math.round(prevSize * scaleFactor)));
+      updateOperationDirect(selectedElementId, {
+        fontSize: newFontSize,
+      });
+      return;
+    }
+
+    if (
+      initialOpState.type === "add_shape" &&
+      (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
+    ) {
+      const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
+      const p2 = initialOpState.endPoint || {
+        x: initialOpState.rect.x + initialOpState.rect.width,
+        y: initialOpState.rect.y + initialOpState.rect.height,
+      };
+      const minX = Math.min(p1.x, p2.x);
+      const maxX = Math.max(p1.x, p2.x);
+      const minY = Math.min(p1.y, p2.y);
+      const maxY = Math.max(p1.y, p2.y);
+      const prevW = Math.max(10, maxX - minX);
+      const prevH = Math.max(10, maxY - minY);
+
+      let newMinX = minX;
+      let newMinY = minY;
+      let newW = prevW;
+      let newH = prevH;
+
+      if (handle.includes("e")) newW = Math.max(10, prevW + deltaX);
+      if (handle.includes("w")) {
+        const clampedW = Math.max(10, prevW - deltaX);
+        newMinX = minX + (prevW - clampedW);
+        newW = clampedW;
+      }
+      if (handle.includes("n")) newH = Math.max(10, prevH + deltaY);
+      if (handle.includes("s")) {
+        const clampedH = Math.max(10, prevH - deltaY);
+        newMinY = minY + (prevH - clampedH);
+        newH = clampedH;
+      }
+
+      const scaleX = newW / prevW;
+      const scaleY = newH / prevH;
+
+      const newP1 = {
+        x: Math.round((newMinX + (p1.x - minX) * scaleX) * 10) / 10,
+        y: Math.round((newMinY + (p1.y - minY) * scaleY) * 10) / 10,
+      };
+      const newP2 = {
+        x: Math.round((newMinX + (p2.x - minX) * scaleX) * 10) / 10,
+        y: Math.round((newMinY + (p2.y - minY) * scaleY) * 10) / 10,
+      };
+
+      updateOperationDirect(selectedElementId, {
+        rect: {
+          x: Math.min(newP1.x, newP2.x),
+          y: Math.min(newP1.y, newP2.y),
+          width: Math.max(5, Math.abs(newP2.x - newP1.x)),
+          height: Math.max(5, Math.abs(newP2.y - newP1.y)),
+        },
+        startPoint: newP1,
+        endPoint: newP2,
+      });
+      return;
+    }
+
+    if ("targetRect" in initialOpState) {
+      const prev = initialOpState.targetRect;
+      let newX = prev.x;
+      let newY = prev.y;
+      let newW = prev.width;
+      let newH = prev.height;
+
+      if (handle.includes("e")) newW = Math.max(10, prev.width + deltaX);
+      if (handle.includes("w")) {
+        const clampedW = Math.max(10, prev.width - deltaX);
+        newX = prev.x + (prev.width - clampedW);
+        newW = clampedW;
+      }
+      if (handle.includes("n")) newH = Math.max(10, prev.height + deltaY);
+      if (handle.includes("s")) {
+        const clampedH = Math.max(10, prev.height - deltaY);
+        newY = prev.y + (prev.height - clampedH);
+        newH = clampedH;
+      }
+
+      const ratio = newH / Math.max(1, prev.height);
+      const prevSize = initialOpState.fontSize || 12;
+      const newFontSize = Math.max(6, Math.min(100, Math.round(prevSize * ratio)));
+
+      updateOperationDirect(selectedElementId, {
+        targetRect: {
+          x: Math.round(newX * 10) / 10,
+          y: Math.round(newY * 10) / 10,
+          width: Math.round(newW * 10) / 10,
+          height: Math.round(newH * 10) / 10,
+        },
+        fontSize: newFontSize,
+      });
+      return;
+    }
+
+    if (initialOpState.type === "freehand" && (initialOpState as any).points?.length > 0) {
+      const pts = (initialOpState as any).points as Point[];
+      let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+      for (const p of pts) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const prevW = Math.max(1, maxX - minX);
+      const prevH = Math.max(1, maxY - minY);
+      let newMinX = minX;
+      let newMinY = minY;
+      let newW = prevW;
+      let newH = prevH;
+
+      if (handle.includes("e")) newW = Math.max(10, prevW + deltaX);
+      if (handle.includes("w")) {
+        const clampedW = Math.max(10, prevW - deltaX);
+        newMinX = minX + (prevW - clampedW);
+        newW = clampedW;
+      }
+      if (handle.includes("n")) newH = Math.max(10, prevH + deltaY);
+      if (handle.includes("s")) {
+        const clampedH = Math.max(10, prevH - deltaY);
+        newMinY = minY + (prevH - clampedH);
+        newH = clampedH;
+      }
+
+      const scaleX = newW / prevW;
+      const scaleY = newH / prevH;
+
+      updateOperationDirect(selectedElementId, {
+        points: pts.map((p) => ({
+          x: Math.round((newMinX + (p.x - minX) * scaleX) * 10) / 10,
+          y: Math.round((newMinY + (p.y - minY) * scaleY) * 10) / 10,
+        })),
+      });
+      return;
+    }
+
+    if ("rect" in initialOpState) {
+      const prev = initialOpState.rect;
+      let newX = prev.x;
+      let newY = prev.y;
+      let newW = prev.width;
+      let newH = prev.height;
+
+      if (handle.includes("e")) newW = Math.max(10, prev.width + deltaX);
+      if (handle.includes("w")) {
+        const clampedW = Math.max(10, prev.width - deltaX);
+        newX = prev.x + (prev.width - clampedW);
+        newW = clampedW;
+      }
+      if (handle.includes("n")) newH = Math.max(10, prev.height + deltaY);
+      if (handle.includes("s")) {
+        const clampedH = Math.max(10, prev.height - deltaY);
+        newY = prev.y + (prev.height - clampedH);
+        newH = clampedH;
+      }
+
+      updateOperationDirect(selectedElementId, {
+        rect: {
+          x: Math.round(newX * 10) / 10,
+          y: Math.round(newY * 10) / 10,
+          width: Math.round(newW * 10) / 10,
+          height: Math.round(newH * 10) / 10,
+        },
+      });
+    }
+  };
+
+  // Commit completed drag or resize to history ledger as a single undoable step
+  const commitDragOrResize = async () => {
+    if (selectedElementId && initialOpState) {
+      const finalOp = useEditorStore.getState().operations.find((o) => o.id === selectedElementId);
+      if (finalOp) {
+        const changes: Partial<EditOperation> = {};
+        if ("position" in finalOp && JSON.stringify(finalOp.position) !== JSON.stringify(initialOpState.position)) {
+          (changes as any).position = finalOp.position;
+        }
+        if ("rect" in finalOp && JSON.stringify(finalOp.rect) !== JSON.stringify(initialOpState.rect)) {
+          (changes as any).rect = finalOp.rect;
+        }
+        if ("startPoint" in finalOp && JSON.stringify(finalOp.startPoint) !== JSON.stringify(initialOpState.startPoint)) {
+          (changes as any).startPoint = finalOp.startPoint;
+          (changes as any).endPoint = finalOp.endPoint;
+        }
+        if ("targetRect" in finalOp && JSON.stringify(finalOp.targetRect) !== JSON.stringify(initialOpState.targetRect)) {
+          (changes as any).targetRect = finalOp.targetRect;
+        }
+        if ("points" in finalOp && JSON.stringify(finalOp.points) !== JSON.stringify(initialOpState.points)) {
+          (changes as any).points = finalOp.points;
+        }
+        if ("fontSize" in finalOp && finalOp.fontSize !== initialOpState.fontSize) {
+          (changes as any).fontSize = finalOp.fontSize;
+        }
+
+        if (Object.keys(changes).length > 0) {
+          // Temporarily revert to initial state so executeUpdateElement records initial state for undo
+          updateOperationDirect(selectedElementId, initialOpState);
+          await executeUpdateElement(selectedElementId, changes);
+        }
+      }
+    }
+
+    setIsDragging(false);
+    setIsResizing(null);
+    setDragStartMouse(null);
+    setInitialOpState(null);
+  };
+
+  // Global window listeners for foolproof drag-and-drop and resize tracking
+  useEffect(() => {
+    if (!isDragging && !isResizing) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      if (!svgRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const pdfCoord = screenToPdf(screenX, screenY);
+
+      if (isDragging) {
+        applyDragMovement(pdfCoord);
+      } else if (isResizing) {
+        applyResizeMovement(pdfCoord, isResizing);
+      }
+    };
+
+    const handleWindowPointerUp = () => {
+      commitDragOrResize();
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+    };
+  }, [isDragging, isResizing, selectedElementId, initialOpState, dragStartMouse, scale, pageHeight]);
+
+  // Window listeners for overlay document panning
+  useEffect(() => {
+    if (!isOverlayPanning) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!overlayPanStartRef.current || !containerRef?.current) return;
+      const dx = e.clientX - overlayPanStartRef.current.x;
+      const dy = e.clientY - overlayPanStartRef.current.y;
+      containerRef.current.scrollLeft = overlayPanStartRef.current.scrollLeft - dx;
+      containerRef.current.scrollTop = overlayPanStartRef.current.scrollTop - dy;
+    };
+
+    const onPointerUp = () => {
+      setIsOverlayPanning(false);
+      overlayPanStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [isOverlayPanning, containerRef]);
+
   // Mouse Move handler
   const handleMouseMove = (e: React.MouseEvent) => {
     const screenCoord = getSvgCoordinates(e);
@@ -317,270 +690,21 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       return;
     }
 
-    if (isDragging && selectedElementId && initialOpState && dragStartMouse) {
-      const deltaX = pdfCoord.x - dragStartMouse.x;
-      const deltaY = pdfCoord.y - dragStartMouse.y;
-
-      if ("position" in initialOpState) {
-        executeUpdateElement(selectedElementId, {
-          position: {
-            x: Math.round((initialOpState.position.x + deltaX) * 10) / 10,
-            y: Math.round((initialOpState.position.y + deltaY) * 10) / 10,
-          },
-        });
-      } else if (
-        initialOpState.type === "add_shape" &&
-        (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
-      ) {
-        const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
-        const p2 = initialOpState.endPoint || {
-          x: initialOpState.rect.x + initialOpState.rect.width,
-          y: initialOpState.rect.y + initialOpState.rect.height,
-        };
-        executeUpdateElement(selectedElementId, {
-          rect: {
-            ...initialOpState.rect,
-            x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
-            y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
-          },
-          startPoint: {
-            x: Math.round((p1.x + deltaX) * 10) / 10,
-            y: Math.round((p1.y + deltaY) * 10) / 10,
-          },
-          endPoint: {
-            x: Math.round((p2.x + deltaX) * 10) / 10,
-            y: Math.round((p2.y + deltaY) * 10) / 10,
-          },
-        });
-      } else if ("rect" in initialOpState) {
-        executeUpdateElement(selectedElementId, {
-          rect: {
-            ...initialOpState.rect,
-            x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
-            y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
-          },
-        });
-      } else if ("targetRect" in initialOpState) {
-        executeUpdateElement(selectedElementId, {
-          targetRect: {
-            ...initialOpState.targetRect,
-            x: Math.round((initialOpState.targetRect.x + deltaX) * 10) / 10,
-            y: Math.round((initialOpState.targetRect.y + deltaY) * 10) / 10,
-          },
-        });
-      } else if ("points" in initialOpState && Array.isArray((initialOpState as any).points)) {
-        const initialPoints = (initialOpState as any).points as Point[];
-        executeUpdateElement(selectedElementId, {
-          points: initialPoints.map((pt) => ({
-            x: Math.round((pt.x + deltaX) * 10) / 10,
-            y: Math.round((pt.y + deltaY) * 10) / 10,
-          })),
-        });
-      }
+    if (isDragging) {
+      applyDragMovement(pdfCoord);
       return;
     }
 
-    if (isResizing && selectedElementId && initialOpState && dragStartMouse) {
-      const deltaX = pdfCoord.x - dragStartMouse.x;
-      const deltaY = pdfCoord.y - dragStartMouse.y;
-
-      if (initialOpState.type === "add_text") {
-        const prevSize = initialOpState.fontSize || 14;
-        let scaleDelta = 0;
-        if (isResizing.includes("e")) scaleDelta += deltaX;
-        if (isResizing.includes("w")) scaleDelta -= deltaX;
-        if (isResizing.includes("s")) scaleDelta -= deltaY; // Dragging down expands
-        if (isResizing.includes("n")) scaleDelta += deltaY; // Dragging up expands
-
-        const scaleFactor = Math.max(0.35, 1 + scaleDelta / 120);
-        const newFontSize = Math.max(6, Math.min(120, Math.round(prevSize * scaleFactor)));
-        executeUpdateElement(selectedElementId, {
-          fontSize: newFontSize,
-        });
-        return;
-      }
-
-      if (
-        initialOpState.type === "add_shape" &&
-        (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
-      ) {
-        const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
-        const p2 = initialOpState.endPoint || {
-          x: initialOpState.rect.x + initialOpState.rect.width,
-          y: initialOpState.rect.y + initialOpState.rect.height,
-        };
-        const minX = Math.min(p1.x, p2.x);
-        const maxX = Math.max(p1.x, p2.x);
-        const minY = Math.min(p1.y, p2.y);
-        const maxY = Math.max(p1.y, p2.y);
-        const prevW = Math.max(10, maxX - minX);
-        const prevH = Math.max(10, maxY - minY);
-
-        let newMinX = minX;
-        let newMinY = minY;
-        let newW = prevW;
-        let newH = prevH;
-
-        if (isResizing.includes("e")) newW = Math.max(10, prevW + deltaX);
-        if (isResizing.includes("w")) {
-          const clampedW = Math.max(10, prevW - deltaX);
-          newMinX = minX + (prevW - clampedW);
-          newW = clampedW;
-        }
-        if (isResizing.includes("n")) newH = Math.max(10, prevH + deltaY);
-        if (isResizing.includes("s")) {
-          const clampedH = Math.max(10, prevH - deltaY);
-          newMinY = minY + (prevH - clampedH);
-          newH = clampedH;
-        }
-
-        const scaleX = newW / prevW;
-        const scaleY = newH / prevH;
-
-        const newP1 = {
-          x: Math.round((newMinX + (p1.x - minX) * scaleX) * 10) / 10,
-          y: Math.round((newMinY + (p1.y - minY) * scaleY) * 10) / 10,
-        };
-        const newP2 = {
-          x: Math.round((newMinX + (p2.x - minX) * scaleX) * 10) / 10,
-          y: Math.round((newMinY + (p2.y - minY) * scaleY) * 10) / 10,
-        };
-
-        executeUpdateElement(selectedElementId, {
-          rect: {
-            x: Math.min(newP1.x, newP2.x),
-            y: Math.min(newP1.y, newP2.y),
-            width: Math.max(5, Math.abs(newP2.x - newP1.x)),
-            height: Math.max(5, Math.abs(newP2.y - newP1.y)),
-          },
-          startPoint: newP1,
-          endPoint: newP2,
-        });
-        return;
-      }
-
-      if ("targetRect" in initialOpState) {
-        const prev = initialOpState.targetRect;
-        let newX = prev.x;
-        let newY = prev.y;
-        let newW = prev.width;
-        let newH = prev.height;
-
-        if (isResizing.includes("e")) newW = Math.max(10, prev.width + deltaX);
-        if (isResizing.includes("w")) {
-          const clampedW = Math.max(10, prev.width - deltaX);
-          newX = prev.x + (prev.width - clampedW);
-          newW = clampedW;
-        }
-        if (isResizing.includes("n")) newH = Math.max(10, prev.height + deltaY);
-        if (isResizing.includes("s")) {
-          const clampedH = Math.max(10, prev.height - deltaY);
-          newY = prev.y + (prev.height - clampedH);
-          newH = clampedH;
-        }
-
-        const ratio = newH / Math.max(1, prev.height);
-        const prevSize = initialOpState.fontSize || 12;
-        const newFontSize = Math.max(6, Math.min(100, Math.round(prevSize * ratio)));
-
-        executeUpdateElement(selectedElementId, {
-          targetRect: {
-            x: Math.round(newX * 10) / 10,
-            y: Math.round(newY * 10) / 10,
-            width: Math.round(newW * 10) / 10,
-            height: Math.round(newH * 10) / 10,
-          },
-          fontSize: newFontSize,
-        });
-        return;
-      }
-
-      if (initialOpState.type === "freehand" && (initialOpState as any).points?.length > 0) {
-        const pts = (initialOpState as any).points as Point[];
-        let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
-        for (const p of pts) {
-          if (p.x < minX) minX = p.x;
-          if (p.x > maxX) maxX = p.x;
-          if (p.y < minY) minY = p.y;
-          if (p.y > maxY) maxY = p.y;
-        }
-        const prevW = Math.max(1, maxX - minX);
-        const prevH = Math.max(1, maxY - minY);
-        let newMinX = minX;
-        let newMinY = minY;
-        let newW = prevW;
-        let newH = prevH;
-
-        if (isResizing.includes("e")) newW = Math.max(10, prevW + deltaX);
-        if (isResizing.includes("w")) {
-          const clampedW = Math.max(10, prevW - deltaX);
-          newMinX = minX + (prevW - clampedW);
-          newW = clampedW;
-        }
-        if (isResizing.includes("n")) newH = Math.max(10, prevH + deltaY);
-        if (isResizing.includes("s")) {
-          const clampedH = Math.max(10, prevH - deltaY);
-          newMinY = minY + (prevH - clampedH);
-          newH = clampedH;
-        }
-
-        const scaleX = newW / prevW;
-        const scaleY = newH / prevH;
-
-        executeUpdateElement(selectedElementId, {
-          points: pts.map((p) => ({
-            x: Math.round((newMinX + (p.x - minX) * scaleX) * 10) / 10,
-            y: Math.round((newMinY + (p.y - minY) * scaleY) * 10) / 10,
-          })),
-        });
-        return;
-      }
-
-      if ("rect" in initialOpState) {
-        const prev = initialOpState.rect;
-        let newX = prev.x;
-        let newY = prev.y;
-        let newW = prev.width;
-        let newH = prev.height;
-
-        if (isResizing.includes("e")) newW = Math.max(10, prev.width + deltaX);
-        if (isResizing.includes("w")) {
-          const clampedW = Math.max(10, prev.width - deltaX);
-          newX = prev.x + (prev.width - clampedW);
-          newW = clampedW;
-        }
-        if (isResizing.includes("n")) newH = Math.max(10, prev.height + deltaY);
-        if (isResizing.includes("s")) {
-          const clampedH = Math.max(10, prev.height - deltaY);
-          newY = prev.y + (prev.height - clampedH);
-          newH = clampedH;
-        }
-
-        executeUpdateElement(selectedElementId, {
-          rect: {
-            x: Math.round(newX * 10) / 10,
-            y: Math.round(newY * 10) / 10,
-            width: Math.round(newW * 10) / 10,
-            height: Math.round(newH * 10) / 10,
-          },
-        });
-      }
+    if (isResizing) {
+      applyResizeMovement(pdfCoord, isResizing);
+      return;
     }
   };
 
   // Mouse Up handler
   const handleMouseUp = async () => {
-    if (isDragging) {
-      setIsDragging(false);
-      setDragStartMouse(null);
-      setInitialOpState(null);
-      return;
-    }
-
-    if (isResizing) {
-      setIsResizing(null);
-      setDragStartMouse(null);
-      setInitialOpState(null);
+    if (isDragging || isResizing) {
+      await commitDragOrResize();
       return;
     }
 
@@ -704,6 +828,26 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   // Start dragging selected element
   const handleElementMouseDown = (e: React.MouseEvent, op: EditOperation) => {
     e.stopPropagation();
+    e.preventDefault();
+
+    // Holding Space is always reserved for panning. The Grab tool itself is
+    // deliberately object-first: grab an element to position it, or drag an
+    // empty part of the page to pan. This keeps the tool useful for layout
+    // work without taking away the familiar hand-tool canvas navigation.
+    if (isSpacePressed) {
+      const container = containerRef?.current;
+      if (container) {
+        overlayPanStartRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          scrollLeft: container.scrollLeft,
+          scrollTop: container.scrollTop,
+        };
+        setIsOverlayPanning(true);
+      }
+      return;
+    }
+
     selectElement(op.id);
     if (activeTool !== "select") {
       setActiveTool("select");
@@ -720,6 +864,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   // Start resizing selected element
   const handleResizeHandleMouseDown = (e: React.MouseEvent, handle: string) => {
     e.stopPropagation();
+    e.preventDefault();
     const screenCoord = getSvgCoordinates(e);
     const pdfCoord = screenToPdf(screenCoord.x, screenCoord.y);
 
@@ -809,11 +954,21 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   return (
     <svg
       ref={svgRef}
+      // The viewport also listens for pointer events to pan the canvas. Keep
+      // overlay interactions inside this layer so a drag/resize never starts
+      // a competing canvas pan before its mouse handler can run.
+      onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       className={`absolute inset-0 z-10 w-full h-full select-none ${
-        activeTool === "select"
+        isGrabMode
+          ? isOverlayPanning
+            ? "cursor-grabbing"
+            : "cursor-grab"
+          : isDragging
+          ? "cursor-grabbing"
+          : activeTool === "select"
           ? "cursor-default"
           : activeTool === "add_text"
           ? "cursor-text"
@@ -1476,7 +1631,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       {/* 4. Selection Bounding Box & Transform Handles */}
       {selectionBox && (
         <g className="pointer-events-auto">
-          {/* Active translucent grab surface - allows grabbing & moving from anywhere inside the element */}
+          {/* Active transform surface - lets the user reposition from anywhere in the bounds. */}
           <rect
             x={selectionBox.x}
             y={selectionBox.y}
@@ -1486,7 +1641,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             stroke="#2563eb"
             strokeWidth={1.5}
             strokeDasharray="4 4"
-            className="cursor-move pointer-events-auto"
+            className="cursor-grab active:cursor-grabbing pointer-events-auto"
             onMouseDown={(e) => {
               e.stopPropagation();
               if (selectedOp) {
@@ -1516,6 +1671,8 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                     : "Element"}
                 </span>
               </span>
+
+              <span className="sr-only">Drag to position. Use any blue handle to resize.</span>
 
               {/* Duplicate element */}
               <button
