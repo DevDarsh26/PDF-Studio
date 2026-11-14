@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Copy, Edit3 } from "lucide-react";
+import { Copy, Edit3, Move, Trash2 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
   AddTextOperation,
@@ -44,6 +44,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     executeAddOperation,
     executeUpdateElement,
     deleteSelected,
+    duplicateSelected,
     copySelectedTextToClipboard,
     showToast,
     activeFormatting,
@@ -119,6 +120,92 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           deleteSelected();
         }
       }
+      if (e.key === "Escape") {
+        selectElement(null);
+        selectToken(null);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+        if (selectedElementId) {
+          e.preventDefault();
+          duplicateSelected();
+        }
+      }
+      // Arrow keys to nudge selected element position
+      if (
+        selectedElementId &&
+        (e.key === "ArrowLeft" ||
+          e.key === "ArrowRight" ||
+          e.key === "ArrowUp" ||
+          e.key === "ArrowDown")
+      ) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const op = operations.find((o) => o.id === selectedElementId);
+        if (op) {
+          let deltaX = 0;
+          let deltaY = 0;
+          if (e.key === "ArrowLeft") deltaX = -step;
+          if (e.key === "ArrowRight") deltaX = step;
+          if (e.key === "ArrowUp") deltaY = step; // higher PDF Y = screen up
+          if (e.key === "ArrowDown") deltaY = -step; // lower PDF Y = screen down
+
+          if ("position" in op) {
+            executeUpdateElement(selectedElementId, {
+              position: {
+                x: Math.round((op.position.x + deltaX) * 10) / 10,
+                y: Math.round((op.position.y + deltaY) * 10) / 10,
+              },
+            });
+          } else if (
+            op.type === "add_shape" &&
+            (op.shapeType === "line" || op.shapeType === "arrow")
+          ) {
+            const p1 = op.startPoint || { x: op.rect.x, y: op.rect.y };
+            const p2 = op.endPoint || {
+              x: op.rect.x + op.rect.width,
+              y: op.rect.y + op.rect.height,
+            };
+            executeUpdateElement(selectedElementId, {
+              rect: {
+                ...op.rect,
+                x: Math.round((op.rect.x + deltaX) * 10) / 10,
+                y: Math.round((op.rect.y + deltaY) * 10) / 10,
+              },
+              startPoint: {
+                x: Math.round((p1.x + deltaX) * 10) / 10,
+                y: Math.round((p1.y + deltaY) * 10) / 10,
+              },
+              endPoint: {
+                x: Math.round((p2.x + deltaX) * 10) / 10,
+                y: Math.round((p2.y + deltaY) * 10) / 10,
+              },
+            });
+          } else if ("rect" in op) {
+            executeUpdateElement(selectedElementId, {
+              rect: {
+                ...op.rect,
+                x: Math.round((op.rect.x + deltaX) * 10) / 10,
+                y: Math.round((op.rect.y + deltaY) * 10) / 10,
+              },
+            });
+          } else if ("targetRect" in op) {
+            executeUpdateElement(selectedElementId, {
+              targetRect: {
+                ...op.targetRect,
+                x: Math.round((op.targetRect.x + deltaX) * 10) / 10,
+                y: Math.round((op.targetRect.y + deltaY) * 10) / 10,
+              },
+            });
+          } else if ("points" in op && Array.isArray((op as any).points)) {
+            executeUpdateElement(selectedElementId, {
+              points: (op as any).points.map((pt: Point) => ({
+                x: Math.round((pt.x + deltaX) * 10) / 10,
+                y: Math.round((pt.y + deltaY) * 10) / 10,
+              })),
+            });
+          }
+        }
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         const hasSelection = typeof window !== "undefined" && window.getSelection()?.toString();
         if (!hasSelection && (selectedTokenId || selectedElementId)) {
@@ -147,7 +234,17 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElementId, selectedTokenId, deleteSelected, copySelectedTextToClipboard]);
+  }, [
+    selectedElementId,
+    selectedTokenId,
+    operations,
+    deleteSelected,
+    duplicateSelected,
+    copySelectedTextToClipboard,
+    executeUpdateElement,
+    selectElement,
+    selectToken,
+  ]);
 
   // Operations on the current page
   const pageOperations = operations.filter(
@@ -231,6 +328,30 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y: Math.round((initialOpState.position.y + deltaY) * 10) / 10,
           },
         });
+      } else if (
+        initialOpState.type === "add_shape" &&
+        (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
+      ) {
+        const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
+        const p2 = initialOpState.endPoint || {
+          x: initialOpState.rect.x + initialOpState.rect.width,
+          y: initialOpState.rect.y + initialOpState.rect.height,
+        };
+        executeUpdateElement(selectedElementId, {
+          rect: {
+            ...initialOpState.rect,
+            x: Math.round((initialOpState.rect.x + deltaX) * 10) / 10,
+            y: Math.round((initialOpState.rect.y + deltaY) * 10) / 10,
+          },
+          startPoint: {
+            x: Math.round((p1.x + deltaX) * 10) / 10,
+            y: Math.round((p1.y + deltaY) * 10) / 10,
+          },
+          endPoint: {
+            x: Math.round((p2.x + deltaX) * 10) / 10,
+            y: Math.round((p2.y + deltaY) * 10) / 10,
+          },
+        });
       } else if ("rect" in initialOpState) {
         executeUpdateElement(selectedElementId, {
           rect: {
@@ -265,11 +386,75 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
       if (initialOpState.type === "add_text") {
         const prevSize = initialOpState.fontSize || 14;
-        const delta = isResizing.includes("s") || isResizing.includes("e") ? (deltaX - deltaY) : (deltaY - deltaX);
-        const scaleFactor = Math.max(0.4, 1 + delta / 80);
+        let scaleDelta = 0;
+        if (isResizing.includes("e")) scaleDelta += deltaX;
+        if (isResizing.includes("w")) scaleDelta -= deltaX;
+        if (isResizing.includes("s")) scaleDelta -= deltaY; // Dragging down expands
+        if (isResizing.includes("n")) scaleDelta += deltaY; // Dragging up expands
+
+        const scaleFactor = Math.max(0.35, 1 + scaleDelta / 120);
         const newFontSize = Math.max(6, Math.min(120, Math.round(prevSize * scaleFactor)));
         executeUpdateElement(selectedElementId, {
           fontSize: newFontSize,
+        });
+        return;
+      }
+
+      if (
+        initialOpState.type === "add_shape" &&
+        (initialOpState.shapeType === "line" || initialOpState.shapeType === "arrow")
+      ) {
+        const p1 = initialOpState.startPoint || { x: initialOpState.rect.x, y: initialOpState.rect.y };
+        const p2 = initialOpState.endPoint || {
+          x: initialOpState.rect.x + initialOpState.rect.width,
+          y: initialOpState.rect.y + initialOpState.rect.height,
+        };
+        const minX = Math.min(p1.x, p2.x);
+        const maxX = Math.max(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y);
+        const maxY = Math.max(p1.y, p2.y);
+        const prevW = Math.max(10, maxX - minX);
+        const prevH = Math.max(10, maxY - minY);
+
+        let newMinX = minX;
+        let newMinY = minY;
+        let newW = prevW;
+        let newH = prevH;
+
+        if (isResizing.includes("e")) newW = Math.max(10, prevW + deltaX);
+        if (isResizing.includes("w")) {
+          const clampedW = Math.max(10, prevW - deltaX);
+          newMinX = minX + (prevW - clampedW);
+          newW = clampedW;
+        }
+        if (isResizing.includes("n")) newH = Math.max(10, prevH + deltaY);
+        if (isResizing.includes("s")) {
+          const clampedH = Math.max(10, prevH - deltaY);
+          newMinY = minY + (prevH - clampedH);
+          newH = clampedH;
+        }
+
+        const scaleX = newW / prevW;
+        const scaleY = newH / prevH;
+
+        const newP1 = {
+          x: Math.round((newMinX + (p1.x - minX) * scaleX) * 10) / 10,
+          y: Math.round((newMinY + (p1.y - minY) * scaleY) * 10) / 10,
+        };
+        const newP2 = {
+          x: Math.round((newMinX + (p2.x - minX) * scaleX) * 10) / 10,
+          y: Math.round((newMinY + (p2.y - minY) * scaleY) * 10) / 10,
+        };
+
+        executeUpdateElement(selectedElementId, {
+          rect: {
+            x: Math.min(newP1.x, newP2.x),
+            y: Math.min(newP1.y, newP2.y),
+            width: Math.max(5, Math.abs(newP2.x - newP1.x)),
+            height: Math.max(5, Math.abs(newP2.y - newP1.y)),
+          },
+          startPoint: newP1,
+          endPoint: newP2,
         });
         return;
       }
@@ -282,15 +467,17 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         let newH = prev.height;
 
         if (isResizing.includes("e")) newW = Math.max(10, prev.width + deltaX);
-        if (isResizing.includes("s")) {
-          newY = prev.y + deltaY;
-          newH = Math.max(10, prev.height - deltaY);
-        }
         if (isResizing.includes("w")) {
-          newX = prev.x + deltaX;
-          newW = Math.max(10, prev.width - deltaX);
+          const clampedW = Math.max(10, prev.width - deltaX);
+          newX = prev.x + (prev.width - clampedW);
+          newW = clampedW;
         }
         if (isResizing.includes("n")) newH = Math.max(10, prev.height + deltaY);
+        if (isResizing.includes("s")) {
+          const clampedH = Math.max(10, prev.height - deltaY);
+          newY = prev.y + (prev.height - clampedH);
+          newH = clampedH;
+        }
 
         const ratio = newH / Math.max(1, prev.height);
         const prevSize = initialOpState.fontSize || 12;
@@ -326,13 +513,15 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
         if (isResizing.includes("e")) newW = Math.max(10, prevW + deltaX);
         if (isResizing.includes("w")) {
-          newMinX = minX + deltaX;
-          newW = Math.max(10, prevW - deltaX);
+          const clampedW = Math.max(10, prevW - deltaX);
+          newMinX = minX + (prevW - clampedW);
+          newW = clampedW;
         }
         if (isResizing.includes("n")) newH = Math.max(10, prevH + deltaY);
         if (isResizing.includes("s")) {
-          newMinY = minY + deltaY;
-          newH = Math.max(10, prevH - deltaY);
+          const clampedH = Math.max(10, prevH - deltaY);
+          newMinY = minY + (prevH - clampedH);
+          newH = clampedH;
         }
 
         const scaleX = newW / prevW;
@@ -355,15 +544,17 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         let newH = prev.height;
 
         if (isResizing.includes("e")) newW = Math.max(10, prev.width + deltaX);
-        if (isResizing.includes("s")) {
-          newY = prev.y + deltaY;
-          newH = Math.max(10, prev.height - deltaY);
-        }
         if (isResizing.includes("w")) {
-          newX = prev.x + deltaX;
-          newW = Math.max(10, prev.width - deltaX);
+          const clampedW = Math.max(10, prev.width - deltaX);
+          newX = prev.x + (prev.width - clampedW);
+          newW = clampedW;
         }
         if (isResizing.includes("n")) newH = Math.max(10, prev.height + deltaY);
+        if (isResizing.includes("s")) {
+          const clampedH = Math.max(10, prev.height - deltaY);
+          newY = prev.y + (prev.height - clampedH);
+          newH = clampedH;
+        }
 
         executeUpdateElement(selectedElementId, {
           rect: {
@@ -544,31 +735,57 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   const selectedOp = operations.find((o) => o.id === selectedElementId);
   let selectionBox: Rect | null = null;
   if (selectedOp) {
-    if ("rect" in selectedOp) {
+    if (
+      selectedOp.type === "add_shape" &&
+      (selectedOp.shapeType === "line" || selectedOp.shapeType === "arrow")
+    ) {
+      const p1 = selectedOp.startPoint || { x: selectedOp.rect.x, y: selectedOp.rect.y };
+      const p2 = selectedOp.endPoint || {
+        x: selectedOp.rect.x + selectedOp.rect.width,
+        y: selectedOp.rect.y + selectedOp.rect.height,
+      };
+      const minX = Math.min(p1.x, p2.x);
+      const maxX = Math.max(p1.x, p2.x);
+      const minY = Math.min(p1.y, p2.y);
+      const maxY = Math.max(p1.y, p2.y);
+      const screenTopLeft = pdfToScreen(minX, maxY);
+      selectionBox = {
+        x: screenTopLeft.x - 6,
+        y: screenTopLeft.y - 6,
+        width: Math.max(16, (maxX - minX) * scale + 12),
+        height: Math.max(16, (maxY - minY) * scale + 12),
+      };
+    } else if ("position" in selectedOp && selectedOp.type === "add_text") {
+      const screenPos = pdfToScreen(selectedOp.position.x, selectedOp.position.y);
+      const estWidth = Math.max(50, selectedOp.text.length * selectedOp.fontSize * 0.58 * scale);
+      const estHeight = selectedOp.fontSize * 1.35 * scale;
+      let boxX = screenPos.x;
+      if (selectedOp.alignment === "center") {
+        boxX = screenPos.x - estWidth / 2;
+      } else if (selectedOp.alignment === "right") {
+        boxX = screenPos.x - estWidth;
+      }
+      selectionBox = {
+        x: boxX - 4,
+        y: screenPos.y - estHeight - 2,
+        width: estWidth + 8,
+        height: estHeight + 4,
+      };
+    } else if ("rect" in selectedOp) {
       const screenPos = pdfToScreen(selectedOp.rect.x, selectedOp.rect.y + selectedOp.rect.height);
       selectionBox = {
-        x: screenPos.x,
-        y: screenPos.y,
-        width: selectedOp.rect.width * scale,
-        height: selectedOp.rect.height * scale,
+        x: screenPos.x - 2,
+        y: screenPos.y - 2,
+        width: Math.max(16, selectedOp.rect.width * scale + 4),
+        height: Math.max(16, selectedOp.rect.height * scale + 4),
       };
     } else if ("targetRect" in selectedOp) {
       const screenPos = pdfToScreen(selectedOp.targetRect.x, selectedOp.targetRect.y + selectedOp.targetRect.height);
       selectionBox = {
-        x: screenPos.x,
-        y: screenPos.y,
-        width: selectedOp.targetRect.width * scale,
-        height: selectedOp.targetRect.height * scale,
-      };
-    } else if ("position" in selectedOp && selectedOp.type === "add_text") {
-      const screenPos = pdfToScreen(selectedOp.position.x, selectedOp.position.y);
-      const estWidth = Math.max(60, selectedOp.text.length * selectedOp.fontSize * 0.55 * scale);
-      const estHeight = selectedOp.fontSize * 1.3 * scale;
-      selectionBox = {
-        x: screenPos.x,
-        y: screenPos.y - estHeight,
-        width: estWidth,
-        height: estHeight,
+        x: screenPos.x - 2,
+        y: screenPos.y - 2,
+        width: Math.max(16, selectedOp.targetRect.width * scale + 4),
+        height: Math.max(16, selectedOp.targetRect.height * scale + 4),
       };
     } else if (selectedOp.type === "freehand" && (selectedOp as any).points?.length > 0) {
       const pts = (selectedOp as any).points as Point[];
@@ -581,10 +798,10 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       }
       const screenTopLeft = pdfToScreen(minX, maxY);
       selectionBox = {
-        x: screenTopLeft.x - 4,
-        y: screenTopLeft.y - 4,
-        width: Math.max(16, (maxX - minX) * scale + 8),
-        height: Math.max(16, (maxY - minY) * scale + 8),
+        x: screenTopLeft.x - 6,
+        y: screenTopLeft.y - 6,
+        width: Math.max(16, (maxX - minX) * scale + 12),
+        height: Math.max(16, (maxY - minY) * scale + 12),
       };
     }
   }
@@ -836,34 +1053,54 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               );
             }
 
+            const estTextW = Math.max(40, op.text.length * op.fontSize * 0.58 * scale);
+            const estTextH = op.fontSize * 1.35 * scale;
+            const bgX =
+              op.alignment === "center"
+                ? screen.x - estTextW / 2
+                : op.alignment === "right"
+                ? screen.x - estTextW
+                : screen.x;
+
             return (
-              <text
+              <g
                 key={op.id}
-                x={screen.x}
-                y={screen.y}
-                fill={op.fontColorHex}
-                fontSize={op.fontSize * scale}
-                fontFamily={op.fontFamily}
-                fontWeight={op.fontWeight}
-                fontStyle={op.fontStyle}
-                textAnchor={
-                  op.alignment === "center"
-                    ? "middle"
-                    : op.alignment === "right"
-                    ? "end"
-                    : "start"
-                }
-                opacity={op.opacity ?? 1.0}
                 onMouseDown={(e) => handleElementMouseDown(e, op)}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   setEditingOpId(op.id);
                   setEditingTextValue(op.text);
                 }}
-                className="cursor-move pointer-events-auto select-none"
+                className="cursor-move pointer-events-auto select-none group"
               >
-                {op.text}
-              </text>
+                {/* Generous transparent hit-surface so clicking text never misses */}
+                <rect
+                  x={bgX - 4}
+                  y={screen.y - estTextH}
+                  width={estTextW + 8}
+                  height={estTextH + 4}
+                  fill="transparent"
+                />
+                <text
+                  x={screen.x}
+                  y={screen.y}
+                  fill={op.fontColorHex}
+                  fontSize={op.fontSize * scale}
+                  fontFamily={op.fontFamily}
+                  fontWeight={op.fontWeight}
+                  fontStyle={op.fontStyle}
+                  textAnchor={
+                    op.alignment === "center"
+                      ? "middle"
+                      : op.alignment === "right"
+                      ? "end"
+                      : "start"
+                  }
+                  opacity={op.opacity ?? 1.0}
+                >
+                  {op.text}
+                </text>
+              </g>
             );
           }
 
@@ -1239,122 +1476,114 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       {/* 4. Selection Bounding Box & Transform Handles */}
       {selectionBox && (
         <g className="pointer-events-auto">
+          {/* Active translucent grab surface - allows grabbing & moving from anywhere inside the element */}
           <rect
             x={selectionBox.x}
             y={selectionBox.y}
             width={selectionBox.width}
             height={selectionBox.height}
-            fill="none"
-            stroke="#3b82f6"
+            fill="rgba(59, 130, 246, 0.06)"
+            stroke="#2563eb"
             strokeWidth={1.5}
             strokeDasharray="4 4"
+            className="cursor-move pointer-events-auto"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              if (selectedOp) {
+                handleElementMouseDown(e, selectedOp);
+              }
+            }}
           />
 
-          {/* 8 Transform Handles */}
+          {/* Quick Floating Action Bar above selected element */}
+          <foreignObject
+            x={Math.max(4, selectionBox.x)}
+            y={Math.max(4, selectionBox.y - 32)}
+            width={Math.max(240, selectionBox.width)}
+            height={28}
+            className="overflow-visible pointer-events-auto z-40"
+          >
+            <div className="inline-flex items-center space-x-1.5 bg-slate-900/95 text-white px-2 py-1 rounded-md shadow-lg text-xs font-medium backdrop-blur-xs whitespace-nowrap border border-slate-700/60">
+              <span className="text-[10px] text-slate-300 flex items-center space-x-1 pr-1.5 border-r border-slate-700">
+                <Move className="w-3 h-3 text-blue-400" />
+                <span>
+                  {selectedOp && "rect" in selectedOp
+                    ? `${Math.round(selectedOp.rect.width)} × ${Math.round(selectedOp.rect.height)} pt`
+                    : selectedOp && "targetRect" in selectedOp
+                    ? `${Math.round(selectedOp.targetRect.width)} × ${Math.round(selectedOp.targetRect.height)} pt`
+                    : selectedOp && "fontSize" in selectedOp
+                    ? `${selectedOp.fontSize} pt`
+                    : "Element"}
+                </span>
+              </span>
+
+              {/* Duplicate element */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  duplicateSelected();
+                }}
+                className="p-1 hover:bg-slate-700 rounded transition text-slate-200 hover:text-white"
+                title="Duplicate element (Ctrl+D)"
+              >
+                <Copy className="w-3 h-3" />
+              </button>
+
+              {/* Delete element */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteSelected();
+                }}
+                className="p-1 hover:bg-red-900/50 rounded transition text-red-400 hover:text-red-300"
+                title="Delete element (Delete/Backspace)"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </foreignObject>
+
+          {/* 8 Crisp Transform Handles with generous 16x16 click/drag hitboxes */}
           {/* NW */}
-          <rect
-            x={selectionBox.x - 4}
-            y={selectionBox.y - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-nwse-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "nw")}
-          />
+          <g className="cursor-nwse-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "nw")}>
+            <rect x={selectionBox.x - 8} y={selectionBox.y - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x - 5} y={selectionBox.y - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* NE */}
-          <rect
-            x={selectionBox.x + selectionBox.width - 4}
-            y={selectionBox.y - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-nesw-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "ne")}
-          />
+          <g className="cursor-nesw-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "ne")}>
+            <rect x={selectionBox.x + selectionBox.width - 8} y={selectionBox.y - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x + selectionBox.width - 5} y={selectionBox.y - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* SE */}
-          <rect
-            x={selectionBox.x + selectionBox.width - 4}
-            y={selectionBox.y + selectionBox.height - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-nwse-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "se")}
-          />
+          <g className="cursor-nwse-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "se")}>
+            <rect x={selectionBox.x + selectionBox.width - 8} y={selectionBox.y + selectionBox.height - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x + selectionBox.width - 5} y={selectionBox.y + selectionBox.height - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* SW */}
-          <rect
-            x={selectionBox.x - 4}
-            y={selectionBox.y + selectionBox.height - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-nesw-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "sw")}
-          />
+          <g className="cursor-nesw-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "sw")}>
+            <rect x={selectionBox.x - 8} y={selectionBox.y + selectionBox.height - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x - 5} y={selectionBox.y + selectionBox.height - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* N */}
-          <rect
-            x={selectionBox.x + selectionBox.width / 2 - 4}
-            y={selectionBox.y - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-ns-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "n")}
-          />
+          <g className="cursor-ns-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "n")}>
+            <rect x={selectionBox.x + selectionBox.width / 2 - 8} y={selectionBox.y - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x + selectionBox.width / 2 - 5} y={selectionBox.y - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* S */}
-          <rect
-            x={selectionBox.x + selectionBox.width / 2 - 4}
-            y={selectionBox.y + selectionBox.height - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-ns-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "s")}
-          />
+          <g className="cursor-ns-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "s")}>
+            <rect x={selectionBox.x + selectionBox.width / 2 - 8} y={selectionBox.y + selectionBox.height - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x + selectionBox.width / 2 - 5} y={selectionBox.y + selectionBox.height - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* E */}
-          <rect
-            x={selectionBox.x + selectionBox.width - 4}
-            y={selectionBox.y + selectionBox.height / 2 - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-ew-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "e")}
-          />
+          <g className="cursor-ew-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "e")}>
+            <rect x={selectionBox.x + selectionBox.width - 8} y={selectionBox.y + selectionBox.height / 2 - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x + selectionBox.width - 5} y={selectionBox.y + selectionBox.height / 2 - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
           {/* W */}
-          <rect
-            x={selectionBox.x - 4}
-            y={selectionBox.y + selectionBox.height / 2 - 4}
-            width={8}
-            height={8}
-            rx={1.5}
-            fill="#ffffff"
-            stroke="#2563eb"
-            strokeWidth={1.5}
-            className="cursor-ew-resize"
-            onMouseDown={(e) => handleResizeHandleMouseDown(e, "w")}
-          />
+          <g className="cursor-ew-resize pointer-events-auto" onMouseDown={(e) => handleResizeHandleMouseDown(e, "w")}>
+            <rect x={selectionBox.x - 8} y={selectionBox.y + selectionBox.height / 2 - 8} width={16} height={16} fill="transparent" />
+            <rect x={selectionBox.x - 5} y={selectionBox.y + selectionBox.height / 2 - 5} width={10} height={10} rx={2} fill="#ffffff" stroke="#2563eb" strokeWidth={1.5} className="shadow-xs" />
+          </g>
         </g>
       )}
     </svg>

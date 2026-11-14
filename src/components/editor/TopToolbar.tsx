@@ -78,6 +78,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     setActiveTool,
     closeDocument,
     deleteSelected,
+    duplicateSelected,
     copyFormatting,
     pasteFormatting,
     setActiveFormatting,
@@ -397,11 +398,20 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
 
           <div className="w-px h-4 bg-slate-300 mx-0.5" />
 
-          {/* 10. Delete */}
+          {/* 10. Duplicate & Delete */}
+          <button
+            onClick={duplicateSelected}
+            disabled={!selectedElementId}
+            title="Duplicate Selected Element (Ctrl+D)"
+            className="p-1.5 rounded text-slate-700 hover:text-blue-600 hover:bg-white disabled:opacity-30 disabled:hover:text-slate-700 transition"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+
           <button
             onClick={deleteSelected}
             disabled={!selectedElementId}
-            title="Delete Selected Element (Del)"
+            title="Delete Selected Element (Del / Backspace)"
             className="p-1.5 rounded text-slate-700 hover:text-red-600 hover:bg-white disabled:opacity-30 disabled:hover:text-slate-700 transition"
           >
             <Trash2 className="w-3.5 h-3.5" />

@@ -181,6 +181,7 @@ export interface EditorState {
   executeAddOperation: (op: EditOperation) => Promise<void>;
   executeUpdateElement: (id: string, updates: Partial<EditOperation>) => Promise<void>;
   deleteSelected: () => Promise<void>;
+  duplicateSelected: () => Promise<void>;
   copyFormatting: () => void;
   pasteFormatting: () => Promise<void>;
   setActiveFormatting: (formatting: Partial<FormattingStyle>) => void;
@@ -713,6 +714,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     await useHistoryStore.getState().executeCommand(command);
     set({ selectedElementId: null });
+  },
+
+  duplicateSelected: async () => {
+    const { selectedElementId, operations, executeAddOperation, showToast } = get();
+    if (!selectedElementId) return;
+
+    const op = operations.find((o) => o.id === selectedElementId);
+    if (!op) return;
+
+    const cloned = JSON.parse(JSON.stringify(op)) as EditOperation;
+    cloned.id = `${cloned.type}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    cloned.timestamp = Date.now();
+
+    // Offset position slightly so duplicate is immediately visible
+    if ("position" in cloned) {
+      cloned.position.x += 15;
+      cloned.position.y -= 15;
+    } else if ("rect" in cloned) {
+      cloned.rect.x += 15;
+      cloned.rect.y -= 15;
+    } else if ("targetRect" in cloned) {
+      cloned.targetRect.x += 15;
+      cloned.targetRect.y -= 15;
+    } else if ("points" in cloned && Array.isArray((cloned as any).points)) {
+      (cloned as any).points = (cloned as any).points.map((pt: any) => ({
+        x: pt.x + 15,
+        y: pt.y - 15,
+      }));
+    }
+
+    await executeAddOperation(cloned);
+    showToast("Duplicated element");
   },
 
   copyFormatting: () => {
