@@ -20,6 +20,7 @@ import {
   Navigation,
   Edit3,
   Loader2,
+  X,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import { ImageInfo, HyperlinkInfo } from "@/core/models/style-profile";
@@ -191,9 +192,9 @@ export const DocumentAnalysisPanel: React.FC = () => {
     openEditLinkModal,
     setCurrentPage,
     showToast,
+    toggleAnalysisPanel,
   } = useEditorStore();
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "fonts" | "colors" | "images" | "links" | "accuracy"
   >("fonts");
@@ -235,24 +236,10 @@ export const DocumentAnalysisPanel: React.FC = () => {
     await executeAddOperation(op);
   };
 
-  if (isCollapsed) {
-    return (
-      <div className="w-10 border-l border-slate-200 bg-slate-50 flex flex-col items-center py-3 select-none shrink-0 z-10">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          title="Expand Document Analysis Panel"
-          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <aside className="w-84 border-l border-slate-200 bg-white flex flex-col shrink-0 select-none z-10 shadow-xs">
+    <aside className="w-80 border-l border-slate-200 bg-white flex flex-col shrink-0 select-none z-10 shadow-xs">
       {/* Panel Header */}
-      <div className="h-12 border-b border-slate-200 px-4 flex items-center justify-between bg-slate-50/70">
+      <div className="h-11 border-b border-slate-200 px-3.5 flex items-center justify-between bg-slate-50/70">
         <div className="flex items-center space-x-2">
           <Sparkles className="w-4 h-4 text-blue-600" />
           <span className="font-semibold text-xs text-slate-800 tracking-tight">
@@ -263,11 +250,11 @@ export const DocumentAnalysisPanel: React.FC = () => {
           </span>
         </div>
         <button
-          onClick={() => setIsCollapsed(true)}
-          title="Collapse Panel"
+          onClick={toggleAnalysisPanel}
+          title="Close Inspector"
           className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200/50 transition"
         >
-          <ChevronRight className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -369,21 +356,21 @@ export const DocumentAnalysisPanel: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Reusability status alert */}
+                  {/* Reusability status badge */}
                   <div
-                    className={`p-2 rounded-lg text-[11px] flex items-start space-x-1.5 border ${
+                    className={`px-2 py-1 rounded-md text-[10.5px] flex items-center space-x-1.5 border ${
                       font.canBeReusedForEditing
-                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                        : "bg-amber-50 text-amber-800 border-amber-200"
+                        ? "bg-emerald-50/80 text-emerald-800 border-emerald-200/80"
+                        : "bg-amber-50/80 text-amber-800 border-amber-200/80"
                     }`}
                   >
                     {font.canBeReusedForEditing ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                     ) : (
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
                     )}
-                    <span className="leading-tight text-[10.5px]">
-                      {font.reusabilityReason}
+                    <span className="truncate" title={font.reusabilityReason}>
+                      {font.canBeReusedForEditing ? "Safe for native text modification" : "Subset font: Original glyphs only"}
                     </span>
                   </div>
 

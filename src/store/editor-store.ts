@@ -115,6 +115,8 @@ export interface EditorState {
   editingTokenId: string | null;
   isExportModalOpen: boolean;
   isPageManagerOpen: boolean;
+  showThumbnails: boolean;
+  showAnalysisPanel: boolean;
   pendingLinkRect: Rect | null;
   activeEditingLink: HyperlinkInfo | null;
 
@@ -167,6 +169,8 @@ export interface EditorState {
   closeExportModal: () => void;
   openPageManager: () => void;
   closePageManager: () => void;
+  toggleThumbnails: () => void;
+  toggleAnalysisPanel: () => void;
   openAddLinkModal: (rect: Rect) => void;
   openEditLinkModal: (link: HyperlinkInfo) => void;
   closeLinkModal: () => void;
@@ -253,6 +257,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editingTokenId: null,
   isExportModalOpen: false,
   isPageManagerOpen: false,
+  showThumbnails: true,
+  showAnalysisPanel: false,
   pendingLinkRect: null,
   activeEditingLink: null,
 
@@ -571,6 +577,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   closePageManager: () => {
     set({ isPageManagerOpen: false });
+  },
+
+  toggleThumbnails: () => {
+    set((state) => ({ showThumbnails: !state.showThumbnails }));
+  },
+
+  toggleAnalysisPanel: () => {
+    set((state) => ({ showAnalysisPanel: !state.showAnalysisPanel }));
   },
 
   openAddLinkModal: (rect: Rect) => {

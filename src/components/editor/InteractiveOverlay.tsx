@@ -709,35 +709,39 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               }}
               className="cursor-pointer pointer-events-auto group"
             >
+              {/* Clean link target rectangle: subtle transparent unless link tool active or hovered */}
               <rect
                 x={screenPos.x}
                 y={screenPos.y}
                 width={link.rect.width * scale}
                 height={link.rect.height * scale}
-                fill="rgba(37, 99, 235, 0.12)"
-                stroke="#2563eb"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-                className="group-hover:fill-blue-500/25 transition-colors"
+                fill={activeTool === "link" ? "rgba(37, 99, 235, 0.15)" : "transparent"}
+                stroke={activeTool === "link" ? "#2563eb" : "transparent"}
+                strokeWidth={1}
+                strokeDasharray={activeTool === "link" ? "3 2" : undefined}
+                className="group-hover:fill-blue-500/15 group-hover:stroke-blue-500/80 transition-all"
               />
-              <rect
-                x={screenPos.x}
-                y={screenPos.y - 12}
-                width={isExt ? 40 : 45}
-                height={12}
-                rx={2}
-                fill="#2563eb"
-              />
-              <text
-                x={screenPos.x + 3}
-                y={screenPos.y - 3}
-                fill="#ffffff"
-                fontSize={8}
-                fontWeight="bold"
-                fontFamily="sans-serif"
-              >
-                {isExt ? "URL ↗" : "Page →"}
-              </text>
+              {/* Badge only visible when Link tool is active OR on hover */}
+              <g className={activeTool === "link" ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity"}>
+                <rect
+                  x={screenPos.x}
+                  y={Math.max(2, screenPos.y - 14)}
+                  width={isExt ? 46 : 52}
+                  height={13}
+                  rx={3}
+                  fill="#1d4ed8"
+                />
+                <text
+                  x={screenPos.x + 4}
+                  y={Math.max(11, screenPos.y - 4)}
+                  fill="#ffffff"
+                  fontSize={8.5}
+                  fontWeight="600"
+                  fontFamily="sans-serif"
+                >
+                  {isExt ? "URL ↗" : "Page →"}
+                </text>
+              </g>
               <title>
                 {isExt
                   ? `External Link: ${link.target}`

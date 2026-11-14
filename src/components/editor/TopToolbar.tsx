@@ -35,6 +35,7 @@ import {
   ShieldAlert,
   Link as LinkIcon,
   Layers,
+  LayoutList,
   Pen,
   Highlighter,
 } from "lucide-react";
@@ -87,6 +88,10 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
     openPageManager,
     executeUpdateElement,
     copySelectedTextToClipboard,
+    showThumbnails,
+    showAnalysisPanel,
+    toggleThumbnails,
+    toggleAnalysisPanel,
   } = useEditorStore();
 
   const { state: historyState, undo, redo } = useHistoryStore();
@@ -461,7 +466,35 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
               className="px-2 py-1 text-slate-700 hover:bg-white rounded flex items-center space-x-1"
             >
               <Layers className="w-3 h-3" />
-              <span>Pages</span>
+              <span className="hidden sm:inline">Manager</span>
+            </button>
+          </div>
+
+          {/* Sidebar Toggle Buttons */}
+          <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-0.5 border border-slate-200/80">
+            <button
+              onClick={toggleThumbnails}
+              title={showThumbnails ? "Hide Pages Sidebar" : "Show Pages Sidebar"}
+              className={`px-2 py-1 text-xs rounded font-medium flex items-center space-x-1 transition ${
+                showThumbnails
+                  ? "bg-white text-blue-600 shadow-2xs font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Pages</span>
+            </button>
+            <button
+              onClick={toggleAnalysisPanel}
+              title={showAnalysisPanel ? "Hide Document Inspector" : "Show Document Inspector"}
+              className={`px-2 py-1 text-xs rounded font-medium flex items-center space-x-1 transition ${
+                showAnalysisPanel
+                  ? "bg-white text-blue-600 shadow-2xs font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Inspector</span>
             </button>
           </div>
 
@@ -526,15 +559,21 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
         </div>
       )}
 
-      {/* Secondary Text & Shape Formatting Bar */}
-      <div className="min-h-10 border-t border-slate-100 bg-slate-50/60 px-2 sm:px-4 py-1 flex items-center space-x-2 sm:space-x-3 text-xs overflow-x-auto shrink-0">
-        {/* Highlighter / Pen Color & Stroke Quick Tools */}
-        {(activeTool === "draw" || activeTool === "highlight") && (
-          <div className="flex items-center space-x-2 border-r border-slate-200 pr-3 shrink-0">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-              {activeTool === "highlight" ? "Highlighter Color:" : "Pen Color:"}
-            </span>
-            <div className="flex items-center space-x-1">
+      {/* Contextual Formatting & Utility Sub-Bar */}
+      <div className="min-h-10 border-t border-slate-200/80 bg-slate-50/80 px-2 sm:px-4 py-1.5 flex items-center justify-between text-xs overflow-x-auto shrink-0 shadow-2xs">
+        {/* DRAWING / HIGHLIGHTER CONTEXT */}
+        {(activeTool === "draw" || activeTool === "highlight" || (selectedOp && selectedOp.type === "freehand")) ? (
+          <div className="flex items-center space-x-3 w-full">
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                activeTool === "highlight" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+              }`}>
+                {activeTool === "highlight" ? "Highlighter" : "Pen Marker"}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1 shrink-0 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium mr-1">Color:</span>
               {[
                 { hex: "#facc15", name: "Yellow" },
                 { hex: "#4ade80", name: "Green" },
@@ -550,21 +589,22 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
                   type="button"
                   onClick={() => setActiveFormatting({ strokeColorHex: c.hex })}
                   title={c.name}
-                  className={`w-4 h-4 rounded-full border transition transform hover:scale-125 ${
+                  className={`w-5 h-5 rounded-full border transition transform hover:scale-125 ${
                     activeFormatting.strokeColorHex === c.hex
-                      ? "ring-2 ring-blue-500 ring-offset-1 scale-110"
-                      : "border-slate-300"
+                      ? "ring-2 ring-blue-500 ring-offset-1 scale-110 border-white shadow-xs"
+                      : "border-slate-300 hover:border-slate-400"
                   }`}
                   style={{ backgroundColor: c.hex }}
                 />
               ))}
             </div>
-            <div className="flex items-center space-x-1 pl-2 border-l border-slate-200">
-              <span className="text-[10px] text-slate-400">Thickness:</span>
+
+            <div className="flex items-center space-x-1.5 pl-3 border-l border-slate-200 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Stroke:</span>
               <select
                 value={activeFormatting.strokeWidth || (activeTool === "highlight" ? 14 : 3)}
                 onChange={(e) => setActiveFormatting({ strokeWidth: parseInt(e.target.value, 10) })}
-                className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 font-medium"
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-medium shadow-2xs cursor-pointer"
               >
                 <option value={2}>Fine (2pt)</option>
                 <option value={4}>Medium (4pt)</option>
@@ -573,167 +613,280 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
                 <option value={22}>Broad (22pt)</option>
               </select>
             </div>
+
+            <div className="flex items-center space-x-2 pl-3 border-l border-slate-200 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Opacity:</span>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={activeFormatting.opacity}
+                onChange={(e) => setActiveFormatting({ opacity: parseFloat(e.target.value) })}
+                className="w-16 accent-blue-600 cursor-pointer"
+              />
+              <span className="text-[10px] font-mono text-slate-500 w-8">
+                {Math.round(activeFormatting.opacity * 100)}%
+              </span>
+            </div>
           </div>
-        )}
+        ) : (activeTool === "add_text" || activeTool === "edit_text" || (selectedOp && (selectedOp.type === "add_text" || selectedOp.type === "text_edit"))) ? (
+          /* TEXT FORMATTING CONTEXT */
+          <div className="flex items-center space-x-2.5 sm:space-x-3 w-full">
+            {selectedOp && selectedOp.type === "add_text" && (
+              <div className="flex items-center space-x-1.5 pr-2.5 border-r border-slate-200 shrink-0">
+                <span className="text-[11px] text-blue-600 font-semibold">Edit:</span>
+                <input
+                  type="text"
+                  value={selectedOp.text}
+                  onChange={(e) => executeUpdateElement(selectedOp.id, { text: e.target.value })}
+                  className="w-40 bg-white border border-blue-400 rounded-lg px-2 py-0.5 text-xs text-slate-800 font-medium shadow-2xs focus:outline-hidden"
+                  placeholder="Type text..."
+                />
+              </div>
+            )}
 
-        {/* Selected Element Quick Text Editor */}
-        {selectedOp && selectedOp.type === "add_text" && (
-          <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200">
-            <span className="text-[10px] text-blue-600 font-semibold">Edit Text:</span>
-            <input
-              type="text"
-              value={selectedOp.text}
-              onChange={(e) => executeUpdateElement(selectedOp.id, { text: e.target.value })}
-              className="w-44 bg-white border border-blue-400 rounded px-2 py-0.5 text-xs text-slate-800 font-medium shadow-2xs focus:outline-hidden"
-              placeholder="Type text..."
-            />
+            {/* Font Family */}
+            <div className="flex items-center space-x-1 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Font:</span>
+              <select
+                value={activeFormatting.fontFamily}
+                onChange={(e) => setActiveFormatting({ fontFamily: e.target.value })}
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-medium cursor-pointer shadow-2xs"
+              >
+                <option value="Helvetica">Helvetica</option>
+                <option value="Times">Times Roman</option>
+                <option value="Courier">Courier</option>
+              </select>
+            </div>
+
+            {/* Font Size */}
+            <div className="flex items-center space-x-1 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Size:</span>
+              <input
+                type="number"
+                min={6}
+                max={120}
+                value={activeFormatting.fontSize}
+                onChange={(e) => setActiveFormatting({ fontSize: parseInt(e.target.value, 10) || 12 })}
+                className="w-12 bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-xs text-slate-700 font-mono text-center shadow-2xs"
+              />
+            </div>
+
+            {/* Bold / Italic */}
+            <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 space-x-0.5 shadow-2xs shrink-0">
+              <button
+                onClick={() =>
+                  setActiveFormatting({
+                    fontWeight: activeFormatting.fontWeight === "bold" ? "normal" : "bold",
+                  })
+                }
+                title="Bold"
+                className={`p-1 rounded ${
+                  activeFormatting.fontWeight === "bold" ? "bg-slate-200 text-slate-900 font-bold" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Bold className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() =>
+                  setActiveFormatting({
+                    fontStyle: activeFormatting.fontStyle === "italic" ? "normal" : "italic",
+                  })
+                }
+                title="Italic"
+                className={`p-1 rounded ${
+                  activeFormatting.fontStyle === "italic" ? "bg-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Italic className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Text Color */}
+            <div className="flex items-center space-x-1.5 shrink-0 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Color:</span>
+              <input
+                type="color"
+                value={activeFormatting.fontColorHex}
+                onChange={(e) => setActiveFormatting({ fontColorHex: e.target.value })}
+                className="w-6 h-6 rounded-md border border-slate-300 cursor-pointer p-0 bg-transparent shadow-2xs"
+              />
+            </div>
+
+            {/* Alignment */}
+            <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 space-x-0.5 shadow-2xs shrink-0">
+              <button
+                onClick={() => setActiveFormatting({ alignment: "left" })}
+                className={`p-1 rounded ${
+                  activeFormatting.alignment === "left" ? "bg-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setActiveFormatting({ alignment: "center" })}
+                className={`p-1 rounded ${
+                  activeFormatting.alignment === "center" ? "bg-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setActiveFormatting({ alignment: "right" })}
+                className={`p-1 rounded ${
+                  activeFormatting.alignment === "right" ? "bg-slate-200 text-slate-900" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <AlignRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Opacity */}
+            <div className="flex items-center space-x-1.5 shrink-0 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Opacity:</span>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={activeFormatting.opacity}
+                onChange={(e) => setActiveFormatting({ opacity: parseFloat(e.target.value) })}
+                className="w-16 accent-blue-600 cursor-pointer"
+              />
+              <span className="text-[10px] font-mono text-slate-500 w-8">
+                {Math.round(activeFormatting.opacity * 100)}%
+              </span>
+            </div>
+
+            {copiedFormatting && (
+              <button
+                onClick={pasteFormatting}
+                disabled={!selectedElementId}
+                className="ml-auto px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 text-xs font-semibold shadow-2xs transition shrink-0"
+              >
+                Paste Style
+              </button>
+            )}
           </div>
-        )}
+        ) : (activeTool.startsWith("shape_") || activeTool === "whiteout" || activeTool === "blackout" || (selectedOp && (selectedOp.type === "add_shape" || selectedOp.type === "whiteout" || selectedOp.type === "blackout"))) ? (
+          /* SHAPE / MASK CONTEXT */
+          <div className="flex items-center space-x-3 w-full">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 shrink-0">
+              Shape & Mask Styling
+            </span>
 
-        {/* Font Family */}
-        <div className="flex items-center space-x-1">
-          <span className="text-[10px] text-slate-400 font-medium">Font:</span>
-          <select
-            value={activeFormatting.fontFamily}
-            onChange={(e) => setActiveFormatting({ fontFamily: e.target.value })}
-            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 font-medium cursor-pointer"
-          >
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times">Times Roman</option>
-            <option value="Courier">Courier</option>
-          </select>
-        </div>
+            <div className="flex items-center space-x-1.5 shrink-0 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Stroke:</span>
+              <input
+                type="color"
+                value={activeFormatting.strokeColorHex || "#2563eb"}
+                onChange={(e) => setActiveFormatting({ strokeColorHex: e.target.value })}
+                className="w-6 h-6 rounded-md border border-slate-300 cursor-pointer p-0 bg-transparent shadow-2xs"
+              />
+              <select
+                value={activeFormatting.strokeWidth || 2}
+                onChange={(e) => setActiveFormatting({ strokeWidth: parseInt(e.target.value, 10) })}
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 font-medium shadow-2xs cursor-pointer ml-1"
+              >
+                <option value={1}>1pt</option>
+                <option value={2}>2pt</option>
+                <option value={3}>3pt</option>
+                <option value={5}>5pt</option>
+                <option value={8}>8pt</option>
+              </select>
+            </div>
 
-        {/* Font Size */}
-        <div className="flex items-center space-x-1">
-          <span className="text-[10px] text-slate-400 font-medium">Size:</span>
-          <input
-            type="number"
-            min={6}
-            max={120}
-            value={activeFormatting.fontSize}
-            onChange={(e) => setActiveFormatting({ fontSize: parseInt(e.target.value, 10) || 12 })}
-            className="w-12 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 font-mono text-center"
-          />
-        </div>
+            <div className="flex items-center space-x-1.5 shrink-0 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500 font-medium">Fill:</span>
+              <input
+                type="color"
+                value={activeFormatting.fillColorHex || "#3b82f6"}
+                onChange={(e) => setActiveFormatting({ fillColorHex: e.target.value })}
+                className="w-6 h-6 rounded-md border border-slate-300 cursor-pointer p-0 bg-transparent shadow-2xs"
+              />
+            </div>
 
-        {/* Bold / Italic */}
-        <div className="flex items-center bg-white rounded border border-slate-200 p-0.5 space-x-0.5">
-          <button
-            onClick={() =>
-              setActiveFormatting({
-                fontWeight: activeFormatting.fontWeight === "bold" ? "normal" : "bold",
-              })
-            }
-            title="Bold"
-            className={`p-1 rounded ${
-              activeFormatting.fontWeight === "bold" ? "bg-slate-200 text-slate-900" : "text-slate-600"
-            }`}
-          >
-            <Bold className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() =>
-              setActiveFormatting({
-                fontStyle: activeFormatting.fontStyle === "italic" ? "normal" : "italic",
-              })
-            }
-            title="Italic"
-            className={`p-1 rounded ${
-              activeFormatting.fontStyle === "italic" ? "bg-slate-200 text-slate-900" : "text-slate-600"
-            }`}
-          >
-            <Italic className="w-3 h-3" />
-          </button>
-        </div>
-
-        {/* Text Color */}
-        <div className="flex items-center space-x-1">
-          <span className="text-[10px] text-slate-400 font-medium">Color:</span>
-          <input
-            type="color"
-            value={activeFormatting.fontColorHex}
-            onChange={(e) => setActiveFormatting({ fontColorHex: e.target.value })}
-            className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0 bg-transparent"
-          />
-        </div>
-
-        {/* Alignment */}
-        <div className="flex items-center bg-white rounded border border-slate-200 p-0.5 space-x-0.5">
-          <button
-            onClick={() => setActiveFormatting({ alignment: "left" })}
-            className={`p-1 rounded ${
-              activeFormatting.alignment === "left" ? "bg-slate-200 text-slate-900" : "text-slate-600"
-            }`}
-          >
-            <AlignLeft className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => setActiveFormatting({ alignment: "center" })}
-            className={`p-1 rounded ${
-              activeFormatting.alignment === "center" ? "bg-slate-200 text-slate-900" : "text-slate-600"
-            }`}
-          >
-            <AlignCenter className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => setActiveFormatting({ alignment: "right" })}
-            className={`p-1 rounded ${
-              activeFormatting.alignment === "right" ? "bg-slate-200 text-slate-900" : "text-slate-600"
-            }`}
-          >
-            <AlignRight className="w-3 h-3" />
-          </button>
-        </div>
-
-        {/* Opacity */}
-        <div className="flex items-center space-x-1.5">
-          <span className="text-[10px] text-slate-400 font-medium">Opacity:</span>
-          <input
-            type="range"
-            min="0.1"
-            max="1.0"
-            step="0.05"
-            value={activeFormatting.opacity}
-            onChange={(e) => setActiveFormatting({ opacity: parseFloat(e.target.value) })}
-            className="w-16 accent-blue-600 cursor-pointer"
-          />
-          <span className="text-[10px] font-mono text-slate-500">
-            {Math.round(activeFormatting.opacity * 100)}%
-          </span>
-        </div>
-
-        {/* Stroke / Fill for Shapes */}
-        <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
-          <div className="flex items-center space-x-1">
-            <span className="text-[10px] text-slate-400 font-medium">Stroke:</span>
-            <input
-              type="color"
-              value={activeFormatting.strokeColorHex || "#2563eb"}
-              onChange={(e) => setActiveFormatting({ strokeColorHex: e.target.value })}
-              className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0 bg-transparent"
-            />
+            <div className="flex items-center space-x-2 pl-3 border-l border-slate-200 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Opacity:</span>
+              <input
+                type="range"
+                min="0.1"
+                max="1.0"
+                step="0.05"
+                value={activeFormatting.opacity}
+                onChange={(e) => setActiveFormatting({ opacity: parseFloat(e.target.value) })}
+                className="w-16 accent-blue-600 cursor-pointer"
+              />
+              <span className="text-[10px] font-mono text-slate-500 w-8">
+                {Math.round(activeFormatting.opacity * 100)}%
+              </span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1">
-            <span className="text-[10px] text-slate-400 font-medium">Fill:</span>
-            <input
-              type="color"
-              value={activeFormatting.fillColorHex || "#3b82f6"}
-              onChange={(e) => setActiveFormatting({ fillColorHex: e.target.value })}
-              className="w-5 h-5 rounded border border-slate-300 cursor-pointer p-0 bg-transparent"
-            />
-          </div>
-        </div>
+        ) : (
+          /* DEFAULT SELECTION & VIEWPORT CONTROLS */
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center space-x-2 shrink-0">
+              <span className="text-[11px] text-slate-500 font-medium">Zoom:</span>
+              <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+                <button
+                  onClick={zoomOut}
+                  disabled={zoomScale <= 0.3}
+                  className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded disabled:opacity-30"
+                  title="Zoom Out (-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <select
+                  value={Math.round(zoomScale * 100)}
+                  onChange={(e) => setZoomScale(parseInt(e.target.value, 10) / 100)}
+                  className="bg-transparent px-1.5 py-0.5 text-xs text-slate-800 font-semibold font-mono cursor-pointer focus:outline-hidden"
+                >
+                  <option value={50}>50%</option>
+                  <option value={75}>75%</option>
+                  <option value={100}>100%</option>
+                  <option value={125}>125%</option>
+                  <option value={150}>150%</option>
+                  <option value={200}>200%</option>
+                </select>
+                <button
+                  onClick={zoomIn}
+                  disabled={zoomScale >= 4.0}
+                  className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded disabled:opacity-30"
+                  title="Zoom In (+)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-        {/* Paste Formatting Shortcut */}
-        {copiedFormatting && (
-          <button
-            onClick={pasteFormatting}
-            disabled={!selectedElementId}
-            className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 text-[10px] font-medium transition"
-          >
-            Paste Copied Style
-          </button>
+              <button
+                onClick={() => fitToWidth(1000)}
+                className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white rounded-md border border-transparent hover:border-slate-200 transition"
+                title="Fit to Width"
+              >
+                Fit Width
+              </button>
+              <button
+                onClick={() => fitToPage(1000, 800)}
+                className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white rounded-md border border-transparent hover:border-slate-200 transition"
+                title="Fit to Page"
+              >
+                Fit Page
+              </button>
+              <button
+                onClick={() => rotateViewing("cw")}
+                className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded-md border border-transparent hover:border-slate-200 transition flex items-center space-x-1"
+                title="Rotate View 90° Clockwise"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-medium hidden md:inline">Rotate</span>
+              </button>
+            </div>
+
+            <div className="hidden lg:flex items-center text-[11px] text-slate-400 font-medium">
+              <span>Click any element on the page to drag, scale with 8 handles, or edit text</span>
+            </div>
+          </div>
         )}
       </div>
     </header>

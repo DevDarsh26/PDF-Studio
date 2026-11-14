@@ -140,8 +140,8 @@ export const ThumbnailSidebar: React.FC = () => {
     deletePageFromDocument,
     rotatePageInDocument,
     openPageManager,
+    toggleThumbnails,
   } = useEditorStore();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll the active thumbnail into view
@@ -171,31 +171,17 @@ export const ThumbnailSidebar: React.FC = () => {
     addBlankPageToDocument(pageInfos.length);
   };
 
-  if (isCollapsed) {
-    return (
-      <div className="w-10 border-r border-slate-200 bg-slate-50/50 flex flex-col items-center py-3 select-none">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          title="Expand Thumbnail Panel"
-          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg transition"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <aside className="w-48 sm:w-56 border-r border-slate-200 bg-slate-50 flex flex-col shrink-0 select-none">
+    <aside className="w-52 border-r border-slate-200 bg-slate-50/70 flex flex-col shrink-0 select-none shadow-xs">
       {/* Header */}
-      <div className="h-10 border-b border-slate-200 px-3 flex items-center justify-between bg-white/70 backdrop-blur-xs">
+      <div className="h-11 border-b border-slate-200 px-3 flex items-center justify-between bg-white/80 backdrop-blur-xs">
         <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700">
           <LayoutList className="w-3.5 h-3.5 text-slate-500" />
           <span>Pages ({pageInfos.length})</span>
         </div>
         <button
-          onClick={() => setIsCollapsed(true)}
-          title="Collapse Thumbnail Panel"
+          onClick={toggleThumbnails}
+          title="Close Pages Sidebar"
           className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -221,17 +207,17 @@ export const ThumbnailSidebar: React.FC = () => {
       </div>
 
       {/* Footer Quick Actions */}
-      <div className="p-2 border-t border-slate-200 bg-white/80 space-y-1.5">
+      <div className="p-2.5 border-t border-slate-200 bg-white/90 backdrop-blur-xs space-y-1.5">
         <button
           onClick={handleAddBlankPage}
-          className="w-full flex items-center justify-center space-x-1.5 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition"
+          className="w-full flex items-center justify-center space-x-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition active:scale-[0.98]"
         >
-          <Plus className="w-3.5 h-3.5 text-slate-500" />
+          <Plus className="w-3.5 h-3.5 text-blue-600" />
           <span>Add Blank Page</span>
         </button>
         <button
           onClick={openPageManager}
-          className="w-full flex items-center justify-center space-x-1.5 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium transition"
+          className="w-full flex items-center justify-center space-x-1.5 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100/80 text-blue-700 rounded-lg text-xs font-semibold border border-blue-200/60 shadow-2xs transition active:scale-[0.98]"
         >
           <Layers className="w-3.5 h-3.5 text-blue-600" />
           <span>Page Manager</span>

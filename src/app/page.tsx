@@ -30,6 +30,10 @@ export default function Home() {
     rotateViewing,
     copySelectedTextToClipboard,
     restoreSession,
+    showThumbnails,
+    showAnalysisPanel,
+    toggleThumbnails,
+    toggleAnalysisPanel,
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
@@ -174,14 +178,16 @@ export default function Home() {
 
           {/* Main Workspace: Left Thumbnails + Center Canvas + Right Analysis Panel */}
           <div className="flex flex-1 overflow-hidden relative">
-            {/* Left Thumbnail Sidebar: visible on md+ screens or toggled on mobile */}
-            <div
-              className={`${
-                mobileShowThumbnails ? "fixed inset-y-0 left-0 z-30 flex shadow-2xl" : "hidden md:flex"
-              }`}
-            >
-              <ThumbnailSidebar />
-            </div>
+            {/* Left Thumbnail Sidebar */}
+            {showThumbnails && (
+              <div
+                className={`${
+                  mobileShowThumbnails ? "fixed inset-y-0 left-0 z-30 flex shadow-2xl" : "hidden md:flex"
+                } shrink-0 transition-all duration-200`}
+              >
+                <ThumbnailSidebar />
+              </div>
+            )}
 
             {/* Mobile backdrop for sidebar */}
             {mobileShowThumbnails && (
@@ -194,14 +200,16 @@ export default function Home() {
             {/* Central Viewport */}
             <PdfCanvasViewport containerRef={viewportContainerRef} />
 
-            {/* Right Style & Document Analysis Panel: visible on lg+ screens or toggled on mobile */}
-            <div
-              className={`${
-                mobileShowAnalysis ? "fixed inset-y-0 right-0 z-30 flex shadow-2xl" : "hidden lg:flex"
-              }`}
-            >
-              <DocumentAnalysisPanel />
-            </div>
+            {/* Right Style & Document Analysis Panel */}
+            {showAnalysisPanel && (
+              <div
+                className={`${
+                  mobileShowAnalysis ? "fixed inset-y-0 right-0 z-30 flex shadow-2xl" : "hidden lg:flex"
+                } shrink-0 transition-all duration-200`}
+              >
+                <DocumentAnalysisPanel />
+              </div>
+            )}
 
             {/* Mobile backdrop for analysis panel */}
             {mobileShowAnalysis && (
