@@ -178,27 +178,25 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
   return (
     <header className="border-b border-slate-200 bg-white flex flex-col z-20 shadow-2xs select-none">
       {/* Primary Navigation & Main Tools Bar */}
-      <div className="h-13 px-4 flex items-center justify-between">
+      <div className="min-h-13 px-2 sm:px-4 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0">
         {/* Brand & Document Name */}
-        <div className="flex items-center space-x-3 shrink-0">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-black text-xs text-white shadow-sm">
-              PS
-            </div>
-            <div className="hidden sm:block">
-              <div className="flex items-center space-x-1.5">
-                <span className="font-bold text-xs text-slate-900 tracking-tight">PDF Studio</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1">
-                  <ShieldCheck className="w-2.5 h-2.5" />
-                  <span>Local</span>
-                </span>
-              </div>
+        <div className="flex items-center space-x-2 shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-black text-xs text-white shadow-sm">
+            PS
+          </div>
+          <div className="hidden sm:block">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-bold text-xs text-slate-900 tracking-tight">PDF Studio</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                <span>Local</span>
+              </span>
             </div>
           </div>
         </div>
 
         {/* 12 Core Editing Tools */}
-        <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+        <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0 overflow-x-auto">
           {/* 1. Select */}
           <button
             onClick={() => setActiveTool("select")}
@@ -499,7 +497,7 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
       )}
 
       {/* Secondary Text & Shape Formatting Bar */}
-      <div className="h-10 border-t border-slate-100 bg-slate-50/60 px-4 flex items-center space-x-3 text-xs overflow-x-auto">
+      <div className="min-h-10 border-t border-slate-100 bg-slate-50/60 px-2 sm:px-4 py-1 flex items-center space-x-2 sm:space-x-3 text-xs overflow-x-auto shrink-0">
         {/* Selected Element Quick Text Editor */}
         {selectedOp && selectedOp.type === "add_text" && (
           <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200">

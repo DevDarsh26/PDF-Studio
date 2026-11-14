@@ -1,11 +1,11 @@
 /**
  * Client-Side Document Session Persistence
  * Uses browser IndexedDB to persist the currently active PDF document,
- * page position, zoom, and operations ledger so user progress is NEVER lost on reload.
+ * page position, zoom, rotation, and operations ledger so user progress is NEVER lost on reload.
  */
 
 const DB_NAME = "pdf-studio-session-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "active_session";
 const SESSION_KEY = "current_document";
 
@@ -15,6 +15,7 @@ export interface StoredDocumentSession {
   operations: any[];
   currentPageNumber: number;
   zoomScale: number;
+  viewRotation?: number;
   timestamp: number;
 }
 
@@ -39,14 +40,19 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * Save document session to IndexedDB.
+ */
 export async function saveDocumentSession(session: {
   documentName: string;
   rawBytes: ArrayBuffer;
   operations: any[];
   currentPageNumber: number;
   zoomScale: number;
+  viewRotation?: number;
 }): Promise<void> {
   try {
+    // If file is larger than 75MB, we still try, but catch quota safely
     const db = await openDatabase();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -55,21 +61,28 @@ export async function saveDocumentSession(session: {
       const record: StoredDocumentSession = {
         documentName: session.documentName,
         rawBytes: session.rawBytes.slice(0),
-        operations: session.operations,
-        currentPageNumber: session.currentPageNumber,
-        zoomScale: session.zoomScale,
+        operations: session.operations ? JSON.parse(JSON.stringify(session.operations)) : [],
+        currentPageNumber: session.currentPageNumber || 1,
+        zoomScale: session.zoomScale || 1.0,
+        viewRotation: session.viewRotation || 0,
         timestamp: Date.now(),
       };
 
       const putRequest = store.put(record, SESSION_KEY);
       putRequest.onsuccess = () => resolve();
-      putRequest.onerror = () => reject(putRequest.error);
+      putRequest.onerror = () => {
+        console.warn("IndexedDB save failed:", putRequest.error);
+        resolve(); // Don't throw to avoid disrupting UI
+      };
     });
-  } catch {
-    // Graceful fallback if storage quota exceeded or disabled
+  } catch (err) {
+    console.warn("Could not save session to IndexedDB:", err);
   }
 }
 
+/**
+ * Load document session from IndexedDB.
+ */
 export async function loadDocumentSession(): Promise<StoredDocumentSession | null> {
   try {
     const db = await openDatabase();
@@ -79,25 +92,34 @@ export async function loadDocumentSession(): Promise<StoredDocumentSession | nul
       const getRequest = store.get(SESSION_KEY);
 
       getRequest.onsuccess = () => {
-        resolve((getRequest.result as StoredDocumentSession) || null);
+        const result = getRequest.result as StoredDocumentSession | undefined;
+        if (!result || !result.rawBytes || result.rawBytes.byteLength === 0) {
+          resolve(null);
+        } else {
+          resolve(result);
+        }
       };
-      getRequest.onerror = () => reject(getRequest.error);
+      getRequest.onerror = () => {
+        resolve(null);
+      };
     });
   } catch {
     return null;
   }
 }
 
+/**
+ * Clear document session from IndexedDB.
+ */
 export async function clearDocumentSession(): Promise<void> {
   try {
     const db = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       const delRequest = store.delete(SESSION_KEY);
-
       delRequest.onsuccess = () => resolve();
-      delRequest.onerror = () => reject(delRequest.error);
+      delRequest.onerror = () => resolve();
     });
   } catch {
     // Ignored

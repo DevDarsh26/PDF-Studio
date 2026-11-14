@@ -25,6 +25,46 @@ import {
   clearDocumentSession,
 } from "../core/persistence/document-persistence";
 
+// ---- Debounced session save helper ----
+let _debounceSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_SAVE_MS = 500;
+
+function _debouncedSaveSession(getState: () => EditorState): void {
+  if (_debounceSaveTimer) clearTimeout(_debounceSaveTimer);
+  _debounceSaveTimer = setTimeout(() => {
+    _debounceSaveTimer = null;
+    const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = getState();
+    if (documentName && rawBytes) {
+      saveDocumentSession({
+        documentName,
+        rawBytes,
+        operations,
+        currentPageNumber,
+        zoomScale,
+        viewRotation,
+      });
+    }
+  }, DEBOUNCE_SAVE_MS);
+}
+
+function _immediateSaveSession(state: EditorState): void {
+  if (_debounceSaveTimer) {
+    clearTimeout(_debounceSaveTimer);
+    _debounceSaveTimer = null;
+  }
+  const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = state;
+  if (documentName && rawBytes) {
+    saveDocumentSession({
+      documentName,
+      rawBytes,
+      operations,
+      currentPageNumber,
+      zoomScale,
+      viewRotation,
+    });
+  }
+}
+
 export type EditorTool =
   | "select"
   | "edit_text"
@@ -88,7 +128,18 @@ export interface EditorState {
 
   // Actions
   setEngineType: (type: SupportedEngineType) => void;
-  loadDocumentBytes: (data: ArrayBuffer, fileName?: string, password?: string) => Promise<void>;
+  loadDocumentBytes: (
+    data: ArrayBuffer,
+    fileName?: string,
+    password?: string,
+    restoreOptions?: {
+      isRestoring?: boolean;
+      operations?: EditOperation[];
+      pageNumber?: number;
+      zoomScale?: number;
+      viewRotation?: number;
+    }
+  ) => Promise<void>;
   submitPassword: (password: string) => Promise<void>;
   cancelPasswordPrompt: () => void;
   setCurrentPage: (pageNumber: number) => Promise<void>;
@@ -144,6 +195,24 @@ const DEFAULT_FORMATTING: FormattingStyle = {
   strokeWidth: 2,
 };
 
+let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const debouncedSaveSession = (get: () => EditorState) => {
+  if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
+  sessionSaveTimer = setTimeout(() => {
+    const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = get();
+    if (documentName && rawBytes) {
+      saveDocumentSession({
+        documentName,
+        rawBytes,
+        operations,
+        currentPageNumber,
+        zoomScale,
+        viewRotation,
+      });
+    }
+  }, 350);
+};
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   engineType: "hybrid",
   adapter: createPdfAdapter("hybrid"),
@@ -186,7 +255,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ engineType: type, adapter: newAdapter });
   },
 
-  loadDocumentBytes: async (data: ArrayBuffer, fileName?: string, password?: string) => {
+  loadDocumentBytes: async (
+    data: ArrayBuffer,
+    fileName?: string,
+    password?: string,
+    restoreOptions?: {
+      isRestoring?: boolean;
+      operations?: EditOperation[];
+      pageNumber?: number;
+      zoomScale?: number;
+      viewRotation?: number;
+    }
+  ) => {
     const { adapter } = get();
     set({
       isLoading: true,
@@ -202,40 +282,46 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ loadingProgress: 75 });
       const pageInfos = await adapter.getPageInfos();
 
+      const initialPage = restoreOptions?.pageNumber && restoreOptions.pageNumber <= pageInfos.length
+        ? restoreOptions.pageNumber
+        : 1;
+
       set({ loadingProgress: 90 });
       let profile: DocumentStyleProfile | null = null;
       try {
-        profile = await adapter.analyzeStyleProfile(1);
+        profile = await adapter.analyzeStyleProfile(initialPage);
       } catch {
         // Continue
       }
+
+      const initialOps = restoreOptions?.isRestoring ? (restoreOptions.operations || []) : [];
+      const initialZoom = restoreOptions?.isRestoring ? (restoreOptions.zoomScale || 1.0) : 1.0;
+      const initialRotation = restoreOptions?.isRestoring ? (restoreOptions.viewRotation || 0) : 0;
 
       set({
         rawBytes: data.slice(0),
         metadata,
         pageInfos,
-        currentPageNumber: 1,
-        viewRotation: 0,
+        currentPageNumber: initialPage,
+        zoomScale: initialZoom,
+        viewRotation: initialRotation,
         currentStyleProfile: profile,
         isLoading: false,
         loadingProgress: 100,
         errorMessage: null,
         isPasswordRequired: false,
         pendingBytes: null,
-        operations: [],
+        operations: initialOps,
         selectedElementId: null,
         selectedTokenId: null,
       });
 
       useHistoryStore.getState().clearHistory();
 
-      saveDocumentSession({
-        documentName: fileName || get().documentName || "document.pdf",
-        rawBytes: data,
-        operations: [],
-        currentPageNumber: 1,
-        zoomScale: 1.0,
-      });
+      // Only re-save fresh session when loading a new document, not while restoring
+      if (!restoreOptions?.isRestoring) {
+        debouncedSaveSession(get);
+      }
     } catch (err: unknown) {
       if (err instanceof PasswordRequiredError) {
         set({
@@ -291,6 +377,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (pageNumber < 1 || pageNumber > pageInfos.length) return;
 
     set({ currentPageNumber: pageNumber, selectedElementId: null, selectedTokenId: null });
+    debouncedSaveSession(get);
 
     try {
       const profile = await adapter.analyzeStyleProfile(pageNumber);
@@ -317,6 +404,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setZoomScale: (scale: number) => {
     const clamped = Math.max(0.25, Math.min(4.0, Math.round(scale * 100) / 100));
     set({ zoomScale: clamped, fitMode: "custom" });
+    debouncedSaveSession(get);
   },
 
   zoomIn: () => {
@@ -340,6 +428,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const scale = Math.max(0.25, Math.min(3.0, targetWidth / pageWidth));
 
     set({ zoomScale: Math.round(scale * 100) / 100, fitMode: "width" });
+    debouncedSaveSession(get);
   },
 
   fitToPage: (containerWidth: number, containerHeight: number) => {
@@ -359,6 +448,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const scale = Math.max(0.25, Math.min(3.0, Math.min(scaleW, scaleH)));
 
     set({ zoomScale: Math.round(scale * 100) / 100, fitMode: "page" });
+    debouncedSaveSession(get);
   },
 
   rotateViewing: (direction: "cw" | "ccw" = "cw") => {
@@ -366,6 +456,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const delta = direction === "cw" ? 90 : 270;
     const nextRotation = (viewRotation + delta) % 360;
     set({ viewRotation: nextRotation });
+    debouncedSaveSession(get);
   },
 
   setActiveTool: (tool: EditorTool) => {
@@ -483,10 +574,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   addOperationDirect: (op: EditOperation) => {
     const updated = [...get().operations, op];
     set({ operations: updated });
-    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
-    if (documentName && rawBytes) {
-      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
-    }
+    debouncedSaveSession(get);
   },
 
   removeOperationDirect: (id: string) => {
@@ -495,19 +583,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       operations: updated,
       selectedElementId: get().selectedElementId === id ? null : get().selectedElementId,
     });
-    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
-    if (documentName && rawBytes) {
-      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
-    }
+    debouncedSaveSession(get);
   },
 
   updateOperationDirect: (id: string, updates: Partial<EditOperation>) => {
     const updated = get().operations.map((o) => (o.id === id ? ({ ...o, ...updates } as EditOperation) : o));
     set({ operations: updated });
-    const { documentName, rawBytes, currentPageNumber, zoomScale } = get();
-    if (documentName && rawBytes) {
-      saveDocumentSession({ documentName, rawBytes, operations: updated, currentPageNumber, zoomScale });
-    }
+    debouncedSaveSession(get);
   },
 
   executeAddOperation: async (op: EditOperation) => {
@@ -745,27 +827,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   restoreSession: async () => {
     try {
       const session = await loadDocumentSession();
-      if (!session || !session.rawBytes) return false;
+      if (!session || !session.rawBytes || session.rawBytes.byteLength === 0) return false;
 
-      const { loadDocumentBytes, setZoomScale, setCurrentPage, showToast } = get();
-      await loadDocumentBytes(session.rawBytes, session.documentName);
-
-      set({
-        operations: session.operations || [],
-        currentPageNumber: session.currentPageNumber || 1,
-        zoomScale: session.zoomScale || 1.0,
-      });
-
-      if (session.currentPageNumber && session.currentPageNumber > 1) {
-        await setCurrentPage(session.currentPageNumber);
-      }
-      if (session.zoomScale) {
-        setZoomScale(session.zoomScale);
-      }
+      const { loadDocumentBytes, showToast } = get();
+      await loadDocumentBytes(
+        session.rawBytes,
+        session.documentName,
+        undefined,
+        {
+          isRestoring: true,
+          operations: session.operations || [],
+          pageNumber: session.currentPageNumber || 1,
+          zoomScale: session.zoomScale || 1.0,
+          viewRotation: session.viewRotation || 0,
+        }
+      );
 
       showToast(`Restored session: ${session.documentName}`);
       return true;
-    } catch {
+    } catch (err) {
+      console.warn("Failed to restore session:", err);
       return false;
     }
   },
