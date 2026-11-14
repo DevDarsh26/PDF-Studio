@@ -118,6 +118,25 @@ describe("useEditorStore — State & Control Actions", () => {
     expect(useEditorStore.getState().pendingBytes).toBeNull();
   });
 
+  it("remembers document password once entered and does not prompt again on internal reloads", async () => {
+    const buffer = await createSinglePageSamplePdf();
+    // Load with a password (representing unlocking a password-protected document)
+    await useEditorStore.getState().loadDocumentBytes(buffer, "doc.pdf", "secret-pass-123");
+
+    expect(useEditorStore.getState().documentPassword).toBe("secret-pass-123");
+    expect(useEditorStore.getState().isPasswordRequired).toBe(false);
+
+    // Perform an internal restore/reload without explicitly passing password
+    await useEditorStore.getState().loadDocumentBytes(buffer, "doc.pdf", undefined, {
+      isRestoring: true,
+      pageNumber: 1,
+    });
+
+    // Password must be retained and password modal must not be triggered
+    expect(useEditorStore.getState().documentPassword).toBe("secret-pass-123");
+    expect(useEditorStore.getState().isPasswordRequired).toBe(false);
+  });
+
   it("resets state and cleans up resources on closeDocument", async () => {
     const buffer = await createSinglePageSamplePdf();
     await useEditorStore.getState().loadDocumentBytes(buffer, "doc.pdf");

@@ -92,6 +92,7 @@ export interface EditorState {
   // Document state
   documentName: string | null;
   rawBytes: ArrayBuffer | null;
+  documentPassword: string | null;
   metadata: PdfDocumentMetadata | null;
   pageInfos: PageInfo[];
   currentPageNumber: number;
@@ -211,11 +212,12 @@ export const immediateSaveSession = (get: () => EditorState) => {
     clearTimeout(sessionSaveTimer);
     sessionSaveTimer = null;
   }
-  const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = get();
+  const { documentName, rawBytes, documentPassword, operations, currentPageNumber, zoomScale, viewRotation } = get();
   if (documentName && rawBytes) {
     saveDocumentSession({
       documentName,
       rawBytes,
+      documentPassword: documentPassword || null,
       operations,
       currentPageNumber,
       zoomScale,
@@ -237,6 +239,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   documentName: null,
   rawBytes: null,
+  documentPassword: null,
   metadata: null,
   pageInfos: [],
   currentPageNumber: 1,
@@ -288,6 +291,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   ) => {
     const { adapter } = get();
+    const isInternalReload = restoreOptions?.isRestoring === true;
+    const effectivePassword = password !== undefined
+      ? password
+      : (isInternalReload ? (get().documentPassword || undefined) : undefined);
+
     set({
       isLoading: true,
       loadingProgress: 15,
@@ -297,7 +305,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     try {
       set({ loadingProgress: 40 });
-      const metadata = await adapter.loadDocument(data, password);
+      const metadata = await adapter.loadDocument(data, effectivePassword);
 
       set({ loadingProgress: 75 });
       const pageInfos = await adapter.getPageInfos();
@@ -320,6 +328,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       set({
         rawBytes: data.slice(0),
+        documentPassword: effectivePassword || null,
         metadata,
         pageInfos,
         currentPageNumber: initialPage,
@@ -490,6 +499,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       documentName: null,
       rawBytes: null,
+      documentPassword: null,
       metadata: null,
       pageInfos: [],
       currentPageNumber: 1,
@@ -864,7 +874,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await loadDocumentBytes(
         session.rawBytes,
         session.documentName,
-        undefined,
+        session.documentPassword || undefined,
         {
           isRestoring: true,
           operations: session.operations || [],
@@ -883,7 +893,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addBlankPageToDocument: async (insertAtIndex?: number, dimensions?: { width: number; height: number }) => {
-    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
+    const { rawBytes, documentName, documentPassword, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
     if (!rawBytes) return;
 
     try {
@@ -909,7 +919,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await loadDocumentBytes(
         safeBuffer,
         documentName || "document.pdf",
-        undefined,
+        documentPassword || undefined,
         {
           isRestoring: true,
           operations: operations || [],
@@ -928,7 +938,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   deletePageFromDocument: async (pageNumber: number) => {
-    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, pageInfos, showToast } = get();
+    const { rawBytes, documentName, documentPassword, loadDocumentBytes, operations, zoomScale, viewRotation, pageInfos, showToast } = get();
     if (!rawBytes || pageInfos.length <= 1) {
       showToast("Cannot delete the only remaining page.");
       return;
@@ -960,7 +970,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await loadDocumentBytes(
         safeBuffer,
         documentName || "document.pdf",
-        undefined,
+        documentPassword || undefined,
         {
           isRestoring: true,
           operations: updatedOps,
@@ -979,7 +989,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   rotatePageInDocument: async (pageNumber: number, rotationDegrees: 90 | 180 | 270 = 90) => {
-    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
+    const { rawBytes, documentName, documentPassword, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
     if (!rawBytes) return;
 
     try {
@@ -999,7 +1009,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await loadDocumentBytes(
         safeBuffer,
         documentName || "document.pdf",
-        undefined,
+        documentPassword || undefined,
         {
           isRestoring: true,
           operations: operations || [],

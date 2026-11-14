@@ -12,6 +12,7 @@ const SESSION_KEY = "current_document";
 export interface StoredDocumentSession {
   documentName: string;
   rawBytes: ArrayBuffer;
+  documentPassword?: string | null;
   operations: any[];
   currentPageNumber: number;
   zoomScale: number;
@@ -60,6 +61,7 @@ function openDatabase(): Promise<IDBDatabase> {
 export async function saveDocumentSession(session: {
   documentName: string;
   rawBytes: ArrayBuffer;
+  documentPassword?: string | null;
   operations: any[];
   currentPageNumber: number;
   zoomScale: number;
@@ -75,6 +77,7 @@ export async function saveDocumentSession(session: {
       const record: StoredDocumentSession = {
         documentName: session.documentName,
         rawBytes: session.rawBytes.slice(0),
+        documentPassword: session.documentPassword || null,
         operations: session.operations ? JSON.parse(JSON.stringify(session.operations)) : [],
         currentPageNumber: session.currentPageNumber || 1,
         zoomScale: session.zoomScale || 1.0,
@@ -129,6 +132,7 @@ export async function loadDocumentSession(): Promise<StoredDocumentSession | nul
         resolve({
           ...result,
           rawBytes: arrayBuffer,
+          documentPassword: result.documentPassword || null,
         });
       };
       getRequest.onerror = () => {

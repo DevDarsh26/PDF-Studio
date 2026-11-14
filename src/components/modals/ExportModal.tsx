@@ -25,6 +25,7 @@ export const ExportModal: React.FC = () => {
     isExportModalOpen,
     closeExportModal,
     documentName,
+    documentPassword,
     currentPageNumber,
     pageInfos,
     operations,
@@ -157,6 +158,7 @@ export const ExportModal: React.FC = () => {
           expectedTexts: expectedTexts.slice(0, 5),
           redactedTexts,
           expectedLinksCount: currentStyleProfile?.hyperlinks.length,
+          password: documentPassword || undefined,
         });
 
         setValidationResult(vResult);

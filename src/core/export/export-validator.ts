@@ -6,6 +6,7 @@ export interface ExportExpectations {
   expectedTexts?: string[];
   redactedTexts?: string[]; // Must NOT appear in ordinary text extraction
   expectedLinksCount?: number;
+  password?: string;
 }
 
 export interface DimensionCheck {
@@ -128,6 +129,7 @@ export async function validateExportedPdf(
     const pdfjsLib = await import("pdfjs-dist");
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(exportedBytes.slice(0)),
+      password: expectations.password || undefined,
       useSystemFonts: true,
     });
     const pdfJsDoc = await loadingTask.promise;

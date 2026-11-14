@@ -34,6 +34,7 @@ export const PageManagerModal: React.FC = () => {
     currentPageNumber,
     setCurrentPage,
     documentName,
+    documentPassword,
     rawBytes,
     loadDocumentBytes,
     executeAddOperation,
@@ -136,7 +137,11 @@ export const PageManagerModal: React.FC = () => {
       const mergedBytes = await mergePdfs(rawBytes, otherBuffer, insertIdx);
 
       // Reload merged document directly into workspace
-      await loadDocumentBytes(mergedBytes.buffer as ArrayBuffer, documentName || "document.pdf");
+      await loadDocumentBytes(
+        mergedBytes.buffer as ArrayBuffer,
+        documentName || "document.pdf",
+        documentPassword || undefined
+      );
       closePageManager();
     } catch (err: any) {
       alert(`Merge failed: ${err?.message}`);

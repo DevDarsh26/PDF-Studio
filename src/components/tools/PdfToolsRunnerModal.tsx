@@ -39,7 +39,7 @@ interface PdfToolsRunnerModalProps {
 }
 
 export const PdfToolsRunnerModal: React.FC<PdfToolsRunnerModalProps> = ({ toolId, onClose }) => {
-  const { loadDocumentBytes, rawBytes, documentName, showToast } = useEditorStore();
+  const { loadDocumentBytes, rawBytes, documentName, documentPassword, showToast } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // General Tool State
@@ -63,7 +63,7 @@ export const PdfToolsRunnerModal: React.FC<PdfToolsRunnerModalProps> = ({ toolId
   const [imageDpi, setImageDpi] = useState<number>(2.0);
   const [pageSize, setPageSize] = useState<"fit" | "a4" | "letter">("fit");
   const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>("recommended");
-  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState(documentPassword || "");
   const [splitMode, setSplitMode] = useState<"all" | "range">("all");
   const [splitRange, setSplitRange] = useState("1-3");
   const [excelFormat, setExcelFormat] = useState<"csv" | "xlsx">("csv");
