@@ -136,7 +136,9 @@ export const ThumbnailSidebar: React.FC = () => {
     pageInfos,
     currentPageNumber,
     setCurrentPage,
-    executeAddOperation,
+    addBlankPageToDocument,
+    deletePageFromDocument,
+    rotatePageInDocument,
     openPageManager,
   } = useEditorStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -155,35 +157,18 @@ export const ThumbnailSidebar: React.FC = () => {
   }, [currentPageNumber]);
 
   const handleRotatePage = (pageNumber: number) => {
-    executeAddOperation({
-      id: `rotate-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      timestamp: Date.now(),
-      type: "page_rotate",
-      pageNumber,
-      rotationDegrees: 90,
-    });
+    rotatePageInDocument(pageNumber, 90);
   };
 
   const handleDeletePage = (pageNumber: number) => {
     if (pageInfos.length <= 1) return;
     if (confirm(`Are you sure you want to delete Page ${pageNumber}?`)) {
-      executeAddOperation({
-        id: `delete-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        timestamp: Date.now(),
-        type: "page_delete",
-        pageNumber,
-      });
+      deletePageFromDocument(pageNumber);
     }
   };
 
   const handleAddBlankPage = () => {
-    executeAddOperation({
-      id: `page-add-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      timestamp: Date.now(),
-      type: "add_page",
-      insertAtIndex: pageInfos.length,
-      dimensions: { width: 612, height: 792 },
-    });
+    addBlankPageToDocument(pageInfos.length);
   };
 
   if (isCollapsed) {

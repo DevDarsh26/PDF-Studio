@@ -37,6 +37,9 @@ export const PageManagerModal: React.FC = () => {
     rawBytes,
     loadDocumentBytes,
     executeAddOperation,
+    addBlankPageToDocument,
+    deletePageFromDocument,
+    rotatePageInDocument,
   } = useEditorStore();
 
   const [activeTab, setActiveTab] = useState<"organize" | "merge" | "extract" | "split">("organize");
@@ -59,13 +62,7 @@ export const PageManagerModal: React.FC = () => {
 
   // Handle Page Rotate
   const handleRotatePage = async (pageNumber: number) => {
-    await executeAddOperation({
-      id: `rotate-${Date.now()}`,
-      pageNumber,
-      timestamp: Date.now(),
-      type: "page_rotate",
-      rotationDegrees: 90,
-    });
+    await rotatePageInDocument(pageNumber, 90);
   };
 
   // Handle Page Delete
@@ -74,23 +71,12 @@ export const PageManagerModal: React.FC = () => {
       alert("Cannot delete the only page in the document.");
       return;
     }
-    await executeAddOperation({
-      id: `delete-${Date.now()}`,
-      pageNumber,
-      timestamp: Date.now(),
-      type: "page_delete",
-    });
+    await deletePageFromDocument(pageNumber);
   };
 
   // Handle Add Blank Page
   const handleAddBlankPage = async () => {
-    await executeAddOperation({
-      id: `add-page-${Date.now()}`,
-      type: "add_page",
-      timestamp: Date.now(),
-      insertAtIndex: pageInfos.length,
-      dimensions: { width: 595.28, height: 841.89 },
-    });
+    await addBlankPageToDocument();
   };
 
   // Handle Extract Pages

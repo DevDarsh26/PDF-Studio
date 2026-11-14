@@ -61,6 +61,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   // Active rendering tasks mapped by canvas element for clean cancellation
   private activeRenderTasks = new WeakMap<HTMLCanvasElement, any>();
   private canvasLocks = new WeakMap<HTMLCanvasElement, Promise<any>>();
+  private renderTokens = new WeakMap<HTMLCanvasElement, number>();
 
   private configureWorker(pdfjsLib: any) {
     if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -185,6 +186,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
   }
 
   async cancelRender(canvas: HTMLCanvasElement): Promise<void> {
+    this.renderTokens.set(canvas, (this.renderTokens.get(canvas) || 0) + 1);
     const activeTask = this.activeRenderTasks.get(canvas);
     if (activeTask) {
       this.activeRenderTasks.delete(canvas);
@@ -212,6 +214,9 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     // Cancel in-flight render on this canvas and await complete release
     await this.cancelRender(canvas);
 
+    const currentToken = (this.renderTokens.get(canvas) || 0) + 1;
+    this.renderTokens.set(canvas, currentToken);
+
     let resolveLock: () => void = () => {};
     const lockPromise = new Promise<void>((res) => {
       resolveLock = res;
@@ -220,6 +225,10 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
     try {
       const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+      if (this.renderTokens.get(canvas) !== currentToken) {
+        return { width: 0, height: 0, renderedScale: options.scale };
+      }
+
       const dpr =
         options.devicePixelRatio ||
         (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
@@ -246,22 +255,43 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
         throw new Error("Failed to get 2D canvas context.");
       }
 
-      const renderTask = page.render({
-        canvasContext: ctx,
-        viewport,
-        intent: "display",
-      });
-
-      this.activeRenderTasks.set(canvas, renderTask);
+      let renderTask: any;
+      try {
+        renderTask = page.render({
+          canvasContext: ctx,
+          viewport,
+          intent: "display",
+        });
+        this.activeRenderTasks.set(canvas, renderTask);
+      } catch (renderErr: any) {
+        if (renderErr?.message?.includes("Cannot use the same canvas")) {
+          await new Promise((res) => setTimeout(res, 80));
+          if (this.renderTokens.get(canvas) !== currentToken) {
+            return { width: 0, height: 0, renderedScale: options.scale };
+          }
+          renderTask = page.render({
+            canvasContext: ctx,
+            viewport,
+            intent: "display",
+          });
+          this.activeRenderTasks.set(canvas, renderTask);
+        } else {
+          throw renderErr;
+        }
+      }
 
       try {
         await renderTask.promise;
       } catch (err: any) {
-        if (err?.name === "RenderingCancelledException") {
+        if (
+          err?.name === "RenderingCancelledException" ||
+          err?.message?.includes("Rendering cancelled") ||
+          err?.message?.includes("cancelled")
+        ) {
           // Normal cancellation when user zooms or pages rapidly
           return {
-            width: logicalViewport.width,
-            height: logicalViewport.height,
+            width: Math.round(logicalViewport.width),
+            height: Math.round(logicalViewport.height),
             renderedScale: options.scale,
           };
         }
@@ -289,6 +319,9 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     const canvas = options.canvas;
     await this.cancelRender(canvas);
 
+    const currentToken = (this.renderTokens.get(canvas) || 0) + 1;
+    this.renderTokens.set(canvas, currentToken);
+
     let resolveLock: () => void = () => {};
     const lockPromise = new Promise<void>((res) => {
       resolveLock = res;
@@ -297,6 +330,10 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
 
     try {
       const page = await this.cachedPdfJsDoc.getPage(options.pageNumber);
+      if (this.renderTokens.get(canvas) !== currentToken) {
+        return { width: 0, height: 0, renderedScale: 1.0 };
+      }
+
       const unscaledViewport = page.getViewport({ scale: 1.0 });
 
       const scale = options.targetWidth / unscaledViewport.width;
@@ -314,20 +351,40 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
         throw new Error("Failed to get 2D canvas context for thumbnail.");
       }
 
-      const renderTask = page.render({
-        canvasContext: ctx,
-        viewport,
-      });
-
-      this.activeRenderTasks.set(canvas, renderTask);
+      let renderTask: any;
+      try {
+        renderTask = page.render({
+          canvasContext: ctx,
+          viewport,
+        });
+        this.activeRenderTasks.set(canvas, renderTask);
+      } catch (renderErr: any) {
+        if (renderErr?.message?.includes("Cannot use the same canvas")) {
+          await new Promise((res) => setTimeout(res, 80));
+          if (this.renderTokens.get(canvas) !== currentToken) {
+            return { width: 0, height: 0, renderedScale: scale };
+          }
+          renderTask = page.render({
+            canvasContext: ctx,
+            viewport,
+          });
+          this.activeRenderTasks.set(canvas, renderTask);
+        } else {
+          throw renderErr;
+        }
+      }
 
       try {
         await renderTask.promise;
       } catch (err: any) {
-        if (err?.name === "RenderingCancelledException") {
+        if (
+          err?.name === "RenderingCancelledException" ||
+          err?.message?.includes("Rendering cancelled") ||
+          err?.message?.includes("cancelled")
+        ) {
           return {
-            width: logicalViewport.width,
-            height: logicalViewport.height,
+            width: Math.round(logicalViewport.width),
+            height: Math.round(logicalViewport.height),
             renderedScale: scale,
           };
         }
@@ -671,6 +728,25 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
           case "page_rotate": {
             const currentRotation = page.getRotation().angle;
             page.setRotation(degrees((currentRotation + op.rotationDegrees) % 360));
+            break;
+          }
+
+          case "freehand": {
+            if (op.points && op.points.length > 1) {
+              const strokeRgb = hexToRgb(op.strokeColorHex) || { r: 0, g: 0, b: 0 };
+              const color = rgb(strokeRgb.r / 255, strokeRgb.g / 255, strokeRgb.b / 255);
+              const opac = op.opacity ?? (op.isHighlighter ? 0.45 : 1.0);
+              const thick = op.strokeWidth || 3;
+              for (let i = 0; i < op.points.length - 1; i++) {
+                page.drawLine({
+                  start: { x: op.points[i].x, y: op.points[i].y },
+                  end: { x: op.points[i + 1].x, y: op.points[i + 1].y },
+                  thickness: thick,
+                  color,
+                  opacity: opac,
+                });
+              }
+            }
             break;
           }
 

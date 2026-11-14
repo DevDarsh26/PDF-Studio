@@ -9,6 +9,7 @@ import {
   RedactionOperation,
   AddHyperlinkOperation,
   DeleteHyperlinkOperation,
+  AddDrawingOperation,
   TextEditOperation,
   FormattingStyle,
 } from "../models/operations";
@@ -365,6 +366,40 @@ export class AddHyperlinkCommand implements Command {
   }
 
   getOperation(): AddHyperlinkOperation {
+    return this.operation;
+  }
+}
+
+/**
+ * Command to add a freehand drawing or marking.
+ */
+export class AddDrawingCommand implements Command {
+  readonly id: string;
+  readonly type = "freehand";
+  readonly description = "Add drawing / mark";
+  readonly timestamp = Date.now();
+  private operation: AddDrawingOperation;
+  private store: OperationStoreCallback;
+
+  constructor(operation: AddDrawingOperation, store: OperationStoreCallback) {
+    this.id = operation.id;
+    this.operation = operation;
+    this.store = store;
+  }
+
+  execute(): void {
+    this.store.addOperation(this.operation);
+  }
+
+  undo(): void {
+    this.store.removeOperation(this.id);
+  }
+
+  redo(): void {
+    this.execute();
+  }
+
+  getOperation(): AddDrawingOperation {
     return this.operation;
   }
 }

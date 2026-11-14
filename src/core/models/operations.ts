@@ -138,6 +138,15 @@ export interface DeleteHyperlinkOperation extends BaseOperation {
   rect: Rect;
 }
 
+export interface AddDrawingOperation extends BaseOperation {
+  type: "freehand";
+  points: Point[]; // Sequence of { x, y } in PDF points
+  strokeColorHex: string;
+  strokeWidth: number;
+  opacity: number;
+  isHighlighter?: boolean;
+}
+
 export interface AddPageOperation {
   id: string;
   type: "add_page";
@@ -154,6 +163,7 @@ export type EditOperation =
   | AddTextOperation
   | AddImageOperation
   | AddShapeOperation
+  | AddDrawingOperation
   | PageReorderOperation
   | PageRotateOperation
   | PageDeleteOperation

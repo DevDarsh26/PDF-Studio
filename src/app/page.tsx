@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "@/store/editor-store";
+import { useHistoryStore } from "@/store/history-store";
 import { UploadHomepage } from "@/components/upload/UploadHomepage";
 import { TopToolbar } from "@/components/editor/TopToolbar";
 import { ThumbnailSidebar } from "@/components/editor/ThumbnailSidebar";
@@ -78,6 +79,23 @@ export default function Home() {
         rotateViewing("cw");
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         copySelectedTextToClipboard();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const history = useHistoryStore.getState();
+        if (history.state.canUndo) {
+          history.undo();
+          useEditorStore.getState().showToast("Undo");
+        }
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z")
+      ) {
+        e.preventDefault();
+        const history = useHistoryStore.getState();
+        if (history.state.canRedo) {
+          history.redo();
+          useEditorStore.getState().showToast("Redo");
+        }
       }
     };
 

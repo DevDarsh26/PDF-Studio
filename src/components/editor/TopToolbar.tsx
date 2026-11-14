@@ -35,6 +35,8 @@ import {
   ShieldAlert,
   Link as LinkIcon,
   Layers,
+  Pen,
+  Highlighter,
 } from "lucide-react";
 import { useEditorStore, EditorTool } from "@/store/editor-store";
 import { useHistoryStore } from "@/store/history-store";
@@ -251,6 +253,34 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
             accept="image/png,image/jpeg"
             className="hidden"
           />
+
+          <div className="w-px h-4 bg-slate-300 mx-0.5" />
+
+          {/* Pen / Freehand Draw */}
+          <button
+            onClick={() => setActiveTool("draw")}
+            title="Pen / Marker Drawing"
+            className={`p-1.5 rounded transition ${
+              activeTool === "draw"
+                ? "bg-blue-600 text-white shadow-2xs"
+                : "text-slate-700 hover:bg-white"
+            }`}
+          >
+            <Pen className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Highlighter Tool */}
+          <button
+            onClick={() => setActiveTool("highlight")}
+            title="Highlighter / Text Marker"
+            className={`p-1.5 rounded transition ${
+              activeTool === "highlight"
+                ? "bg-amber-500 text-white shadow-2xs"
+                : "text-slate-700 hover:bg-white"
+            }`}
+          >
+            <Highlighter className="w-3.5 h-3.5" />
+          </button>
 
           <div className="w-px h-4 bg-slate-300 mx-0.5" />
 
@@ -498,6 +528,54 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({ containerRef }) => {
 
       {/* Secondary Text & Shape Formatting Bar */}
       <div className="min-h-10 border-t border-slate-100 bg-slate-50/60 px-2 sm:px-4 py-1 flex items-center space-x-2 sm:space-x-3 text-xs overflow-x-auto shrink-0">
+        {/* Highlighter / Pen Color & Stroke Quick Tools */}
+        {(activeTool === "draw" || activeTool === "highlight") && (
+          <div className="flex items-center space-x-2 border-r border-slate-200 pr-3 shrink-0">
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+              {activeTool === "highlight" ? "Highlighter Color:" : "Pen Color:"}
+            </span>
+            <div className="flex items-center space-x-1">
+              {[
+                { hex: "#facc15", name: "Yellow" },
+                { hex: "#4ade80", name: "Green" },
+                { hex: "#f472b6", name: "Pink" },
+                { hex: "#60a5fa", name: "Blue" },
+                { hex: "#c084fc", name: "Purple" },
+                { hex: "#fb923c", name: "Orange" },
+                { hex: "#ef4444", name: "Red" },
+                { hex: "#000000", name: "Black" },
+              ].map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  onClick={() => setActiveFormatting({ strokeColorHex: c.hex })}
+                  title={c.name}
+                  className={`w-4 h-4 rounded-full border transition transform hover:scale-125 ${
+                    activeFormatting.strokeColorHex === c.hex
+                      ? "ring-2 ring-blue-500 ring-offset-1 scale-110"
+                      : "border-slate-300"
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center space-x-1 pl-2 border-l border-slate-200">
+              <span className="text-[10px] text-slate-400">Thickness:</span>
+              <select
+                value={activeFormatting.strokeWidth || (activeTool === "highlight" ? 14 : 3)}
+                onChange={(e) => setActiveFormatting({ strokeWidth: parseInt(e.target.value, 10) })}
+                className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 font-medium"
+              >
+                <option value={2}>Fine (2pt)</option>
+                <option value={4}>Medium (4pt)</option>
+                <option value={8}>Bold (8pt)</option>
+                <option value={14}>Marker (14pt)</option>
+                <option value={22}>Broad (22pt)</option>
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Selected Element Quick Text Editor */}
         {selectedOp && selectedOp.type === "add_text" && (
           <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200">

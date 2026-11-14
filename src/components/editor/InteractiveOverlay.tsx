@@ -11,10 +11,12 @@ import {
   RedactionOperation,
   AddHyperlinkOperation,
   TextEditOperation,
+  AddDrawingOperation,
   EditOperation,
   EditStrategy,
 } from "@/core/models/operations";
 import { Point, Rect } from "@/core/models/geometry";
+import { useHistoryStore } from "@/store/history-store";
 
 interface InteractiveOverlayProps {
   pageWidth: number; // in points
@@ -43,16 +45,18 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     executeUpdateElement,
     deleteSelected,
     copySelectedTextToClipboard,
+    showToast,
     activeFormatting,
     currentStyleProfile,
   } = useEditorStore();
 
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Drawing state for shapes and whiteout
+  // Drawing state for shapes, marks, and whiteout
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [currentPoint, setCurrentPoint] = useState<Point | null>(null);
+  const [drawPoints, setDrawPoints] = useState<Point[]>([]);
 
   // Dragging / Resizing state for selected element
   const [isDragging, setIsDragging] = useState(false);
@@ -78,6 +82,17 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       x: pdfX * scale,
       y: (pageHeight - pdfY) * scale,
     };
+  };
+
+  const generateSvgPath = (points: Point[]) => {
+    if (!points || points.length === 0) return "";
+    const first = pdfToScreen(points[0].x, points[0].y);
+    let d = `M ${first.x} ${first.y}`;
+    for (let i = 1; i < points.length; i++) {
+      const pt = pdfToScreen(points[i].x, points[i].y);
+      d += ` L ${pt.x} ${pt.y}`;
+    }
+    return d;
   };
 
   const getSvgCoordinates = (e: React.MouseEvent): Point => {
@@ -111,6 +126,24 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           copySelectedTextToClipboard();
         }
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        const history = useHistoryStore.getState();
+        if (history.state.canUndo) {
+          history.undo();
+          showToast("Undo");
+        }
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z")
+      ) {
+        e.preventDefault();
+        const history = useHistoryStore.getState();
+        if (history.state.canRedo) {
+          history.redo();
+          showToast("Redo");
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -132,6 +165,12 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         selectElement(null);
         selectToken(null);
       }
+      return;
+    }
+
+    if (activeTool === "draw" || activeTool === "highlight") {
+      setIsDrawing(true);
+      setDrawPoints([pdfCoord]);
       return;
     }
 
@@ -173,7 +212,11 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     const pdfCoord = screenToPdf(screenCoord.x, screenCoord.y);
 
     if (isDrawing) {
-      setCurrentPoint(pdfCoord);
+      if (activeTool === "draw" || activeTool === "highlight") {
+        setDrawPoints((prev) => [...prev, pdfCoord]);
+      } else {
+        setCurrentPoint(pdfCoord);
+      }
       return;
     }
 
@@ -204,6 +247,14 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y: Math.round((initialOpState.targetRect.y + deltaY) * 10) / 10,
           },
         });
+      } else if ("points" in initialOpState && Array.isArray((initialOpState as any).points)) {
+        const initialPoints = (initialOpState as any).points as Point[];
+        executeUpdateElement(selectedElementId, {
+          points: initialPoints.map((pt) => ({
+            x: Math.round((pt.x + deltaX) * 10) / 10,
+            y: Math.round((pt.y + deltaY) * 10) / 10,
+          })),
+        });
       }
       return;
     }
@@ -211,6 +262,90 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
     if (isResizing && selectedElementId && initialOpState && dragStartMouse) {
       const deltaX = pdfCoord.x - dragStartMouse.x;
       const deltaY = pdfCoord.y - dragStartMouse.y;
+
+      if (initialOpState.type === "add_text") {
+        const prevSize = initialOpState.fontSize || 14;
+        const delta = isResizing.includes("s") || isResizing.includes("e") ? (deltaX - deltaY) : (deltaY - deltaX);
+        const scaleFactor = Math.max(0.4, 1 + delta / 80);
+        const newFontSize = Math.max(6, Math.min(120, Math.round(prevSize * scaleFactor)));
+        executeUpdateElement(selectedElementId, {
+          fontSize: newFontSize,
+        });
+        return;
+      }
+
+      if ("targetRect" in initialOpState) {
+        const prev = initialOpState.targetRect;
+        let newX = prev.x;
+        let newY = prev.y;
+        let newW = prev.width;
+        let newH = prev.height;
+
+        if (isResizing.includes("e")) newW = Math.max(10, prev.width + deltaX);
+        if (isResizing.includes("s")) {
+          newY = prev.y + deltaY;
+          newH = Math.max(10, prev.height - deltaY);
+        }
+        if (isResizing.includes("w")) {
+          newX = prev.x + deltaX;
+          newW = Math.max(10, prev.width - deltaX);
+        }
+        if (isResizing.includes("n")) newH = Math.max(10, prev.height + deltaY);
+
+        const ratio = newH / Math.max(1, prev.height);
+        const prevSize = initialOpState.fontSize || 12;
+        const newFontSize = Math.max(6, Math.min(100, Math.round(prevSize * ratio)));
+
+        executeUpdateElement(selectedElementId, {
+          targetRect: {
+            x: Math.round(newX * 10) / 10,
+            y: Math.round(newY * 10) / 10,
+            width: Math.round(newW * 10) / 10,
+            height: Math.round(newH * 10) / 10,
+          },
+          fontSize: newFontSize,
+        });
+        return;
+      }
+
+      if (initialOpState.type === "freehand" && (initialOpState as any).points?.length > 0) {
+        const pts = (initialOpState as any).points as Point[];
+        let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+        for (const p of pts) {
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        const prevW = Math.max(1, maxX - minX);
+        const prevH = Math.max(1, maxY - minY);
+        let newMinX = minX;
+        let newMinY = minY;
+        let newW = prevW;
+        let newH = prevH;
+
+        if (isResizing.includes("e")) newW = Math.max(10, prevW + deltaX);
+        if (isResizing.includes("w")) {
+          newMinX = minX + deltaX;
+          newW = Math.max(10, prevW - deltaX);
+        }
+        if (isResizing.includes("n")) newH = Math.max(10, prevH + deltaY);
+        if (isResizing.includes("s")) {
+          newMinY = minY + deltaY;
+          newH = Math.max(10, prevH - deltaY);
+        }
+
+        const scaleX = newW / prevW;
+        const scaleY = newH / prevH;
+
+        executeUpdateElement(selectedElementId, {
+          points: pts.map((p) => ({
+            x: Math.round((newMinX + (p.x - minX) * scaleX) * 10) / 10,
+            y: Math.round((newMinY + (p.y - minY) * scaleY) * 10) / 10,
+          })),
+        });
+        return;
+      }
 
       if ("rect" in initialOpState) {
         const prev = initialOpState.rect;
@@ -255,6 +390,27 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       setIsResizing(null);
       setDragStartMouse(null);
       setInitialOpState(null);
+      return;
+    }
+
+    if (isDrawing && (activeTool === "draw" || activeTool === "highlight")) {
+      setIsDrawing(false);
+      if (drawPoints.length > 1) {
+        const isHighlight = activeTool === "highlight";
+        const op: AddDrawingOperation = {
+          id: `draw-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          pageNumber: currentPageNumber,
+          timestamp: Date.now(),
+          type: "freehand",
+          points: drawPoints,
+          strokeColorHex: activeFormatting.strokeColorHex || (isHighlight ? "#facc15" : "#2563eb"),
+          strokeWidth: isHighlight ? (activeFormatting.strokeWidth || 16) : (activeFormatting.strokeWidth || 3),
+          opacity: isHighlight ? (activeFormatting.opacity ?? 0.4) : (activeFormatting.opacity ?? 1.0),
+          isHighlighter: isHighlight,
+        };
+        await executeAddOperation(op);
+      }
+      setDrawPoints([]);
       return;
     }
 
@@ -356,9 +512,11 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
   // Start dragging selected element
   const handleElementMouseDown = (e: React.MouseEvent, op: EditOperation) => {
-    if (activeTool !== "select") return;
     e.stopPropagation();
     selectElement(op.id);
+    if (activeTool !== "select") {
+      setActiveTool("select");
+    }
 
     const screenCoord = getSvgCoordinates(e);
     const pdfCoord = screenToPdf(screenCoord.x, screenCoord.y);
@@ -394,6 +552,14 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         width: selectedOp.rect.width * scale,
         height: selectedOp.rect.height * scale,
       };
+    } else if ("targetRect" in selectedOp) {
+      const screenPos = pdfToScreen(selectedOp.targetRect.x, selectedOp.targetRect.y + selectedOp.targetRect.height);
+      selectionBox = {
+        x: screenPos.x,
+        y: screenPos.y,
+        width: selectedOp.targetRect.width * scale,
+        height: selectedOp.targetRect.height * scale,
+      };
     } else if ("position" in selectedOp && selectedOp.type === "add_text") {
       const screenPos = pdfToScreen(selectedOp.position.x, selectedOp.position.y);
       const estWidth = Math.max(60, selectedOp.text.length * selectedOp.fontSize * 0.55 * scale);
@@ -403,6 +569,22 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         y: screenPos.y - estHeight,
         width: estWidth,
         height: estHeight,
+      };
+    } else if (selectedOp.type === "freehand" && (selectedOp as any).points?.length > 0) {
+      const pts = (selectedOp as any).points as Point[];
+      let minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+      for (const p of pts) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const screenTopLeft = pdfToScreen(minX, maxY);
+      selectionBox = {
+        x: screenTopLeft.x - 4,
+        y: screenTopLeft.y - 4,
+        width: Math.max(16, (maxX - minX) * scale + 8),
+        height: Math.max(16, (maxY - minY) * scale + 8),
       };
     }
   }
@@ -924,12 +1106,47 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             );
           }
 
+          case "freehand": {
+            const svgPath = generateSvgPath(op.points);
+            const isHighlighter = Boolean(op.isHighlighter);
+            return (
+              <g
+                key={op.id}
+                onMouseDown={(e) => handleElementMouseDown(e, op)}
+                className="cursor-move pointer-events-auto"
+              >
+                <path
+                  d={svgPath}
+                  fill="none"
+                  stroke={op.strokeColorHex}
+                  strokeWidth={(op.strokeWidth || 3) * scale}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={op.opacity ?? (isHighlighter ? 0.4 : 1.0)}
+                  style={isHighlighter ? { mixBlendMode: "multiply" } : undefined}
+                />
+              </g>
+            );
+          }
+
           default:
             return null;
         }
       })}
 
-      {/* 3. Live Shape Drawing Preview */}
+      {/* 3. Live Shape & Drawing Preview */}
+      {isDrawing && (activeTool === "draw" || activeTool === "highlight") && drawPoints.length > 0 && (
+        <path
+          d={generateSvgPath(drawPoints)}
+          fill="none"
+          stroke={activeFormatting.strokeColorHex || (activeTool === "highlight" ? "#facc15" : "#2563eb")}
+          strokeWidth={(activeTool === "highlight" ? (activeFormatting.strokeWidth || 16) : (activeFormatting.strokeWidth || 3)) * scale}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={activeTool === "highlight" ? (activeFormatting.opacity ?? 0.4) : (activeFormatting.opacity ?? 1.0)}
+          style={activeTool === "highlight" ? { mixBlendMode: "multiply" } : undefined}
+        />
+      )}
       {isDrawing && startPoint && currentPoint && (
         <>
           {activeTool === "whiteout" && (
@@ -1036,6 +1253,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y={selectionBox.y - 4}
             width={8}
             height={8}
+            rx={1.5}
             fill="#ffffff"
             stroke="#2563eb"
             strokeWidth={1.5}
@@ -1048,6 +1266,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y={selectionBox.y - 4}
             width={8}
             height={8}
+            rx={1.5}
             fill="#ffffff"
             stroke="#2563eb"
             strokeWidth={1.5}
@@ -1060,6 +1279,7 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y={selectionBox.y + selectionBox.height - 4}
             width={8}
             height={8}
+            rx={1.5}
             fill="#ffffff"
             stroke="#2563eb"
             strokeWidth={1.5}
@@ -1072,11 +1292,64 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             y={selectionBox.y + selectionBox.height - 4}
             width={8}
             height={8}
+            rx={1.5}
             fill="#ffffff"
             stroke="#2563eb"
             strokeWidth={1.5}
             className="cursor-nesw-resize"
             onMouseDown={(e) => handleResizeHandleMouseDown(e, "sw")}
+          />
+          {/* N */}
+          <rect
+            x={selectionBox.x + selectionBox.width / 2 - 4}
+            y={selectionBox.y - 4}
+            width={8}
+            height={8}
+            rx={1.5}
+            fill="#ffffff"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            className="cursor-ns-resize"
+            onMouseDown={(e) => handleResizeHandleMouseDown(e, "n")}
+          />
+          {/* S */}
+          <rect
+            x={selectionBox.x + selectionBox.width / 2 - 4}
+            y={selectionBox.y + selectionBox.height - 4}
+            width={8}
+            height={8}
+            rx={1.5}
+            fill="#ffffff"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            className="cursor-ns-resize"
+            onMouseDown={(e) => handleResizeHandleMouseDown(e, "s")}
+          />
+          {/* E */}
+          <rect
+            x={selectionBox.x + selectionBox.width - 4}
+            y={selectionBox.y + selectionBox.height / 2 - 4}
+            width={8}
+            height={8}
+            rx={1.5}
+            fill="#ffffff"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            className="cursor-ew-resize"
+            onMouseDown={(e) => handleResizeHandleMouseDown(e, "e")}
+          />
+          {/* W */}
+          <rect
+            x={selectionBox.x - 4}
+            y={selectionBox.y + selectionBox.height / 2 - 4}
+            width={8}
+            height={8}
+            rx={1.5}
+            fill="#ffffff"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            className="cursor-ew-resize"
+            onMouseDown={(e) => handleResizeHandleMouseDown(e, "w")}
           />
         </g>
       )}

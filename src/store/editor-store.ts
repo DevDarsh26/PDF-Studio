@@ -18,6 +18,7 @@ import {
   TextEditCommand,
   RedactionCommand,
   AddHyperlinkCommand,
+  AddDrawingCommand,
 } from "../core/commands/editor-commands";
 import {
   saveDocumentSession,
@@ -77,7 +78,9 @@ export type EditorTool =
   | "shape_circle"
   | "shape_line"
   | "shape_arrow"
-  | "link";
+  | "link"
+  | "draw"
+  | "highlight";
 
 export type FitMode = "custom" | "width" | "page";
 
@@ -180,6 +183,9 @@ export interface EditorState {
   showToast: (message: string) => void;
   copySelectedTextToClipboard: () => Promise<boolean>;
   restoreSession: () => Promise<boolean>;
+  addBlankPageToDocument: (insertAtIndex?: number, dimensions?: { width: number; height: number }) => Promise<void>;
+  deletePageFromDocument: (pageNumber: number) => Promise<void>;
+  rotatePageInDocument: (pageNumber: number, rotationDegrees?: 90 | 180 | 270) => Promise<void>;
 }
 
 const DEFAULT_FORMATTING: FormattingStyle = {
@@ -625,6 +631,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       case "text_edit":
         command = new TextEditCommand(op, storeCallbacks);
         break;
+      case "freehand":
+        command = new AddDrawingCommand(op, storeCallbacks);
+        break;
       default:
         get().addOperationDirect(op);
         return;
@@ -848,6 +857,138 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } catch (err) {
       console.warn("Failed to restore session:", err);
       return false;
+    }
+  },
+
+  addBlankPageToDocument: async (insertAtIndex?: number, dimensions?: { width: number; height: number }) => {
+    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
+    if (!rawBytes) return;
+
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const pdfDoc = await PDFDocument.load(rawBytes.slice(0), { ignoreEncryption: true });
+      const dims = dimensions || { width: 595.28, height: 841.89 }; // A4
+      const targetIndex = insertAtIndex !== undefined ? insertAtIndex : pdfDoc.getPageCount();
+
+      if (targetIndex >= 0 && targetIndex < pdfDoc.getPageCount()) {
+        pdfDoc.insertPage(targetIndex, [dims.width, dims.height]);
+      } else {
+        pdfDoc.addPage([dims.width, dims.height]);
+      }
+
+      const newBytes = await pdfDoc.save({ useObjectStreams: true });
+      const newPageNumber = targetIndex + 1;
+
+      const safeBuffer = newBytes.buffer.slice(
+        newBytes.byteOffset,
+        newBytes.byteOffset + newBytes.byteLength
+      ) as ArrayBuffer;
+
+      await loadDocumentBytes(
+        safeBuffer,
+        documentName || "document.pdf",
+        undefined,
+        {
+          isRestoring: true,
+          operations: operations || [],
+          pageNumber: newPageNumber,
+          zoomScale,
+          viewRotation,
+        }
+      );
+
+      showToast(`Added new blank page (Page ${newPageNumber})`);
+    } catch (err) {
+      console.error("Failed to add blank page:", err);
+      showToast("Could not add blank page.");
+    }
+  },
+
+  deletePageFromDocument: async (pageNumber: number) => {
+    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, pageInfos, showToast } = get();
+    if (!rawBytes || pageInfos.length <= 1) {
+      showToast("Cannot delete the only remaining page.");
+      return;
+    }
+
+    try {
+      const { PDFDocument } = await import("pdf-lib");
+      const pdfDoc = await PDFDocument.load(rawBytes.slice(0), { ignoreEncryption: true });
+      pdfDoc.removePage(pageNumber - 1);
+
+      const newBytes = await pdfDoc.save({ useObjectStreams: true });
+      const nextPage = Math.max(1, Math.min(pageNumber, pdfDoc.getPageCount()));
+
+      // Filter out operations belonging to the deleted page and decrement higher pages
+      const updatedOps = (operations || [])
+        .filter((op) => !("pageNumber" in op) || op.pageNumber !== pageNumber)
+        .map((op) => {
+          if ("pageNumber" in op && op.pageNumber > pageNumber) {
+            return { ...op, pageNumber: op.pageNumber - 1 };
+          }
+          return op;
+        });
+
+      const safeBuffer = newBytes.buffer.slice(
+        newBytes.byteOffset,
+        newBytes.byteOffset + newBytes.byteLength
+      ) as ArrayBuffer;
+
+      await loadDocumentBytes(
+        safeBuffer,
+        documentName || "document.pdf",
+        undefined,
+        {
+          isRestoring: true,
+          operations: updatedOps,
+          pageNumber: nextPage,
+          zoomScale,
+          viewRotation,
+        }
+      );
+
+      showToast(`Deleted Page ${pageNumber}`);
+    } catch (err) {
+      console.error("Failed to delete page:", err);
+      showToast("Could not delete page.");
+    }
+  },
+
+  rotatePageInDocument: async (pageNumber: number, rotationDegrees: 90 | 180 | 270 = 90) => {
+    const { rawBytes, documentName, loadDocumentBytes, operations, zoomScale, viewRotation, showToast } = get();
+    if (!rawBytes) return;
+
+    try {
+      const { PDFDocument, degrees } = await import("pdf-lib");
+      const pdfDoc = await PDFDocument.load(rawBytes.slice(0), { ignoreEncryption: true });
+      const page = pdfDoc.getPage(pageNumber - 1);
+      const curr = page.getRotation().angle;
+      page.setRotation(degrees((curr + rotationDegrees) % 360));
+
+      const newBytes = await pdfDoc.save({ useObjectStreams: true });
+
+      const safeBuffer = newBytes.buffer.slice(
+        newBytes.byteOffset,
+        newBytes.byteOffset + newBytes.byteLength
+      ) as ArrayBuffer;
+
+      await loadDocumentBytes(
+        safeBuffer,
+        documentName || "document.pdf",
+        undefined,
+        {
+          isRestoring: true,
+          operations: operations || [],
+          pageNumber,
+          zoomScale,
+          viewRotation,
+        }
+      );
+
+      showToast(`Rotated Page ${pageNumber} by ${rotationDegrees}°`);
+    } catch (err) {
+      console.error("Failed to rotate page:", err);
+      showToast("Could not rotate page.");
     }
   },
 }));
