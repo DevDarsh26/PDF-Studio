@@ -15,7 +15,8 @@ import { HyperlinkModal } from "@/components/modals/HyperlinkModal";
 import { PageManagerModal } from "@/components/modals/PageManagerModal";
 import { Toast } from "@/components/ui/Toast";
 import { DocumentAnalysisPanel } from "@/components/editor/DocumentAnalysisPanel";
-import { LayoutList, Sparkles } from "lucide-react";
+import { LayoutList, Sparkles, Loader2 } from "lucide-react";
+import { saveDocumentSession } from "@/core/persistence/document-persistence";
 
 export default function Home() {
   const {
@@ -32,19 +33,51 @@ export default function Home() {
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
-  const hasAttemptedRestore = useRef(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   // Responsive drawer visibility for mobile/tablet screens
   const [mobileShowThumbnails, setMobileShowThumbnails] = useState(false);
   const [mobileShowAnalysis, setMobileShowAnalysis] = useState(false);
 
-  // Restore previous editing session on initial mount so reload NEVER loses work
+  // Restore previous editing session on initial mount so reload NEVER loses work or redirects to home
   useEffect(() => {
-    if (!hasAttemptedRestore.current && !rawBytes) {
-      hasAttemptedRestore.current = true;
-      restoreSession();
-    }
-  }, [rawBytes, restoreSession]);
+    let isCancelled = false;
+    const initSession = async () => {
+      try {
+        if (!useEditorStore.getState().rawBytes) {
+          await restoreSession();
+        }
+      } catch (e) {
+        console.warn("Session restore error:", e);
+      } finally {
+        if (!isCancelled) {
+          setIsCheckingSession(false);
+        }
+      }
+    };
+    initSession();
+
+    // Flush any pending session state synchronously before unload/refresh
+    const handleBeforeUnload = () => {
+      const state = useEditorStore.getState();
+      if (state.documentName && state.rawBytes) {
+        saveDocumentSession({
+          documentName: state.documentName,
+          rawBytes: state.rawBytes,
+          operations: state.operations,
+          currentPageNumber: state.currentPageNumber,
+          zoomScale: state.zoomScale,
+          viewRotation: state.viewRotation,
+        });
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [restoreSession]);
 
   // Global keyboard shortcuts for PDF navigation and viewing
   useEffect(() => {
@@ -104,6 +137,23 @@ export default function Home() {
   }, [metadata, nextPage, prevPage, zoomIn, zoomOut, setZoomScale, rotateViewing, copySelectedTextToClipboard]);
 
   const hasDocument = Boolean(rawBytes && metadata);
+
+  if (isCheckingSession) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-slate-900 text-white select-none">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
+            PS
+          </div>
+          <span className="font-bold text-lg tracking-tight text-white">PDF Studio</span>
+        </div>
+        <div className="flex items-center space-x-2 text-slate-400 text-xs">
+          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+          <span>Restoring document workspace...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 antialiased select-none">

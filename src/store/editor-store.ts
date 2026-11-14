@@ -202,20 +202,28 @@ const DEFAULT_FORMATTING: FormattingStyle = {
 };
 
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
+export const immediateSaveSession = (get: () => EditorState) => {
+  if (sessionSaveTimer) {
+    clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = null;
+  }
+  const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = get();
+  if (documentName && rawBytes) {
+    saveDocumentSession({
+      documentName,
+      rawBytes,
+      operations,
+      currentPageNumber,
+      zoomScale,
+      viewRotation,
+    });
+  }
+};
+
 const debouncedSaveSession = (get: () => EditorState) => {
   if (sessionSaveTimer) clearTimeout(sessionSaveTimer);
   sessionSaveTimer = setTimeout(() => {
-    const { documentName, rawBytes, operations, currentPageNumber, zoomScale, viewRotation } = get();
-    if (documentName && rawBytes) {
-      saveDocumentSession({
-        documentName,
-        rawBytes,
-        operations,
-        currentPageNumber,
-        zoomScale,
-        viewRotation,
-      });
-    }
+    immediateSaveSession(get);
   }, 350);
 };
 
@@ -324,9 +332,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       useHistoryStore.getState().clearHistory();
 
-      // Only re-save fresh session when loading a new document, not while restoring
+      // Immediately persist document session to IndexedDB so refresh preserves workspace
       if (!restoreOptions?.isRestoring) {
-        debouncedSaveSession(get);
+        immediateSaveSession(get);
       }
     } catch (err: unknown) {
       if (err instanceof PasswordRequiredError) {
@@ -898,6 +906,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
 
       showToast(`Added new blank page (Page ${newPageNumber})`);
+      immediateSaveSession(get);
     } catch (err) {
       console.error("Failed to add blank page:", err);
       showToast("Could not add blank page.");
@@ -948,6 +957,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
 
       showToast(`Deleted Page ${pageNumber}`);
+      immediateSaveSession(get);
     } catch (err) {
       console.error("Failed to delete page:", err);
       showToast("Could not delete page.");
@@ -986,6 +996,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
 
       showToast(`Rotated Page ${pageNumber} by ${rotationDegrees}°`);
+      immediateSaveSession(get);
     } catch (err) {
       console.error("Failed to rotate page:", err);
       showToast("Could not rotate page.");

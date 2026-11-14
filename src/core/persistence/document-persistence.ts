@@ -26,6 +26,10 @@ function openDatabase(): Promise<IDBDatabase> {
       return;
     }
 
+    const timer = setTimeout(() => {
+      reject(new Error("IndexedDB connection timed out."));
+    }, 3000);
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -35,8 +39,18 @@ function openDatabase(): Promise<IDBDatabase> {
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      clearTimeout(timer);
+      resolve(request.result);
+    };
+    request.onerror = () => {
+      clearTimeout(timer);
+      reject(request.error);
+    };
+    request.onblocked = () => {
+      clearTimeout(timer);
+      console.warn("IndexedDB upgrade blocked.");
+    };
   });
 }
 
@@ -86,7 +100,7 @@ export async function saveDocumentSession(session: {
 export async function loadDocumentSession(): Promise<StoredDocumentSession | null> {
   try {
     const db = await openDatabase();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
       const getRequest = store.get(SESSION_KEY);
@@ -95,9 +109,27 @@ export async function loadDocumentSession(): Promise<StoredDocumentSession | nul
         const result = getRequest.result as StoredDocumentSession | undefined;
         if (!result || !result.rawBytes || result.rawBytes.byteLength === 0) {
           resolve(null);
-        } else {
-          resolve(result);
+          return;
         }
+
+        let arrayBuffer: ArrayBuffer;
+        if (result.rawBytes instanceof ArrayBuffer) {
+          arrayBuffer = result.rawBytes;
+        } else if ((result.rawBytes as any).buffer instanceof ArrayBuffer) {
+          const view = result.rawBytes as any;
+          arrayBuffer = view.buffer.slice(
+            view.byteOffset || 0,
+            (view.byteOffset || 0) + (view.byteLength || view.buffer.byteLength)
+          );
+        } else {
+          const u8 = new Uint8Array(result.rawBytes as any);
+          arrayBuffer = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+        }
+
+        resolve({
+          ...result,
+          rawBytes: arrayBuffer,
+        });
       };
       getRequest.onerror = () => {
         resolve(null);
