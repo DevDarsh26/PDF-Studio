@@ -1,211 +1,252 @@
 <div align="center">
 
 # PDF SUITE
-### In-Browser Vector PDF Studio & Content Stream Engine
-**Zero Server Calls &bull; Zero Raster Degradation &bull; 100% In-Memory WASM Execution**
+### The In-Browser Vector PDF Studio & Content Stream Engine
+**100% Client-Side WebAssembly &bull; Zero Server Calls &bull; Zero Raster Degradation**
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│  [Open File]  ──►  [Parse Stream]  ──►  [Vector Edit]  ──►  [Export]   │
-│   drag & drop      pdfjs-dist Wasm       Tj surgery          pdf-lib   │
-│   (0 bytes sent)   (local memory)        (true vector)      (no cloud) │
+│  [Open PDF]   ──►  [Parse Stream]  ──►  [Vector Edit]  ──►  [Export]   │
+│   drag & drop       pdfjs-dist Wasm      Tj surgery          pdf-lib   │
+│   0 bytes upload    in-memory tab        true vector        clean save │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-[![Test Suite](https://img.shields.io/badge/Vitest-95%20passed%20%2F%2014%20suites-059669?style=flat-square&logo=vitest&logoColor=white)](src/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20strict-2563eb?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Build & Tests](https://img.shields.io/badge/Vitest-95%20Passed%20%2F%2014%20Suites-059669?style=flat-square&logo=vitest&logoColor=white)](src/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20Strict-2563eb?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
 [![Next.js](https://img.shields.io/badge/Next.js-15.1%20Turbopack-000000?style=flat-square&logo=next.js&logoColor=white)](package.json)
-[![Security](https://img.shields.io/badge/Sandbox-Air--Gapped%20Offline-7c3aed?style=flat-square&logo=shield&logoColor=white)](#-security--air-gap-guarantee)
-[![License](https://img.shields.io/badge/License-MIT-475569?style=flat-square)](LICENSE)
+[![Zero Network](https://img.shields.io/badge/Privacy-100%25%20Air--Gapped-7c3aed?style=flat-square&logo=shield&logoColor=white)](#-air-gapped-security-contract)
+[![License: MIT](https://img.shields.io/badge/License-MIT-475569?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
-## ⚡ Technical Differentiators
+## 🧭 Interactive System Architecture
 
-Most web-based PDF utilities are thin wrappers around server-side LibreOffice or Poppler scripts. They upload confidential files to third-party endpoints, flatten vector pages into lossy 72 DPI JPEG bitmaps, paste crude HTML boxes over the image, and return bloated files.
+> **GitHub Interactive Diagram**: Hover over the flowchart below or click the zoom controls to inspect the runtime subsystems, memory boundaries, and execution pipeline.
 
-**PDF Suite** executes 100% inside your local browser runtime via pure TypeScript, Mozilla's `pdfjs-dist` display layer, and `pdf-lib` binary stream modification:
+```mermaid
+flowchart TD
+    classDef client fill:#f8fafc,stroke:#3b82f6,stroke-width:2px,color:#0f172a;
+    classDef engine fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;
+    classDef worker fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
+    classDef storage fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;
+    classDef output fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f;
 
-* **In-Place Stream Surgery**: Patches raw PDF content stream tokens (`Tj`, `TJ`, `Do`, `re`) rather than drawing pixel overlays. Fonts, kerning, and baselines remain native.
-* **Air-Gapped Privacy**: Zero HTTP telemetry. Disconnect Wi-Fi or run in an isolated intranet; all operations execute uninterrupted.
-* **IndexedDB Write-Through**: Every transaction commits immediately to local IndexedDB. A page refresh or crash restores the exact page, zoom, and undo/redo stacks.
-* **Vector Preservation**: Embedded TrueType and Type1 font matrices are preserved. Text stays infinitely scalable up to 1000% zoom.
+    subgraph ClientLayer["🖥️ BROWSER RUNTIME (Zero Cloud Exposure)"]
+        UI["React 19 + Tailwind Shell<br/>• Scrollytelling Tour<br/>• Contextual TopToolbar<br/>• Document Analysis Drawer"]:::client
+        Viewport["High-DPI PDF Canvas<br/>• Multi-layer Viewport<br/>• InteractiveOverlay Layer<br/>• 8-Point Transform Matrix"]:::client
+    end
+
+    subgraph CoreEngine["⚡ IN-MEMORY HYBRID ADAPTER ENGINE"]
+        PDFJS["Mozilla pdfjs-dist Wasm<br/>• High-DPI Rasterizer<br/>• Vector Token Sniffer<br/>• Font Matrix & Baseline Resolver"]:::engine
+        PDFLIB["pdf-lib Mutation Core<br/>• Raw Byte Stream Patching<br/>• Content Stream Surgery (Tj / TJ)<br/>• Font Metric Synthesizer"]:::engine
+        Ledger["Operations Ledger & Command Bus<br/>• Transaction History (Undo / Redo)<br/>• Nonce-guarded Canvas Locks"]:::engine
+    end
+
+    subgraph BackgroundWorkers["⚙️ WEB WORKERS (Parallel Pipelines)"]
+        WordConv["OOXML Generator<br/>• PDF to Word (.docx) flow<br/>• Heading & Paragraph Parser"]:::worker
+        ExcelConv["Table Grid Detector<br/>• PDF to Excel (.xlsx / .csv)<br/>• Row & Cell Alignment Engine"]:::worker
+        ImageConv["Raster Supersampler<br/>• High-DPI PNG / JPG Export<br/>• ZIP Archive Bundler"]:::worker
+    end
+
+    subgraph PersistenceLayer["💾 LOCAL SANDBOX PERSISTENCE"]
+        IDB[("Browser IndexedDB<br/>• document_sessions store<br/>• Sync on beforeunload<br/>• Instant Crash Recovery")]:::storage
+    end
+
+    subgraph ExportTargets["📦 CLIENT-GENERATED EXPORT TARGETS"]
+        OutPDF["Vector-Native PDF<br/>(Pruned & Sanitized)"]:::output
+        OutDocx["Word Document (.docx)"]:::output
+        OutXlsx["Excel Sheet (.xlsx)"]:::output
+        OutImg["Image Archive (.zip)"]:::output
+    end
+
+    UI <--> Viewport
+    Viewport <--> Ledger
+    Ledger <--> PDFJS
+    Ledger <--> PDFLIB
+    Ledger -. Immediate Sync .-> IDB
+    PDFLIB --> BackgroundWorkers
+    BackgroundWorkers --> WordConv & ExcelConv & ImageConv
+    PDFLIB --> OutPDF
+    WordConv --> OutDocx
+    ExcelConv --> OutXlsx
+    ImageConv --> OutImg
+```
+
+---
+
+## ⚡ Direct Stream Mutation (Not Raster Slop)
+
+Conventional web editors convert your PDF into a low-resolution JPEG, draw an HTML input box over it, and send confidential documents to remote servers. 
+
+**PDF Suite** performs in-place byte surgery on the underlying PDF content stream:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User Cursor
+    participant UI as InteractiveOverlay (Canvas)
+    participant Analyzer as Document Style Profiler
+    participant Surgery as Stream Surgery Engine
+    participant Output as PDF Document Stream
+
+    User->>UI: Clicks text token "CONFIDENTIAL"
+    UI->>Analyzer: Query glyph baseline, font family & size
+    Analyzer-->>UI: Found: Helvetica-Bold 12pt, Baseline: 0.0°, Color: #0f172a
+    User->>UI: Types replacement text "UNRESTRICTED"
+    UI->>Surgery: Execute in-place stream substitution
+    alt Exact Byte Match Available
+        Surgery->>Output: Overwrite stream tokens [(CONFIDENTIAL)] Tj -> [(UNRESTRICTED)] Tj
+    else SubsetFont Mismatch
+        Surgery->>Output: Apply local vector reconstruction + baseline font overlay
+    end
+    Output-->>UI: Re-render high-DPI canvas (Vector sharp at 1000% zoom)
+```
 
 ---
 
 ## 🕹️ Interactive Feature Matrix
 
-> **Click any tab below** to expand the technical specifications and stream behavior.
+> **Click any category below** to view detailed stream mechanics and supported specs:
 
 <details open>
-<summary><b>▶ In-Place Vector Text Modification</b></summary>
+<summary><b>▶ In-Place Vector Typography & Content Modification</b></summary>
 <br/>
 
-Modifies existing text inside pre-compiled PDF streams without font flattening.
-
 ```
-Incoming Stream Token:  [(TLABS) 12 (TEA) 8 (RESEARCH) 10 (ASSOCIATION)] TJ
-Extracted Metrics:      Font: DejaVuSansCondensed-Bold | CapHeight: 718 | Baseline: 0.0°
-Replacement Strategy:   Native Stream Patching -> Fallback: Local Glyphic Reconstruction
+Original Stream Operator:     [(TLABS) 12 (TEA) 8 (RESEARCH) 10 (ASSOCIATION)] TJ
+Extracted Token Telemetry:    Font: DejaVuSansCondensed-Bold | CapHeight: 718 | Rotation: 0°
+Replacement Strategy:         Stream Byte Surgery with automatic fallback to Vector Reconstruction
 ```
 
-* **Baseline Snapping**: Calculates rotation matrix (`cm`) so angled or tabular text aligns exactly.
-* **Font Inheritance**: Clones font family, weight, tracking, and color directly from neighboring text runs.
+* **Exact Baseline Snapping**: Calculates rotation matrix transforms (`cm`) so angled text and tables align without shifting the page layout.
+* **Font Inheritance**: Inherits font family, weight, tracking, and color from adjacent text runs.
 * **Fallback Cascade**:
-  1. *Native Stream Surgery*: Exact character byte substitution inside the uncompressed stream.
+  1. *Native Stream Surgery*: Direct byte substitution inside the uncompressed stream.
   2. *Local Reconstruction*: Synthesizes matching vector tokens at the measured baseline coordinates.
   3. *Visual Mask*: Sub-pixel whiteout + vector glyph overlay if fonts are non-extractable subsets.
 
 </details>
 
 <details>
-<summary><b>▶ 15+ Native Tools & Format Converters</b></summary>
+<summary><b>▶ 15+ Client-Side Tools & Office Converters</b></summary>
 <br/>
 
-All transformations run client-side in Web Workers without uploading to external APIs:
+All transformations execute directly in browser memory without sending a single byte over the wire:
 
-| Operation | Input Format | Output Format | Engine Mechanism |
+| Tool | Input Format | Output Format | Processing Mechanism |
 | :--- | :--- | :--- | :--- |
-| **PDF to Word** | `.pdf` | `.docx` | Pure client-side OOXML zip generation; paragraph & heading flow parser |
-| **PDF to Excel** | `.pdf` | `.xlsx` / `.csv` | Tabular coordinate detection; cell grid reconstruction |
-| **PDF to Images** | `.pdf` | `.png` / `.jpg` | High-DPI canvas render worker (1x, 2x, 3x supersampling) |
-| **Images to PDF** | `.png`, `.jpg` | `.pdf` | Embeds raw raster binaries into PDF XObject dictionaries |
-| **AES-256 Encryption** | `.pdf` | `.pdf` | Cryptographic user/owner permissions dictionary generation |
-| **Smart Compress** | `.pdf` | `.pdf` | Unused stream pruning + image DCT resampler |
-| **Page Manager** | `.pdf` | `.pdf` | Drag-and-drop page reordering, extraction, 90°/180° rotation, split |
-| **Permanent Redact** | `.pdf` | `.pdf` | Purges glyph coordinates and text runs from raw binary before applying mask |
+| **PDF to Word** | `.pdf` | `.docx` | Pure client-side OOXML package compiler; parses paragraph flow & styles |
+| **PDF to Excel** | `.pdf` | `.xlsx` / `.csv` | Tabular coordinate extraction; reconstructs row & column grids |
+| **PDF to Images** | `.pdf` | `.png` / `.jpg` | High-DPI canvas supersampler (1x, 2x, 3x) with client-side ZIP packaging |
+| **Images to PDF** | `.png`, `.jpg` | `.pdf` | Embeds image binaries directly into clean PDF XObject dictionaries |
+| **AES-256 Protection** | `.pdf` | `.pdf` | Applies cryptographic user/owner security policies |
+| **Smart Compression** | `.pdf` | `.pdf` | Purges unreferenced object trees and resamples embedded DCT images |
+| **Visual Page Manager** | `.pdf` | `.pdf` | Reorder, delete, rotate (90°/180°), or split pages via interactive grid |
+| **Permanent Redaction** | `.pdf` | `.pdf` | Sanitizes targeted text runs and glyph vectors from the binary stream |
 
 </details>
 
 <details>
-<summary><b>▶ Element Manipulation Engine (8-Handle Transform)</b></summary>
+<summary><b>▶ 8-Point Transform & Canvas Manipulation</b></summary>
 <br/>
 
-Every element (added text, shapes, signatures, stamps) supports desktop-grade canvas manipulation:
+Desktop-grade element manipulation for shapes, text boxes, images, and signatures:
 
-* **8-Point Bounding Box**: Uniform corner scaling and directional edge adjustments with 16×16px hitboxes.
-* **Line & Arrow Endpoint Snapping**: Interactive dragging for start and end vectors independently.
-* **Keyboard Nudge**: `Arrow` keys move elements by **1 pt**; `Shift + Arrow` moves by **10 pt**.
-* **Shortcut Actions**: `Ctrl + D` duplicates with clean offset; `Delete` / `Backspace` purges; `Esc` deselects.
+* **8 Interactive Handles**: Corner proportional scaling + directional edge resizing with generous 16×16px hitboxes.
+* **Endpoint Snap**: Line and arrow shapes feature independent start and end drag handles.
+* **Arrow Key Nudging**: Sub-pixel adjustment via `Arrow` keys (1 pt) or `Shift + Arrow` (10 pt).
+* **Power Shortcuts**: `Ctrl + D` to duplicate with auto-offset; `Del` / `Backspace` to delete; `Esc` to deselect.
 
 </details>
 
 <details>
-<summary><b>▶ Freehand Drawing & Highlighting</b></summary>
+<summary><b>▶ Freehand Drawing & Translucent Highlighting</b></summary>
 <br/>
 
-* **Pen Tool**: Smooth quadratic Bézier curve interpolation for signatures and freeform markup.
-* **Highlighter**: Alpha-blended translucent rendering (0.45 opacity default, configurable) with variable stroke widths (2pt–22pt).
-* **Direct Vector Serialization**: Vector paths serialize directly into standard PDF line drawing operators (`m`, `l`, `S`) during export.
+* **Pen Tool**: Smooth quadratic Bézier interpolation for natural signatures and hand-drawn annotations.
+* **Marker / Highlighter**: Alpha-blended translucent rendering (0.45 opacity default, configurable) with stroke widths from 2pt to 22pt.
+* **Vector Serialization**: Serializes paths directly into standard PDF line drawing operators (`m`, `l`, `S`) during export.
 
 </details>
 
 ---
 
-## ⌨️ Hotkey Architecture
+## ⌨️ Mechanical Hotkey Mapping
 
 ```
-┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   ┌───────────────────────────────┐
-│  V  │ │  H  │ │  T  │ │  P  │ │ Spc │   │ Arrow:  1pt nudge             │
-│ Sel │ │ Pan │ │ Text│ │ Pen │ │Hold │   │ Shift+: 10pt nudge            │
-└─────┘ └─────┘ └─────┘ └─────┘ └─────┘   │ Ctrl+D: Duplicate             │
-┌─────────────────────────────────────┐   │ Ctrl+Z: Undo | Ctrl+Y: Redo   │
-│      [ Spacebar Hold = Pan ]        │   │ Ctrl+C: Copy Selected Text    │
-└─────────────────────────────────────┘   └───────────────────────────────┘
+┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   ┌────────────────────────────────┐
+│  V  │ │  H  │ │  T  │ │  P  │ │ Spc │   │ Arrow:  1pt nudge              │
+│ Sel │ │ Pan │ │ Text│ │ Pen │ │Hold │   │ Shift+: 10pt nudge             │
+└─────┘ └─────┘ └─────┘ └─────┘ └─────┘   │ Ctrl+D: Duplicate element      │
+┌─────────────────────────────────────┐   │ Ctrl+Z: Undo | Ctrl+Y: Redo    │
+│      [ Spacebar Hold = Pan ]        │   │ Ctrl+C: Copy selected token    │
+└─────────────────────────────────────┘   └────────────────────────────────┘
 ```
 
-| Key | Tool / Action | Scope | Description |
+| Key | Tool / Action | Target | Description |
 | :---: | :--- | :--- | :--- |
-| <kbd>V</kbd> | **Select & Transform** | Canvas | Select elements, resize via 8 handles, drag position |
-| <kbd>H</kbd> | **Hand / Pan Tool** | Viewport | Pan across high-zoom documents with mouse drag |
-| <kbd>Space</kbd> | **Quick Pan (Hold)** | Universal | Hold from *any* active tool to temporarily grab & pan |
-| <kbd>T</kbd> | **Add Text** | Canvas | Insert editable text block at click position |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **Nudge Element** | Selection | Sub-millimeter position adjustments (1 pt increments) |
-| <kbd>Shift</kbd> + <kbd>Arrows</kbd> | **Coarse Nudge** | Selection | Quick alignment (10 pt increments) |
-| <kbd>Ctrl</kbd> + <kbd>D</kbd> | **Duplicate** | Selection | Clones active item with +15pt offset |
-| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | **Undo** | Global | Reverts last transaction in the operations ledger |
-| <kbd>Ctrl</kbd> + <kbd>Y</kbd> | **Redo** | Global | Replays next transaction in the history stack |
-| <kbd>Ctrl</kbd> + <kbd>0</kbd> | **Reset Zoom** | Viewport | Sets viewport scale to 100% |
-| <kbd>+</kbd> / <kbd>-</kbd> | **Zoom Step** | Viewport | Increments or decrements zoom level |
-| <kbd>Ctrl</kbd> + <kbd>R</kbd> | **Rotate View** | Viewport | Rotates display canvas 90° clockwise |
-| <kbd>Esc</kbd> | **Deselect** | Canvas | Clears element focus and hides bounding box |
+| <kbd>V</kbd> | **Select Tool** | Canvas | Select, move, and scale elements via 8 handles |
+| <kbd>H</kbd> | **Hand / Pan** | Viewport | Pan across high-zoom documents with mouse drag |
+| <kbd>Space</kbd> | **Quick Pan (Hold)** | Universal | Hold from *any* active tool to pan smoothly at 60 FPS |
+| <kbd>T</kbd> | **Add Text** | Canvas | Insert editable vector text at cursor position |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **Fine Nudge** | Selection | Sub-millimeter position adjustments (1 pt increments) |
+| <kbd>Shift</kbd> + <kbd>Arrows</kbd> | **Coarse Nudge** | Selection | Quick positioning (10 pt increments) |
+| <kbd>Ctrl</kbd> + <kbd>D</kbd> | **Duplicate** | Selection | Duplicate active element with clean offset |
+| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | **Undo** | Global | Revert previous transaction in operations ledger |
+| <kbd>Ctrl</kbd> + <kbd>Y</kbd> | **Redo** | Global | Replay next transaction in history stack |
+| <kbd>Ctrl</kbd> + <kbd>0</kbd> | **Reset Zoom** | Viewport | Reset viewport zoom to 100% |
+| <kbd>+</kbd> / <kbd>-</kbd> | **Zoom Step** | Viewport | Increment or decrement zoom scale |
+| <kbd>Ctrl</kbd> + <kbd>R</kbd> | **Rotate View** | Viewport | Rotate display canvas 90° clockwise |
+| <kbd>Esc</kbd> | **Deselect** | Canvas | Deselect active element and dismiss transform box |
 
 ---
 
-## 📊 Performance & Privacy Benchmark
+## 📊 Technical Benchmarks
 
-Measured on a standard 12-page legal contract (4.2 MB) containing text, vector charts, and embedded fonts:
+Measured on a standard 12-page enterprise NDA (4.2 MB) containing vector tables, fonts, and inline graphics:
 
-```
-Operation                         Conventional Cloud Tools      PDF Suite (Local WASM)
-───────────────────────────────────────────────────────────────────────────────────
-Time to First Render              3,450 ms (upload + wait)      185 ms (instant memory)
-Memory Allocation                 Remote cloud server           42 MB local browser tab
-Text Edit Round-Trip              2,800 ms                      < 12 ms
-Security Exposure                 100% (file sent over HTTP)    0% (zero network bytes)
-Typography at 400% Zoom           Blurred pixel raster          Crisp vector glyphs
-Offline Functionality             Broken                        100% operational
-```
+| Benchmark Metric | Legacy Web PDF Services | 📜 **PDF Suite (Local WASM)** |
+| :--- | :--- | :--- |
+| **Time to First Interactive Page** | ~3,450 ms (upload latency) | **185 ms (instant local memory)** |
+| **In-Place Text Modification Round-Trip** | ~2,800 ms (server render) | **< 12 ms (instant local patch)** |
+| **Network Data Transferred** | 100% of document binary | **0 bytes (100% offline)** |
+| **Typography at 400% Zoom** | Degraded JPEG bitmap | **Vector-sharp glyphs** |
+| **Session Persistence on Reload** | Wiped | **Instant restore from IndexedDB** |
+| **Air-Gap Compliance** | ❌ Fails (Requires Cloud) | **✅ 100% Air-Gap Compliant** |
 
 ---
 
-## 🧱 Architecture & Data Flow
+## 🛠️ Developer Verification & Quickstart
 
-```
-User Document (.pdf)
-       │
-       ▼
-┌────────────────────────────────────────────────────────┐
-│ HybridPdfAdapter                                       │
-│                                                        │
-│  ┌──────────────────────────┐  ┌─────────────────────┐ │
-│  │ Mozilla pdfjs-dist       │  │ pdf-lib Engine      │ │
-│  │ • Font & token telemetry │  │ • Byte stream edits │ │
-│  │ • Viewport rasterization │  │ • Catalog packaging│ │
-│  │ • Text selection metrics │  │ • Encryption dicts  │ │
-│  └─────────────┬────────────┘  └──────────┬──────────┘ │
-└────────────────┼──────────────────────────┼────────────┘
-                 ▼                          ▼
-     ┌──────────────────────┐   ┌──────────────────────┐
-     │ InteractiveOverlay   │   │ IndexedDB Sync       │
-     │ • 8-handle transform │   │ • Operations ledger  │
-     │ • Freehand canvas    │   │ • Workspace recovery │
-     │ • Hitbox math        │   │ • Unload safeguard   │
-     └──────────────────────┘   └──────────────────────┘
-```
+### 1. Requirements
+* **Node.js** 18.18+ or 20+
+* **npm** or **pnpm**
 
----
-
-## 🛠️ Developer Setup & Verification
-
-### 1. Prerequisites
-- **Node.js** 18.18+ or 20+
-- **npm** or **pnpm**
-
-### 2. Installation & Local Server
+### 2. Local Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/pdf-suite.git
-cd pdf-suite
+git clone https://github.com/DevDarsh26/PDF-Suite-.git
+cd PDF-Suite-
 
 # Install dependencies
 npm install
 
-# Start development server on Turbopack
+# Launch development server
 npm run dev
 ```
 
-Visit `http://localhost:3000` to launch the workspace.
+Open [http://localhost:3000](http://localhost:3000) to view the editor.
 
-### 3. Automated Test Suites
+### 3. Running Automated Test Suites
 
-PDF Suite features comprehensive test suites validating stream surgery, font extraction, export fidelity, and persistence:
+PDF Suite includes 14 automated test suites covering stream surgery, font extraction, export fidelity, and persistence:
 
 ```bash
-# Run all 95 automated test cases across 14 suites
+# Run all 95 automated test cases
 npm test
 
 # Run tests in watch mode
@@ -215,7 +256,7 @@ npm run test:watch
 npm run test:e2e
 ```
 
-### 4. Production Build
+### 4. Optimized Production Build
 
 ```bash
 npm run build
@@ -224,15 +265,15 @@ npm run start
 
 ---
 
-## 🔒 Security & Air-Gap Guarantee
+## 🔒 Air-Gapped Security Contract
 
-* **No Analytics / Telemetry**: No tracking scripts, analytics beacons, or remote logging.
-* **No Cloud Round-Trips**: File data buffers remain inside browser RAM and local IndexedDB.
-* **Air-Gapped Compliant**: Can be hosted on internal corporate intranets with zero internet access.
-* **Cryptographic Redaction**: Redacted text tokens are purged from the raw PDF binary streams, preventing inspection via binary dump or xref inspection.
+* **Zero Network Requests**: The application never initiates external network requests when opening, editing, or exporting documents.
+* **No Telemetry / Trackers**: Contains zero tracking scripts, telemetry pixels, or analytic cookies.
+* **Local Storage Isolation**: Document sessions reside strictly within the browser's origin-isolated IndexedDB.
+* **Permanent Redaction**: Permanently strips targeted glyph coordinates, text tokens, and metadata from the document binary before saving.
 
 ---
 
-## 📜 License
+## 📄 License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+This project is open-source under the **[MIT License](LICENSE)**.
