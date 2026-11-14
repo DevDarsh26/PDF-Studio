@@ -229,8 +229,8 @@ Measured on a standard 12-page enterprise NDA (4.2 MB) containing vector tables,
 
 ```bash
 # Clone the repository
-git clone https://github.com/DevDarsh26/PDF-Suite-.git
-cd PDF-Suite-
+git clone https://github.com/DevDarsh26/PDF-Suite.git
+cd PDF-Suite
 
 # Install dependencies
 npm install
