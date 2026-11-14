@@ -4,6 +4,19 @@
 ### The In-Browser Vector PDF Studio & Content Stream Engine
 **100% Client-Side WebAssembly &bull; Zero Server Calls &bull; Zero Raster Degradation**
 
+<br/>
+
+[![Author](https://img.shields.io/badge/Crafted%20by-Darsh%20Modi-2563eb?style=flat-square&logo=google-chrome&logoColor=white)](https://darshmodii.in)
+[![Website](https://img.shields.io/badge/Portfolio-darshmodii.in-0f172a?style=flat-square&logo=safari&logoColor=white)](https://darshmodii.in)
+[![GitHub](https://img.shields.io/badge/GitHub-DevDarsh26-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/DevDarsh26)
+[![Build & Tests](https://img.shields.io/badge/Vitest-95%20Passed%20%2F%2014%20Suites-059669?style=flat-square&logo=vitest&logoColor=white)](src/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20Strict-3178c6?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Next.js](https://img.shields.io/badge/Next.js-15.1%20Turbopack-000000?style=flat-square&logo=next.js&logoColor=white)](package.json)
+[![Zero Network](https://img.shields.io/badge/Privacy-100%25%20Air--Gapped-7c3aed?style=flat-square&logo=shield&logoColor=white)](#-air-gapped-security-contract)
+[![License: MIT](https://img.shields.io/badge/License-MIT-475569?style=flat-square)](LICENSE)
+
+<br/>
+
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │  [Open PDF]   ──►  [Parse Stream]  ──►  [Vector Edit]  ──►  [Export]   │
@@ -12,24 +25,18 @@
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-[![Build & Tests](https://img.shields.io/badge/Vitest-95%20Passed%20%2F%2014%20Suites-059669?style=flat-square&logo=vitest&logoColor=white)](src/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20Strict-2563eb?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
-[![Next.js](https://img.shields.io/badge/Next.js-15.1%20Turbopack-000000?style=flat-square&logo=next.js&logoColor=white)](package.json)
-[![Zero Network](https://img.shields.io/badge/Privacy-100%25%20Air--Gapped-7c3aed?style=flat-square&logo=shield&logoColor=white)](#-air-gapped-security-contract)
-[![License: MIT](https://img.shields.io/badge/License-MIT-475569?style=flat-square)](LICENSE)
-
 </div>
 
 ---
 
 ## 🧭 Interactive System Architecture
 
-> **GitHub Interactive Diagram**: Hover over the flowchart below or click the zoom controls to inspect the runtime subsystems, memory boundaries, and execution pipeline.
+> **Interactive Diagram**: Hover or click the diagram below to use GitHub's built-in pan and zoom controls to inspect the runtime subsystems, memory boundaries, and execution pipeline.
 
 ```mermaid
 flowchart TD
-    classDef client fill:#f8fafc,stroke:#3b82f6,stroke-width:2px,color:#0f172a;
-    classDef engine fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;
+    classDef client fill:#f8fafc,stroke:#2563eb,stroke-width:2px,color:#0f172a;
+    classDef engine fill:#eff6ff,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a;
     classDef worker fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
     classDef storage fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87;
     classDef output fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#78350f;
@@ -77,7 +84,7 @@ flowchart TD
 
 ---
 
-## ⚡ Direct Stream Mutation (Not Raster Slop)
+## ⚡ Direct Stream Mutation (True Vector Editing)
 
 Conventional web editors convert your PDF into a low-resolution JPEG, draw an HTML input box over it, and send confidential documents to remote servers. 
 
@@ -271,6 +278,16 @@ npm run start
 * **No Telemetry / Trackers**: Contains zero tracking scripts, telemetry pixels, or analytic cookies.
 * **Local Storage Isolation**: Document sessions reside strictly within the browser's origin-isolated IndexedDB.
 * **Permanent Redaction**: Permanently strips targeted glyph coordinates, text tokens, and metadata from the document binary before saving.
+
+---
+
+## 👨‍💻 Author & Creator
+
+**PDF Suite** was engineered with craft and precision by **Darsh Modi**:
+
+- 🌐 **Portfolio & Projects**: [darshmodii.in](https://darshmodii.in)
+- 🐙 **GitHub Profile**: [@DevDarsh26](https://github.com/DevDarsh26)
+- 💼 **Website**: [https://darshmodii.in](https://darshmodii.in)
 
 ---
 
