@@ -1,16 +1,6 @@
 import { PDFDocument, PageSizes } from "pdf-lib";
 import { ConversionProgress } from "./types";
-
-/**
- * Configure PDF.js worker safely for client-side execution.
- */
-async function getPdfJs() {
-  const pdfjsLib = await import("pdfjs-dist");
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-  }
-  return pdfjsLib;
-}
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 /**
  * Render an individual PDF page to an image Blob (PNG or JPEG).
@@ -22,7 +12,7 @@ export async function pdfPageToImage(
   dpiScale: number = 2.0, // 2.0 ≈ 144-150 DPI for crisp export
   quality: number = 0.92
 ): Promise<Blob> {
-  const pdfjsLib = await getPdfJs();
+  const pdfjsLib = await getPdfjs();
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes.slice(0)) });
   const pdf = await loadingTask.promise;
 
@@ -73,7 +63,7 @@ export async function pdfAllPagesToImages(
   quality: number = 0.92,
   onProgress?: (progress: ConversionProgress) => void
 ): Promise<{ pageNumber: number; blob: Blob; fileName: string }[]> {
-  const pdfjsLib = await getPdfJs();
+  const pdfjsLib = await getPdfjs();
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes.slice(0)) });
   const pdf = await loadingTask.promise;
   const total = pdf.numPages;

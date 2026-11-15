@@ -1,14 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 import { ZipArchive } from "../utils/zip-archive";
 import { ConversionProgress } from "./types";
-
-async function getPdfJs() {
-  const pdfjsLib = await import("pdfjs-dist");
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-  }
-  return pdfjsLib;
-}
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 /**
  * Extract all text with page layout and structure from a PDF.
@@ -17,7 +10,7 @@ export async function extractStructuredText(
   pdfBytes: ArrayBuffer,
   onProgress?: (p: ConversionProgress) => void
 ): Promise<{ pageNumber: number; text: string; lines: string[] }[]> {
-  const pdfjsLib = await getPdfJs();
+  const pdfjsLib = await getPdfjs();
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes.slice(0)) }).promise;
   const total = pdf.numPages;
   const pages: { pageNumber: number; text: string; lines: string[] }[] = [];

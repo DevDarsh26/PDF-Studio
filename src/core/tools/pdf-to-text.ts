@@ -5,14 +5,7 @@
  * preserving reading order. Runs 100 % client-side.
  */
 
-import * as pdfjsLib from "pdfjs-dist";
-
-/** Ensure the PDF.js web-worker is configured. */
-function ensureWorker(): void {
-  if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }
-}
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 /**
  * Extract all text from every page of a PDF.
@@ -23,20 +16,13 @@ function ensureWorker(): void {
  * @param pdfBytes  - Raw PDF file bytes.
  * @param onProgress - Optional callback invoked after each page is processed.
  * @returns The full extracted text as a single string.
- *
- * @example
- * ```ts
- * const text = await pdfToText(buffer, (cur, total) =>
- *   console.log(`Page ${cur}/${total}`)
- * );
- * ```
  */
 export async function pdfToText(
   pdfBytes: ArrayBuffer,
   onProgress?: (current: number, total: number) => void,
 ): Promise<string> {
   try {
-    ensureWorker();
+    const pdfjsLib = await getPdfjs();
 
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) }).promise;
     const totalPages = pdf.numPages;

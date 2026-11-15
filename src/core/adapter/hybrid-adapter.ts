@@ -38,6 +38,7 @@ import {
   removeHyperlinkAnnotation,
 } from "../hyperlinks/hyperlink-manager";
 import { addBlankPage } from "../page-manager/page-manager";
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 /**
  * HybridPdfAdapter combines Mozilla's PDF.js (for layout, fonts, links, and high-DPI rendering)
@@ -90,8 +91,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
     this.rawBytes = data.slice(0);
     this.currentPassword = password;
 
-    const pdfjsLib = await import("pdfjs-dist");
-    this.configureWorker(pdfjsLib);
+    const pdfjsLib = await getPdfjs();
 
     // Load with PDF.js for parsing and rendering
     try {

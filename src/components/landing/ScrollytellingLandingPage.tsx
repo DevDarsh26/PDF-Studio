@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   FileText,
   FileSpreadsheet,
@@ -23,6 +23,7 @@ import {
   createMultiPageSamplePdf,
   createRotatedPageSamplePdf,
 } from "@/core/utils/sample-pdfs";
+import { preloadPdfjs } from "@/core/utils/pdfjs-loader";
 
 interface ScrollytellingLandingPageProps {
   onGoToDashboard: () => void;
@@ -33,8 +34,35 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
 }) => {
   const { loadDocumentBytes } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState<number>(0);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
+
+  // Preload PDF.js worker and core bundle in the background for zero-latency sample & file loading
+  useEffect(() => {
+    preloadPdfjs();
+  }, []);
+
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (containerRef.current) {
+      const el = containerRef.current.querySelector(`#${id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const scrollToTop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,9 +99,13 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
   };
 
   return (
-    <div className="paperly-landing-root min-h-screen w-full relative overflow-y-auto selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+    <div
+      ref={containerRef}
+      className="paperly-landing-root min-h-screen h-full w-full relative overflow-y-auto selection:bg-[#ffd84d] selection:text-[#0d1b3d] scroll-smooth"
+    >
       <style jsx global>{`
         .paperly-landing-root {
+          scroll-behavior: smooth;
           background-color: #f4f1ea;
           background-image: radial-gradient(#d8d4c8 1.2px, transparent 1.2px);
           background-size: 28px 28px;
@@ -447,16 +479,32 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           </div>
 
           <nav className="hidden md:flex items-center gap-9">
-            <a href="#s" className="nav-link">
+            <a
+              href="#s"
+              onClick={(e) => scrollToSection(e, "s")}
+              className="nav-link"
+            >
               How it works
             </a>
-            <a href="#f" className="nav-link">
+            <a
+              href="#f"
+              onClick={(e) => scrollToSection(e, "f")}
+              className="nav-link"
+            >
               Features
             </a>
-            <a href="#converters" className="nav-link">
+            <a
+              href="#converters"
+              onClick={(e) => scrollToSection(e, "converters")}
+              className="nav-link"
+            >
               Converters
             </a>
-            <a href="#faq" className="nav-link">
+            <a
+              href="#faq"
+              onClick={(e) => scrollToSection(e, "faq")}
+              className="nav-link"
+            >
               FAQ
             </a>
           </nav>
@@ -528,7 +576,11 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
                 <span>{isLoadingSample ? "Loading Sample..." : "Try Sample Invoice"}</span>
               </button>
 
-              <a href="#s" className="btn ghost !border-transparent text-sm">
+              <a
+                href="#s"
+                onClick={(e) => scrollToSection(e, "s")}
+                className="btn ghost !border-transparent text-sm"
+              >
                 <span>See how it works &darr;</span>
               </a>
             </div>
@@ -1184,10 +1236,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             <div className="flex flex-wrap gap-16 text-base">
               <div className="fl">
                 <b className="text-[#f4f1ea] font-semibold">Features</b>
-                <a href="#s">How it works</a>
-                <a href="#f">Tools</a>
-                <a href="#converters">Converters</a>
-                <a href="#faq">FAQ</a>
+                <a href="#s" onClick={(e) => scrollToSection(e, "s")}>How it works</a>
+                <a href="#f" onClick={(e) => scrollToSection(e, "f")}>Tools</a>
+                <a href="#converters" onClick={(e) => scrollToSection(e, "converters")}>Converters</a>
+                <a href="#faq" onClick={(e) => scrollToSection(e, "faq")}>FAQ</a>
               </div>
               <div className="fl">
                 <b className="text-[#f4f1ea] font-semibold">Creator</b>
@@ -1213,10 +1265,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             <span>© PDF Suite. Crafted with precision by Darsh Modi (darshmodii.in)</span>
             <a
               href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
+              onClick={scrollToTop}
               className="up"
               aria-label="Back to top"
             >

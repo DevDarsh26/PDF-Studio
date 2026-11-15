@@ -1,16 +1,6 @@
 import { PDFDocument } from "pdf-lib";
 import { ConversionProgress } from "./types";
-
-/**
- * Configure PDF.js worker safely for client-side execution.
- */
-async function getPdfJs() {
-  const pdfjsLib = await import("pdfjs-dist");
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-  }
-  return pdfjsLib;
-}
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 /**
  * Unlock a password-protected PDF by providing the user/owner password,
@@ -25,7 +15,7 @@ export async function removePdfPassword(
     onProgress({ current: 1, total: 3, stage: "Verifying password and decrypting...", percentage: 30 });
   }
 
-  const pdfjsLib = await getPdfJs();
+  const pdfjsLib = await getPdfjs();
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(pdfBytes.slice(0)),
     password,

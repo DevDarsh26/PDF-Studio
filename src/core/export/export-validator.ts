@@ -1,4 +1,5 @@
 import { PDFDocument } from "pdf-lib";
+import { getPdfjs } from "../utils/pdfjs-loader";
 
 export interface ExportExpectations {
   expectedPageCount?: number;
@@ -126,7 +127,7 @@ export async function validateExportedPdf(
 
   // 4. Reopen with PDF.js for text extraction, link verification, and render checks
   try {
-    const pdfjsLib = await import("pdfjs-dist");
+    const pdfjsLib = await getPdfjs();
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(exportedBytes.slice(0)),
       password: expectations.password || undefined,
