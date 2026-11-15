@@ -24,11 +24,9 @@ import {
   Command,
   ArrowUpRight,
   ArrowLeft,
-  Menu,
   CheckCircle2,
   Share2,
   PenTool,
-  Home,
   Database,
   Trash2,
 } from "lucide-react";
@@ -232,9 +230,6 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllTools, setShowAllTools] = useState(false);
   const [activeRunnerTool, setActiveRunnerTool] = useState<ToolId | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeNav, setActiveNav] = useState<"dashboard">("dashboard");
 
   // Dynamic time greeting & date
   const [greeting, setGreeting] = useState("morning");
@@ -402,7 +397,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
 
 
   return (
-    <div className="pdf-dashboard-shell min-h-screen w-full relative flex flex-col lg:flex-row bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+    <div className="pdf-dashboard-shell min-h-screen w-full flex flex-col bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
       <style jsx global>{`
         .serif {
           font-family: 'Instrument Serif', Georgia, serif;
@@ -576,90 +571,50 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
         onClose={() => setActiveRunnerTool(null)}
       />
 
-      {/* Mobile Top Header (Visible on < lg screens) */}
-      <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-[#fbf9f4] border-b border-[#d8d4c8] sticky top-0 z-30">
+      {/* Top Navigation Bar (Uniform with rest of application) */}
+      <header className="sticky top-0 z-30 bg-[#fbf9f4]/95 backdrop-blur-md border-b border-[#d8d4c8] px-6 sm:px-10 lg:px-14 py-3.5 flex items-center justify-between">
         <button
           onClick={() => (onBackToLanding ? onBackToLanding() : null)}
-          className="serif text-2xl font-bold tracking-tight text-[#0d1b3d]"
+          className="serif text-3xl font-normal tracking-tight text-[#0d1b3d] hover:opacity-80 transition select-none flex items-center gap-2"
         >
-          PDF Suite
+          <span>PDF Suite</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Quick Search */}
+          <label className="hidden sm:flex items-center gap-2.5 h-11 w-[260px] lg:w-[320px] rounded-full bg-[#f4f1ea] border border-[#d8d4c8] px-4 text-[#4a5168] transition focus-within:border-[#2447f5] focus-within:ring-2 focus-within:ring-[#2447f5]/15">
+            <Search className="w-4 h-4 shrink-0 text-[#4a5168]" />
+            <input
+              ref={searchInputRef}
+              aria-label="Search tools"
+              placeholder="Search tools & features"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-0 outline-none bg-transparent text-[14px] font-medium text-[#0d1b3d] flex-1 placeholder:text-[#4a5168]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-[#4a5168] hover:text-[#0d1b3d] p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </label>
+
+          {/* Upload PDF Primary Button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="btn pri !h-9 !px-3.5 !text-xs"
+            className="btn pri !h-11 shadow-sm shadow-blue-600/15 active:scale-95"
           >
-            <FilePlus2 className="w-3.5 h-3.5" />
-            <span>Upload</span>
-          </button>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="ib !w-9 !h-9"
-            aria-label="Toggle menu"
-          >
-            <Menu className="w-5 h-5" />
+            <FilePlus2 className="w-4 h-4" />
+            <span>Upload PDF</span>
           </button>
         </div>
-      </div>
-
-      {/* Sidebar (Desktop sticky sliding, Mobile drawer) */}
-      <aside
-        className={`bg-[#fbf9f4] border-r border-[#d8d4c8] p-6 lg:p-7 flex flex-col gap-1.5 transition-all duration-300 ease-in-out z-40 will-change-transform ${
-          mobileMenuOpen
-            ? "fixed inset-0 w-80 max-w-[85vw] shadow-2xl overflow-y-auto"
-            : sidebarCollapsed
-            ? "hidden lg:flex lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0 lg:-translate-x-full"
-            : "hidden lg:flex lg:w-[264px] lg:h-screen lg:sticky lg:top-0 lg:translate-x-0"
-        }`}
-      >
-        {mobileMenuOpen && (
-          <div className="flex items-center justify-between pb-4 border-b border-[#d8d4c8] mb-2 lg:hidden">
-            <span className="serif text-2xl">PDF Suite</span>
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="ib !w-8 !h-8"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        {/* Brand / Logo + Collapse Button */}
-        <div className="flex items-center justify-between px-2 pb-6">
-          <span
-            className="serif text-[34px] leading-none select-none cursor-default"
-          >
-            PDF Suite
-          </span>
-          <button
-            onClick={() => setSidebarCollapsed(true)}
-            className="hidden lg:flex ib !w-8 !h-8 text-[#4a5168] hover:text-[#0d1b3d]"
-            title="Collapse sidebar"
-            aria-label="Collapse sidebar"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Navigation Item */}
-        <a
-          href="#dashboard"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveNav("dashboard");
-            setMobileMenuOpen(false);
-          }}
-          className="nv on"
-        >
-          <Home className="w-5 h-5" />
-          <span>Dashboard</span>
-          <i />
-        </a>
-      </aside>
+      </header>
 
       {/* Main Workspace Area */}
-      <main className="flex-1 p-6 sm:p-8 lg:p-11 flex flex-col gap-6 overflow-y-auto max-w-[1400px] transition-all duration-300">
+      <main className="w-full max-w-[1240px] mx-auto px-6 sm:px-10 py-8 lg:py-10 flex flex-col gap-7 flex-1 transition-all duration-300">
         {/* Error Alert Notice */}
         {errorMessage && (
           <div className="w-full bg-red-100 border border-red-300 rounded-2xl p-4 flex items-center justify-between text-red-900 shadow-sm animate-fade-in">
@@ -679,57 +634,35 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           </div>
         )}
 
-        {/* Header: Date + Greeting + Search & Actions */}
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            {sidebarCollapsed && (
-              <button
-                onClick={() => setSidebarCollapsed(false)}
-                className="hidden lg:flex ib !w-10 !h-10 border border-[#d8d4c8] bg-[#fbf9f4] rounded-xl hover:bg-[#e7e3d8]"
-                title="Open sidebar"
-                aria-label="Open sidebar"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            )}
-            <div>
-              <div className="muted font-semibold text-sm">{formattedDate}</div>
-              <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05] capitalize">
-                Good {greeting}.
-              </h1>
-            </div>
+        {/* Header: Date + Greeting */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <div className="muted font-semibold text-sm">{formattedDate}</div>
+            <h1 className="serif in text-[44px] sm:text-[56px] lg:text-[62px] leading-[1.05] capitalize">
+              Good {greeting}.
+            </h1>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-            {/* Search Files & Tools Input */}
-            <label className="flex items-center gap-2.5 h-12 w-full sm:w-[280px] lg:w-[320px] rounded-full bg-[#fbf9f4] border border-[#d8d4c8] px-4 text-[#4a5168] transition focus-within:border-[#2447f5] focus-within:ring-2 focus-within:ring-[#2447f5]/15">
+          {/* Mobile search bar (< sm screens) */}
+          <div className="sm:hidden w-full">
+            <label className="flex items-center gap-2.5 h-11 w-full rounded-full bg-[#fbf9f4] border border-[#d8d4c8] px-4 text-[#4a5168]">
               <Search className="w-4 h-4 shrink-0" />
               <input
-                ref={searchInputRef}
-                aria-label="Search files & tools"
-                placeholder="Search files & tools"
+                aria-label="Search tools"
+                placeholder="Search tools & features"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-0 outline-none bg-transparent text-[15px] font-medium text-[#0d1b3d] flex-1 placeholder:text-[#4a5168]"
+                className="border-0 outline-none bg-transparent text-[14px] font-medium text-[#0d1b3d] flex-1 placeholder:text-[#4a5168]"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-[#4a5168] hover:text-[#0d1b3d] p-1"
+                  className="text-[#4a5168] p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </label>
-
-            {/* Upload PDF Primary Button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="btn pri shrink-0 shadow-lg shadow-blue-600/20 active:scale-95"
-            >
-              <FilePlus2 className="w-4 h-4" />
-              <span>Upload PDF</span>
-            </button>
           </div>
         </div>
 
