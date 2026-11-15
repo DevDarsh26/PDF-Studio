@@ -8,12 +8,6 @@
 <br/>
 
 [![Author](https://img.shields.io/badge/Crafted%20by-Darsh%20Modi-2563eb?style=for-the-badge&logo=google-chrome&logoColor=white)](https://darshmodii.in)
-[![Website](https://img.shields.io/badge/Portfolio-darshmodii.in-0d1b3d?style=for-the-badge&logo=safari&logoColor=white)](https://darshmodii.in)
-[![GitHub](https://img.shields.io/badge/GitHub-DevDarsh26-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DevDarsh26)
-[![Tests](https://img.shields.io/badge/Vitest-97%20Passed%20%2F%2015%20Suites-059669?style=for-the-badge&logo=vitest&logoColor=white)](src/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7%20Strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](tsconfig.json)
-[![Next.js](https://img.shields.io/badge/Next.js-15.1%20Turbopack-000000?style=for-the-badge&logo=next.js&logoColor=white)](package.json)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Air--Gapped-7c3aed?style=for-the-badge&logo=shield&logoColor=white)](#-air-gapped-security-contract)
 [![License](https://img.shields.io/badge/License-MIT-475569?style=for-the-badge)](LICENSE)
 
 <br/>
