@@ -22,6 +22,7 @@ import {
   AlignRight,
   ExternalLink,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import { ImageInfo, HyperlinkInfo } from "@/core/models/style-profile";
@@ -137,6 +138,7 @@ export const DocumentAnalysisPanel: React.FC = () => {
     rotatePageInDocument,
     deletePageFromDocument,
     openPageManager,
+    executeUpdateElement,
     pageInfos,
   } = useEditorStore();
 
@@ -279,154 +281,223 @@ export const DocumentAnalysisPanel: React.FC = () => {
       {/* TAB 1: EDIT / ELEMENT PROPERTIES */}
       {panelTab === "edit" && (
         <div className="flex flex-col gap-5 flex-1">
-          <div className="serif text-[28px] leading-none text-[#0d1b3d]">
-            {selectedOp
-              ? selectedOp.type === "add_text"
-                ? "Text Element"
-                : selectedOp.type === "add_shape"
-                ? "Vector Shape"
-                : "Element"
-              : selectedTokenId
-              ? "Selected Text"
-              : "Typography & Style"}
-          </div>
-
-          {/* Font Family Selector */}
-          <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
-            <span>Font</span>
-            <select
-              value={activeFormatting.fontFamily || "Inter Tight"}
-              onChange={(e) => setActiveFormatting({ fontFamily: e.target.value })}
-              className="h-11 border border-[#d8d4c8] rounded-xl px-3 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
-            >
-              {fontOptions.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* Font Size & Bold/Italic */}
-          <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-            <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
-              <span>Size</span>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="6"
-                  max="120"
-                  value={activeFormatting.fontSize || 14}
-                  onChange={(e) =>
-                    setActiveFormatting({ fontSize: Number(e.target.value) || 14 })
-                  }
-                  className="h-11 w-full border border-[#d8d4c8] rounded-xl px-3 pr-8 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4a5168] font-mono">
-                  pt
-                </span>
+          {selectedOp && selectedOp.type === "add_image" ? (
+            <div className="flex flex-col gap-4">
+              <div className="serif text-[28px] leading-none text-[#0d1b3d]">
+                Image & Logo
               </div>
-            </label>
-
-            <div className="flex gap-1">
-              <button
-                onClick={() =>
-                  setActiveFormatting({
-                    fontWeight:
-                      activeFormatting.fontWeight === "bold" ? "normal" : "bold",
-                  })
-                }
-                className={`ib ${activeFormatting.fontWeight === "bold" ? "on" : ""}`}
-                title="Bold"
-              >
-                <Bold className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() =>
-                  setActiveFormatting({
-                    fontStyle:
-                      activeFormatting.fontStyle === "italic" ? "normal" : "italic",
-                  })
-                }
-                className={`ib ${activeFormatting.fontStyle === "italic" ? "on" : ""}`}
-                title="Italic"
-              >
-                <Italic className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Color Palette Swatches */}
-          <div>
-            <div className="font-bold text-sm text-[#0d1b3d] mb-2.5">Color</div>
-            <div className="flex items-center gap-2.5">
-              {[
-                { hex: "#0d1b3d", title: "Midnight Navy" },
-                { hex: "#2447f5", title: "Electric Cobalt" },
-                { hex: "#ffd84d", title: "Golden Yellow" },
-                { hex: "#f3c9c0", title: "Soft Coral" },
-                { hex: "#ffffff", title: "White" },
-              ].map((c) => (
-                <button
-                  key={c.hex}
-                  onClick={() =>
-                    setActiveFormatting({
-                      fontColorHex: c.hex,
-                      strokeColorHex: c.hex,
-                      fillColorHex: c.hex,
-                    })
-                  }
-                  title={c.title}
-                  className={`sw ${activeFormatting.fontColorHex === c.hex ? "active" : ""}`}
-                  style={{
-                    backgroundColor: c.hex,
-                    border: c.hex === "#ffffff" ? "1px solid #d8d4c8" : "none",
-                  }}
+              <div className="bg-white border border-[#d8d4c8] rounded-2xl p-3 flex flex-col items-center gap-2 shadow-xs">
+                <img
+                  src={selectedOp.imageDataUrl}
+                  alt="Selected Logo / Image"
+                  className="max-h-36 max-w-full object-contain rounded-lg"
                 />
-              ))}
+                <div className="flex items-center justify-between w-full text-xs font-mono text-[#4a5168] pt-2 border-t border-[#e7e3d8]">
+                  <span>{Math.round(selectedOp.rect.width)} × {Math.round(selectedOp.rect.height)} pt</span>
+                  <span className="uppercase text-[10px] bg-[#e7e3d8] px-1.5 py-0.5 rounded text-[#0d1b3d] font-semibold">
+                    {selectedOp.mimeType.replace("image/", "")}
+                  </span>
+                </div>
+              </div>
 
-              {/* Native Color Picker */}
-              <label
-                className="w-7 h-7 rounded-full border border-[#d8d4c8] grid place-items-center cursor-pointer hover:scale-110 transition bg-white"
-                title="Custom color"
-              >
-                <span className="text-[11px] font-bold text-[#4a5168]">+</span>
+              {/* Opacity Slider */}
+              <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+                <div className="flex justify-between items-center">
+                  <span>Opacity</span>
+                  <span className="text-xs font-mono text-[#4a5168]">
+                    {Math.round((selectedOp.opacity ?? 1) * 100)}%
+                  </span>
+                </div>
                 <input
-                  type="color"
-                  value={activeFormatting.fontColorHex || "#0d1b3d"}
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={selectedOp.opacity ?? 1}
                   onChange={(e) =>
-                    setActiveFormatting({
-                      fontColorHex: e.target.value,
-                      strokeColorHex: e.target.value,
-                      fillColorHex: e.target.value,
-                    })
+                    executeUpdateElement(selectedOp.id, { opacity: Number(e.target.value) })
                   }
+                  className="accent-[#2447f5] h-1.5 rounded-full bg-[#d8d4c8] cursor-pointer"
+                />
+              </label>
+
+              {/* Replace Image Button */}
+              <label className="btn w-full cursor-pointer bg-[#2447f5] text-white hover:bg-[#0d1b3d] border-none shadow-sm flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 text-[#ffd84d]" />
+                <span>Replace Image / Logo</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      executeUpdateElement(selectedOp.id, {
+                        imageDataUrl: reader.result as string,
+                        mimeType: file.type.includes("jpeg") ? "image/jpeg" : "image/png",
+                      });
+                      showToast("Image / Logo replaced successfully");
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
                   className="hidden"
                 />
               </label>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="serif text-[28px] leading-none text-[#0d1b3d]">
+                {selectedOp
+                  ? selectedOp.type === "add_text"
+                    ? "Text Element"
+                    : selectedOp.type === "add_shape"
+                    ? "Vector Shape"
+                    : "Element"
+                  : selectedTokenId
+                  ? "Selected Text"
+                  : "Typography & Style"}
+              </div>
 
-          {/* Opacity Slider */}
-          <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
-            <div className="flex justify-between items-center">
-              <span>Opacity</span>
-              <span className="text-xs font-mono text-[#4a5168]">
-                {Math.round((activeFormatting.opacity ?? 1) * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.05"
-              value={activeFormatting.opacity ?? 1}
-              onChange={(e) =>
-                setActiveFormatting({ opacity: Number(e.target.value) })
-              }
-              className="accent-[#2447f5] h-1.5 rounded-full bg-[#d8d4c8] cursor-pointer"
-            />
-          </label>
+              {/* Font Family Selector */}
+              <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+                <span>Font</span>
+                <select
+                  value={activeFormatting.fontFamily || "Inter Tight"}
+                  onChange={(e) => setActiveFormatting({ fontFamily: e.target.value })}
+                  className="h-11 border border-[#d8d4c8] rounded-xl px-3 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
+                >
+                  {fontOptions.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* Font Size & Bold/Italic */}
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+                  <span>Size</span>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="6"
+                      max="120"
+                      value={activeFormatting.fontSize || 14}
+                      onChange={(e) =>
+                        setActiveFormatting({ fontSize: Number(e.target.value) || 14 })
+                      }
+                      className="h-11 w-full border border-[#d8d4c8] rounded-xl px-3 pr-8 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4a5168] font-mono">
+                      pt
+                    </span>
+                  </div>
+                </label>
+
+                <div className="flex gap-1">
+                  <button
+                    onClick={() =>
+                      setActiveFormatting({
+                        fontWeight:
+                          activeFormatting.fontWeight === "bold" ? "normal" : "bold",
+                      })
+                    }
+                    className={`ib ${activeFormatting.fontWeight === "bold" ? "on" : ""}`}
+                    title="Bold"
+                  >
+                    <Bold className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setActiveFormatting({
+                        fontStyle:
+                          activeFormatting.fontStyle === "italic" ? "normal" : "italic",
+                      })
+                    }
+                    className={`ib ${activeFormatting.fontStyle === "italic" ? "on" : ""}`}
+                    title="Italic"
+                  >
+                    <Italic className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Color Palette Swatches */}
+              <div>
+                <div className="font-bold text-sm text-[#0d1b3d] mb-2.5">Color</div>
+                <div className="flex items-center gap-2.5">
+                  {[
+                    { hex: "#0d1b3d", title: "Midnight Navy" },
+                    { hex: "#2447f5", title: "Electric Cobalt" },
+                    { hex: "#ffd84d", title: "Golden Yellow" },
+                    { hex: "#f3c9c0", title: "Soft Coral" },
+                    { hex: "#ffffff", title: "White" },
+                  ].map((c) => (
+                    <button
+                      key={c.hex}
+                      onClick={() =>
+                        setActiveFormatting({
+                          fontColorHex: c.hex,
+                          strokeColorHex: c.hex,
+                          fillColorHex: c.hex,
+                        })
+                      }
+                      title={c.title}
+                      className={`sw ${activeFormatting.fontColorHex === c.hex ? "active" : ""}`}
+                      style={{
+                        backgroundColor: c.hex,
+                        border: c.hex === "#ffffff" ? "1px solid #d8d4c8" : "none",
+                      }}
+                    />
+                  ))}
+
+                  {/* Native Color Picker */}
+                  <label
+                    className="w-7 h-7 rounded-full border border-[#d8d4c8] grid place-items-center cursor-pointer hover:scale-110 transition bg-white"
+                    title="Custom color"
+                  >
+                    <span className="text-[11px] font-bold text-[#4a5168]">+</span>
+                    <input
+                      type="color"
+                      value={activeFormatting.fontColorHex || "#0d1b3d"}
+                      onChange={(e) =>
+                        setActiveFormatting({
+                          fontColorHex: e.target.value,
+                          strokeColorHex: e.target.value,
+                          fillColorHex: e.target.value,
+                        })
+                      }
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Opacity Slider */}
+              <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+                <div className="flex justify-between items-center">
+                  <span>Opacity</span>
+                  <span className="text-xs font-mono text-[#4a5168]">
+                    {Math.round((activeFormatting.opacity ?? 1) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={activeFormatting.opacity ?? 1}
+                  onChange={(e) =>
+                    setActiveFormatting({ opacity: Number(e.target.value) })
+                  }
+                  className="accent-[#2447f5] h-1.5 rounded-full bg-[#d8d4c8] cursor-pointer"
+                />
+              </label>
+            </>
+          )}
 
           {/* Delete Element Button */}
           {selectedElementId ? (

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Copy, Edit3, Move, Trash2 } from "lucide-react";
+import { Copy, Edit3, Move, Trash2, Image as ImageIcon, RefreshCw } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
   AddTextOperation,
   AddShapeOperation,
+  AddImageOperation,
   WhiteoutOperation,
   BlackoutOperation,
   RedactionOperation,
@@ -16,7 +17,9 @@ import {
   EditStrategy,
 } from "@/core/models/operations";
 import { Point, Rect } from "@/core/models/geometry";
+import { ImageInfo } from "@/core/models/style-profile";
 import { useHistoryStore } from "@/store/history-store";
+import { sliceCanvasImage } from "@/core/utils/image-extractor";
 
 interface InteractiveOverlayProps {
   pageWidth: number; // in points
@@ -79,6 +82,68 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   // Inline text editing for added text elements
   const [editingOpId, setEditingOpId] = useState<string | null>(null);
   const [editingTextValue, setEditingTextValue] = useState<string>("");
+
+  const replaceImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleReplaceImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedElementId) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      executeUpdateElement(selectedElementId, {
+        imageDataUrl: dataUrl,
+        mimeType: file.type.includes("jpeg") ? "image/jpeg" : "image/png",
+      });
+      showToast("Logo / Image replaced successfully");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleSelectExistingImage = async (img: ImageInfo) => {
+    try {
+      const canvas = typeof document !== "undefined"
+        ? (document.getElementById("pdf-page-canvas") as HTMLCanvasElement | null)
+        : null;
+
+      const dataUrl = sliceCanvasImage(canvas, img.rect, pageHeight, pageWidth);
+      const bgHex = currentStyleProfile?.inferredProperties?.pageBackgroundHex || "#ffffff";
+
+      // 1. Mask original position with document background
+      const maskOp: WhiteoutOperation = {
+        id: `mask_img_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        type: "whiteout",
+        pageNumber: currentPageNumber,
+        rect: { ...img.rect },
+        fillColorHex: bgHex,
+        opacity: 1,
+        timestamp: Date.now(),
+      };
+      await executeAddOperation(maskOp);
+
+      // 2. Insert as interactive AddImageOperation at exact location
+      const newImageOp: AddImageOperation = {
+        id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        type: "add_image",
+        pageNumber: currentPageNumber,
+        imageDataUrl: dataUrl,
+        mimeType: "image/png",
+        rect: { ...img.rect },
+        opacity: 1,
+        rotation: 0,
+        timestamp: Date.now() + 1,
+      };
+      await executeAddOperation(newImageOp);
+
+      // 3. Immediately select the element for moving, resizing, or replacing
+      selectElement(newImageOp.id);
+      showToast("Logo / Image selected. You can now drag, resize, or replace it.");
+    } catch {
+      showToast("Failed to select image");
+    }
+  };
 
   // Convert Screen pixel coordinates to PDF point coordinates
   const screenToPdf = (screenX: number, screenY: number): Point => {
@@ -952,8 +1017,9 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
   }
 
   return (
-    <svg
-      ref={svgRef}
+    <>
+      <svg
+        ref={svgRef}
       // The viewport also listens for pointer events to pan the canvas. Keep
       // overlay interactions inside this layer so a drag/resize never starts
       // a competing canvas pan before its mouse handler can run.
@@ -1139,6 +1205,70 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           );
         })}
 
+      {/* Extracted Existing Logos & Images from PDF (Select, Move, Resize, Replace) */}
+      {(activeTool === "select" || activeTool === "add_image") &&
+        currentStyleProfile &&
+        currentStyleProfile.images
+          .filter((img) => img.pageNumber === currentPageNumber)
+          .map((img) => {
+            const alreadyConverted = pageOperations.some(
+              (op) =>
+                op.type === "add_image" &&
+                Math.abs(op.rect.x - img.rect.x) < 5 &&
+                Math.abs(op.rect.y - img.rect.y) < 5
+            );
+            if (alreadyConverted) return null;
+
+            const screen = pdfToScreen(img.rect.x, img.rect.y + img.rect.height);
+            return (
+              <g
+                key={img.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelectExistingImage(img);
+                }}
+                className="cursor-pointer pointer-events-auto group"
+              >
+                {/* Generous hitbox for effortless logo selection */}
+                <rect
+                  x={screen.x - 4}
+                  y={screen.y - 4}
+                  width={Math.max(img.rect.width * scale + 8, 20)}
+                  height={Math.max(img.rect.height * scale + 8, 20)}
+                  fill="transparent"
+                  pointerEvents="all"
+                  className="cursor-pointer"
+                />
+                {/* Visual hover outline */}
+                <rect
+                  x={screen.x - 2}
+                  y={screen.y - 2}
+                  width={img.rect.width * scale + 4}
+                  height={img.rect.height * scale + 4}
+                  fill="transparent"
+                  stroke="#2447f5"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+                {/* Floating "Logo / Image" badge on hover */}
+                <foreignObject
+                  x={Math.max(2, screen.x)}
+                  y={Math.max(2, screen.y - 24)}
+                  width={160}
+                  height={22}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                >
+                  <div className="inline-flex items-center space-x-1 px-2 py-0.5 bg-[#0d1b3d] text-[#ffd84d] rounded-md text-[10px] font-semibold shadow-md whitespace-nowrap">
+                    <ImageIcon className="w-2.5 h-2.5 text-[#ffd84d]" />
+                    <span>Logo / Image (Click to Edit)</span>
+                  </div>
+                </foreignObject>
+                <title>Logo / Image — Click to select, move, resize or replace</title>
+              </g>
+            );
+          })}
+
       {/* 2. Operations Rendered on Page */}
       {pageOperations.map((op) => {
         const isSelected = selectedElementId === op.id;
@@ -1287,8 +1417,15 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                 height={op.rect.height * scale}
                 opacity={op.opacity ?? 1.0}
                 onMouseDown={(e) => handleElementMouseDown(e, op)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  selectElement(op.id);
+                  replaceImageInputRef.current?.click();
+                }}
                 className="cursor-move pointer-events-auto"
-              />
+              >
+                <title>Double-click to replace image</title>
+              </image>
             );
           }
 
@@ -1690,6 +1827,21 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
 
               <span className="sr-only">Drag to position. Use any blue handle to resize.</span>
 
+              {/* Replace Image / Logo */}
+              {selectedOp && selectedOp.type === "add_image" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    replaceImageInputRef.current?.click();
+                  }}
+                  className="flex items-center space-x-1 px-2.5 py-0.5 bg-[#2447f5] hover:bg-blue-600 rounded-full transition text-white text-[11px] font-semibold shadow-xs"
+                  title="Replace this logo or image with a new file"
+                >
+                  <RefreshCw className="w-3 h-3 text-[#ffd84d]" />
+                  <span>Replace Image</span>
+                </button>
+              )}
+
               {/* Duplicate element */}
               <button
                 onClick={(e) => {
@@ -1760,5 +1912,15 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
         </g>
       )}
     </svg>
+
+    {/* Hidden file input for replacing images/logos */}
+    <input
+      type="file"
+      ref={replaceImageInputRef}
+      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+      onChange={handleReplaceImageFile}
+      className="hidden"
+    />
+  </>
   );
 };
