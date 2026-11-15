@@ -975,20 +975,23 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
           : "cursor-crosshair"
       }`}
     >
-      {/* 1. Extracted Text Tokens (Clickable in select mode for Style Matching, or in edit_text mode for modification) */}
-      {(activeTool === "select" || activeTool === "edit_text") &&
+      {/* 1. Extracted Text Tokens (Clickable in select mode, edit_text mode, or add_text mode) */}
+      {(activeTool === "select" || activeTool === "edit_text" || activeTool === "add_text") &&
         currentStyleProfile &&
         currentStyleProfile.textTokens.map((token) => {
           const screenPos = pdfToScreen(token.rect.x, token.rect.y + token.rect.height);
           const isSelected = selectedTokenId === token.id;
-          const isEditTool = activeTool === "edit_text";
+          const isEditTool = activeTool === "edit_text" || activeTool === "add_text";
+          const boxWidth = Math.max(token.rect.width * scale, 12);
+          const boxHeight = Math.max(token.rect.height * scale, 12);
+
           return (
             <g
               key={token.id}
               onClick={(e) => {
                 e.stopPropagation();
                 selectToken(token.id);
-                if (isEditTool) {
+                if (activeTool === "edit_text") {
                   openTextEditorForToken(token.id);
                 }
               }}
@@ -998,28 +1001,41 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
               }}
               className="cursor-pointer pointer-events-auto group"
             >
+              {/* Invisible expanded hit area (min 20px) to guarantee clicks NEVER miss */}
+              <rect
+                x={screenPos.x - 4}
+                y={screenPos.y - 4}
+                width={Math.max(boxWidth + 8, 20)}
+                height={Math.max(boxHeight + 8, 20)}
+                fill="transparent"
+                pointerEvents="all"
+                className="cursor-text"
+              />
+              {/* Visual token boundary */}
               <rect
                 x={screenPos.x}
                 y={screenPos.y}
-                width={token.rect.width * scale}
-                height={token.rect.height * scale}
-                fill={isSelected ? "rgba(59, 130, 246, 0.25)" : isEditTool ? "rgba(16, 185, 129, 0.1)" : "transparent"}
+                width={boxWidth}
+                height={boxHeight}
+                pointerEvents="all"
+                fill={isSelected ? "rgba(59, 130, 246, 0.25)" : isEditTool ? "rgba(16, 185, 129, 0.08)" : "transparent"}
                 stroke={isSelected ? "#2563eb" : isEditTool ? "#10b981" : "transparent"}
                 strokeWidth={isEditTool ? 1.5 : 1}
                 strokeDasharray={isSelected || isEditTool ? "2 2" : undefined}
                 className={`${
                   isEditTool
-                    ? "group-hover:fill-emerald-500/20 group-hover:stroke-emerald-600 cursor-text"
+                    ? "group-hover:fill-emerald-500/25 group-hover:stroke-emerald-600 cursor-text"
                     : "group-hover:fill-blue-500/15 group-hover:stroke-blue-400 cursor-pointer"
                 } transition-colors`}
               />
               <text
                 x={screenPos.x}
-                y={screenPos.y + token.rect.height * scale * 0.78}
+                y={screenPos.y + boxHeight * 0.78}
                 fontSize={token.fontSize * scale}
                 fontFamily="sans-serif"
                 fill="transparent"
-                className="select-text cursor-text"
+                pointerEvents="none"
+                className="select-none"
               >
                 {token.text}
               </text>
@@ -1360,13 +1376,13 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                 onMouseDown={(e) => handleElementMouseDown(e, op)}
                 className="cursor-pointer pointer-events-auto group"
               >
-                {/* Mask original content rectangle */}
+                {/* Mask original content rectangle with matched background */}
                 <rect
                   x={screenMask.x}
                   y={screenMask.y}
                   width={op.targetRect.width * scale}
                   height={op.targetRect.height * scale}
-                  fill="#ffffff"
+                  fill={op.backgroundColorHex || currentStyleProfile?.inferredProperties?.pageBackgroundHex || "#ffffff"}
                   opacity={op.opacity ?? 1.0}
                 />
                 {/* Replacement text */}

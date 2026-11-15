@@ -204,7 +204,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
               boxShadow: "0 40px 80px -30px rgba(13, 27, 61, 0.35)",
             }}
           >
-            <canvas ref={canvasRef} className="block" />
+            <canvas id="pdf-page-canvas" ref={canvasRef} className="block" />
 
             {/* Interactive Drawing & Selection Overlay Layer */}
             {currentPage && (

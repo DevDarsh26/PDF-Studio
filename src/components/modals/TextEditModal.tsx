@@ -19,6 +19,7 @@ import {
   validateTextReplacement,
   TextScope,
 } from "@/core/engine/text-validator";
+import { sampleCanvasBackgroundColor } from "@/core/utils/color";
 
 export const TextEditModal: React.FC = () => {
   const {
@@ -44,14 +45,29 @@ export const TextEditModal: React.FC = () => {
 
   const [replacementText, setReplacementText] = useState("");
   const [userStrategy, setUserStrategy] = useState<EditStrategy | null>(null);
+  const [backgroundColor, setBackgroundColor] = useState<string>("#ffffff");
 
-  // Initialize input when token changes
+  // Initialize input and sample true document background when token changes
   useEffect(() => {
     if (token) {
       setReplacementText(token.text);
       setUserStrategy(null);
+
+      // Sample true pixel background color directly from rendered page canvas
+      const canvas = typeof document !== "undefined"
+        ? (document.getElementById("pdf-page-canvas") as HTMLCanvasElement | null)
+        : null;
+
+      const sampled = sampleCanvasBackgroundColor(
+        canvas,
+        token.rect,
+        currentStyleProfile?.pageMetadata.dimensions.height || 792,
+        currentStyleProfile?.pageMetadata.dimensions.width || 612,
+        token.backgroundColorHex || currentStyleProfile?.inferredProperties?.pageBackgroundHex || "#ffffff"
+      );
+      setBackgroundColor(sampled);
     }
-  }, [token]);
+  }, [token, currentStyleProfile]);
 
   const validation = useMemo(() => {
     if (!token) return null;
@@ -92,6 +108,7 @@ export const TextEditModal: React.FC = () => {
       alignment: "left",
       opacity: 1.0,
       strategy: activeStrategy,
+      backgroundColorHex: backgroundColor,
     };
 
     await executeAddOperation(op);
@@ -119,6 +136,7 @@ export const TextEditModal: React.FC = () => {
       strategy: validation.canUseNative
         ? EditStrategy.NativeStreamModification
         : EditStrategy.LocalReconstruction,
+      backgroundColorHex: backgroundColor,
     };
     await executeAddOperation(op);
     closeTextEditor();
@@ -176,6 +194,32 @@ export const TextEditModal: React.FC = () => {
             <div className="p-2 bg-white border border-slate-200 rounded font-serif text-slate-900 break-words select-text">
               &ldquo;{token.text}&rdquo;
             </div>
+          </div>
+
+          {/* Background Color Match & Sampling */}
+          <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+            <div className="flex items-center space-x-2.5">
+              <div
+                className="w-5 h-5 rounded-md border border-slate-300 shadow-2xs shrink-0"
+                style={{ backgroundColor }}
+              />
+              <div>
+                <span className="font-semibold text-slate-700">Document Background: </span>
+                <span className="font-mono text-slate-500 uppercase">{backgroundColor}</span>
+                <span className="ml-1.5 text-[10px] text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                  Matched
+                </span>
+              </div>
+            </div>
+            <label className="text-[11px] text-blue-600 hover:text-blue-700 cursor-pointer font-medium relative flex items-center space-x-1">
+              <span>Change</span>
+              <input
+                type="color"
+                value={backgroundColor}
+                onChange={(e) => setBackgroundColor(e.target.value)}
+                className="w-6 h-6 opacity-0 absolute inset-0 cursor-pointer"
+              />
+            </label>
           </div>
 
           {/* 2. Replacement Input & Quick Scopes */}

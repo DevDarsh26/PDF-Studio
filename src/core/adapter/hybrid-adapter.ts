@@ -689,6 +689,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
                     fontWeight: op.fontWeight,
                     fontStyle: op.fontStyle,
                     fontColorHex: op.fontColorHex,
+                    backgroundColorHex: op.backgroundColorHex || "#ffffff",
                   }
                 );
               }
@@ -705,6 +706,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
                   fontWeight: op.fontWeight,
                   fontStyle: op.fontStyle,
                   fontColorHex: op.fontColorHex,
+                  backgroundColorHex: op.backgroundColorHex || "#ffffff",
                 }
               );
             } else {
@@ -719,6 +721,7 @@ export class HybridPdfAdapter implements PdfEngineAdapter {
                   fontWeight: op.fontWeight,
                   fontStyle: op.fontStyle,
                   fontColorHex: op.fontColorHex,
+                  backgroundColorHex: op.backgroundColorHex || "#ffffff",
                 }
               );
             }

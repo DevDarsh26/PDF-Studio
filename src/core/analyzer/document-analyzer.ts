@@ -65,6 +65,115 @@ export async function analyzePdfPage(pdfJsPage: any): Promise<DocumentStyleProfi
   const images: ImageInfo[] = [];
   const hyperlinks: HyperlinkInfo[] = [];
 
+  // 4. Operator List Inspection for Images, Colors & Background
+  let detectedPageBackgroundHex: string | undefined = undefined;
+
+  if (operatorList && operatorList.fnArray && operatorList.argsArray) {
+    const fns = operatorList.fnArray;
+    const args = operatorList.argsArray;
+
+    // Tracking graphic state CTM
+    let currentCtm: TransformMatrix = [1, 0, 0, 1, 0, 0];
+    const ctmStack: TransformMatrix[] = [];
+    let currentFillHex = "#000000";
+
+    for (let i = 0; i < fns.length; i++) {
+      const fn = fns[i];
+      const arg = args[i];
+
+      // Save / Restore state
+      if (fn === 1) {
+        ctmStack.push([...currentCtm]);
+      } else if (fn === 2) {
+        if (ctmStack.length > 0) {
+          currentCtm = ctmStack.pop()!;
+        }
+      } else if (fn === 3) {
+        if (Array.isArray(arg) && arg.length >= 6) {
+          currentCtm = [arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]];
+        }
+      } else if (fn === 20 || fn === 21 || fn === 22) {
+        if (arg && arg.length >= 3) {
+          currentFillHex = rgbToHex(arg[0] * 255, arg[1] * 255, arg[2] * 255);
+          if (!colorUsageMap.has(currentFillHex)) {
+            colorUsageMap.set(currentFillHex, {
+              colorHex: currentFillHex,
+              colorSpace: "DeviceRGB",
+              components: [arg[0], arg[1], arg[2]],
+              frequency: 1,
+              contexts: ["fill"],
+              provenance: "extracted",
+            });
+          } else {
+            colorUsageMap.get(currentFillHex)!.frequency += 1;
+          }
+        }
+      } else if (fn === 23) {
+        if (arg && arg.length >= 4) {
+          currentFillHex = normalizePdfColorToHex(arg, "CMYK");
+          if (!colorUsageMap.has(currentFillHex)) {
+            colorUsageMap.set(currentFillHex, {
+              colorHex: currentFillHex,
+              colorSpace: "DeviceCMYK",
+              components: [arg[0], arg[1], arg[2], arg[3]],
+              frequency: 1,
+              contexts: ["fill"],
+              provenance: "extracted",
+            });
+          } else {
+            colorUsageMap.get(currentFillHex)!.frequency += 1;
+          }
+        }
+      } else if (fn === 85 || fn === 86 || fn === 87) {
+        const imgId = Array.isArray(arg) ? arg[0] : `img-${pageNumber}-${i}`;
+        const imgWidth = Math.hypot(currentCtm[0], currentCtm[1]);
+        const imgHeight = Math.hypot(currentCtm[2], currentCtm[3]);
+
+        images.push({
+          id: String(imgId),
+          pageNumber,
+          rect: {
+            x: currentCtm[4],
+            y: currentCtm[5],
+            width: Math.round(imgWidth * 10) / 10,
+            height: Math.round(imgHeight * 10) / 10,
+          },
+          intrinsicDimensions: {
+            width: Math.round(imgWidth),
+            height: Math.round(imgHeight),
+          },
+          format: fn === 86 ? "JPEG" : "PNG",
+          colorSpace: "DeviceRGB",
+          bitsPerComponent: 8,
+          aspectRatio: imgHeight > 0 ? Math.round((imgWidth / imgHeight) * 100) / 100 : 1,
+          provenance: "extracted",
+        });
+      } else if (fn === 11) {
+        // constructPath (rectangles, etc.)
+        if (Array.isArray(arg) && arg.length >= 4) {
+          const w = Math.abs(arg[2]);
+          const h = Math.abs(arg[3]);
+          if (w >= viewport.width * 0.8 && h >= viewport.height * 0.8) {
+            detectedPageBackgroundHex = currentFillHex;
+          }
+        }
+      }
+    }
+  }
+
+  interface RawTextPiece {
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    fontId: string;
+    transform: TransformMatrix;
+  }
+
+  const rawPieces: RawTextPiece[] = [];
+
   // Parse Text Tokens
   for (let i = 0; i < textContent.items.length; i++) {
     const item = textContent.items[i] as any;
@@ -73,21 +182,28 @@ export async function analyzePdfPage(pdfJsPage: any): Promise<DocumentStyleProfi
     }
 
     const text = item.str;
+    if (!text || text.length === 0) continue;
+
     const fontId = item.fontName || "default";
     const style = styles[fontId] || {};
     const transform = item.transform as TransformMatrix;
 
     // Font size is the magnitude of the transformation matrix scale components
     const fontSize = Math.hypot(transform[0], transform[1]) || 12;
-    const width = item.width || 0;
-    const height = item.height || fontSize;
+    const estCharWidth = fontSize * 0.55;
+    const width = item.width > 0 ? item.width : Math.max(text.length * estCharWidth, 8);
+    const height = item.height > 0 ? item.height : fontSize;
 
-    const tokenRect: Rect = {
+    rawPieces.push({
+      text,
       x: transform[4],
       y: transform[5],
       width,
       height,
-    };
+      fontSize,
+      fontId,
+      transform,
+    });
 
     // Track character coverage
     if (!charCoverageMap.has(fontId)) {
@@ -171,21 +287,6 @@ export async function analyzePdfPage(pdfJsPage: any): Promise<DocumentStyleProfi
     } else {
       detectedFonts.get(fontId)!.frequency += 1;
     }
-
-    const token: TextToken = {
-      id: `tok-${pageNumber}-${i}`,
-      text,
-      rect: tokenRect,
-      transform,
-      fontId,
-      fontSize: Math.round(fontSize * 10) / 10,
-      colorHex: "#000000",
-      colorSpace: "DeviceRGB",
-      advanceWidth: width,
-      provenance: "extracted",
-    };
-
-    tokens.push(token);
   }
 
   // Update font character coverage summaries
@@ -197,108 +298,73 @@ export async function analyzePdfPage(pdfJsPage: any): Promise<DocumentStyleProfi
     };
   });
 
-  // 4. Operator List Inspection for Images & Colors
-  let detectedPageBackgroundHex: string | undefined = undefined;
+  // Sort raw pieces by Y descending (PDF bottom-to-top), then X ascending
+  const sortedPieces = [...rawPieces].sort((a, b) => {
+    const yDiff = b.y - a.y;
+    if (Math.abs(yDiff) > 2.5) return yDiff;
+    return a.x - b.x;
+  });
 
-  if (operatorList && operatorList.fnArray && operatorList.argsArray) {
-    const fns = operatorList.fnArray;
-    const args = operatorList.argsArray;
+  // Merge adjacent pieces that are on the same line into coherent tokens
+  let currentTokenGroup: RawTextPiece | null = null;
+  let tokenIdx = 0;
 
-    // Tracking graphic state CTM
-    let currentCtm: TransformMatrix = [1, 0, 0, 1, 0, 0];
-    const ctmStack: TransformMatrix[] = [];
-    let currentFillHex = "#000000";
+  const pushCurrentGroup = () => {
+    if (!currentTokenGroup || currentTokenGroup.text.trim().length === 0) return;
+    tokens.push({
+      id: `tok-${pageNumber}-${tokenIdx++}`,
+      text: currentTokenGroup.text,
+      rect: {
+        x: Math.round(currentTokenGroup.x * 10) / 10,
+        y: Math.round(currentTokenGroup.y * 10) / 10,
+        width: Math.max(Math.round(currentTokenGroup.width * 10) / 10, 12),
+        height: Math.max(Math.round(currentTokenGroup.height * 10) / 10, 12),
+      },
+      transform: currentTokenGroup.transform,
+      fontId: currentTokenGroup.fontId,
+      fontSize: Math.round(currentTokenGroup.fontSize * 10) / 10,
+      colorHex: "#000000",
+      colorSpace: "DeviceRGB",
+      advanceWidth: Math.round(currentTokenGroup.width * 10) / 10,
+      provenance: "extracted",
+      backgroundColorHex: detectedPageBackgroundHex,
+    });
+  };
 
-    for (let i = 0; i < fns.length; i++) {
-      const fn = fns[i];
-      const arg = args[i];
+  for (const piece of sortedPieces) {
+    if (!currentTokenGroup) {
+      currentTokenGroup = { ...piece };
+      continue;
+    }
 
-      // Save / Restore state
-      if (fn === 1) {
-        // save
-        ctmStack.push([...currentCtm]);
-      } else if (fn === 2) {
-        // restore
-        if (ctmStack.length > 0) {
-          currentCtm = ctmStack.pop()!;
-        }
-      } else if (fn === 3) {
-        // transform CTM
-        if (Array.isArray(arg) && arg.length >= 6) {
-          currentCtm = [arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]];
-        }
-      } else if (fn === 20 || fn === 21 || fn === 22) {
-        // RGB Color
-        if (arg && arg.length >= 3) {
-          currentFillHex = rgbToHex(arg[0] * 255, arg[1] * 255, arg[2] * 255);
-          if (!colorUsageMap.has(currentFillHex)) {
-            colorUsageMap.set(currentFillHex, {
-              colorHex: currentFillHex,
-              colorSpace: "DeviceRGB",
-              components: [arg[0], arg[1], arg[2]],
-              frequency: 1,
-              contexts: ["fill"],
-              provenance: "extracted",
-            });
-          } else {
-            colorUsageMap.get(currentFillHex)!.frequency += 1;
-          }
-        }
-      } else if (fn === 23) {
-        // CMYK Color
-        if (arg && arg.length >= 4) {
-          currentFillHex = normalizePdfColorToHex(arg, "CMYK");
-          if (!colorUsageMap.has(currentFillHex)) {
-            colorUsageMap.set(currentFillHex, {
-              colorHex: currentFillHex,
-              colorSpace: "DeviceCMYK",
-              components: [arg[0], arg[1], arg[2], arg[3]],
-              frequency: 1,
-              contexts: ["fill"],
-              provenance: "extracted",
-            });
-          } else {
-            colorUsageMap.get(currentFillHex)!.frequency += 1;
-          }
-        }
-      } else if (fn === 85 || fn === 86 || fn === 87) {
-        // paintImageXObject / paintJpegXObject / paintInlineImageXObject
-        const imgId = Array.isArray(arg) ? arg[0] : `img-${pageNumber}-${i}`;
-        const imgWidth = Math.hypot(currentCtm[0], currentCtm[1]);
-        const imgHeight = Math.hypot(currentCtm[2], currentCtm[3]);
+    const sameBaseline = Math.abs(currentTokenGroup.y - piece.y) <= Math.max(2.5, piece.fontSize * 0.2);
+    const sameFont = currentTokenGroup.fontId === piece.fontId;
+    const sameSize = Math.abs(currentTokenGroup.fontSize - piece.fontSize) <= 1.5;
+    const expectedX = currentTokenGroup.x + currentTokenGroup.width;
+    const gap = piece.x - expectedX;
 
-        images.push({
-          id: String(imgId),
-          pageNumber,
-          rect: {
-            x: currentCtm[4],
-            y: currentCtm[5],
-            width: Math.round(imgWidth * 10) / 10,
-            height: Math.round(imgHeight * 10) / 10,
-          },
-          intrinsicDimensions: {
-            width: Math.round(imgWidth),
-            height: Math.round(imgHeight),
-          },
-          format: fn === 86 ? "JPEG" : "PNG",
-          colorSpace: "DeviceRGB",
-          bitsPerComponent: 8,
-          aspectRatio: imgHeight > 0 ? Math.round((imgWidth / imgHeight) * 100) / 100 : 1,
-          provenance: "extracted",
-        });
-      } else if (fn === 11) {
-        // constructPath (rectangles, etc.)
-        // Check if drawing a full page background rectangle
-        if (Array.isArray(arg) && arg.length >= 4) {
-          const w = Math.abs(arg[2]);
-          const h = Math.abs(arg[3]);
-          if (w >= viewport.width * 0.8 && h >= viewport.height * 0.8) {
-            detectedPageBackgroundHex = currentFillHex;
-          }
-        }
-      }
+    // Merge if pieces are on the same line and adjacent (within word or small space gap)
+    const isAdjacent =
+      sameBaseline &&
+      sameFont &&
+      sameSize &&
+      gap >= -piece.fontSize * 0.35 &&
+      gap <= piece.fontSize * 0.95;
+
+    if (isAdjacent) {
+      const needsSpace =
+        gap > piece.fontSize * 0.22 &&
+        !currentTokenGroup.text.endsWith(" ") &&
+        !piece.text.startsWith(" ");
+      currentTokenGroup.text = currentTokenGroup.text + (needsSpace ? " " : "") + piece.text;
+      currentTokenGroup.width = Math.max(currentTokenGroup.width, (piece.x + piece.width) - currentTokenGroup.x);
+      currentTokenGroup.height = Math.max(currentTokenGroup.height, piece.height);
+    } else {
+      pushCurrentGroup();
+      currentTokenGroup = { ...piece };
     }
   }
+  pushCurrentGroup();
 
   // 5. Hyperlink Extraction
   for (let i = 0; i < annotations.length; i++) {

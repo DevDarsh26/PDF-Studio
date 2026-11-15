@@ -58,6 +58,7 @@ export interface TextToken {
   colorSpace: string;
   advanceWidth: number;
   provenance: Provenance;
+  backgroundColorHex?: string;
 }
 
 export interface LayoutBlock {

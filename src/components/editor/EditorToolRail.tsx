@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import {
   MousePointer,
+  PencilLine,
   Type,
   Image as ImageIcon,
   PenTool,
@@ -87,8 +88,13 @@ export const EditorToolRail: React.FC = () => {
       icon: MousePointer,
     },
     {
+      id: "edit_text",
+      label: "Edit Existing Text (E)",
+      icon: PencilLine,
+    },
+    {
       id: "add_text",
-      label: "Add Text (T)",
+      label: "Add New Text (T)",
       icon: Type,
     },
     {

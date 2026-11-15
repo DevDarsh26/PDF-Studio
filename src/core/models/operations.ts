@@ -39,6 +39,7 @@ export interface TextEditOperation extends BaseOperation {
   opacity: number;
   rotation?: number;
   strategy: EditStrategy;
+  backgroundColorHex?: string;
 }
 
 export interface WhiteoutOperation extends BaseOperation {

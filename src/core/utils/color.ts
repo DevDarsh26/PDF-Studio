@@ -56,3 +56,68 @@ export function normalizePdfColorToHex(components: number[], colorSpace: "RGB" |
   return "#000000";
 }
 
+/**
+ * Samples the true background color from the rendered canvas around a target bounding box.
+ * This inspects pixels immediately surrounding the text box (clearances and page margins)
+ * to find the dominant document background color of the actual rendered PDF.
+ */
+export function sampleCanvasBackgroundColor(
+  canvas: HTMLCanvasElement | null,
+  rect: { x: number; y: number; width: number; height: number },
+  pageHeight: number,
+  pageWidth: number,
+  fallbackHex: string = "#ffffff"
+): string {
+  if (!canvas || typeof window === "undefined") return fallbackHex;
+  try {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx || canvas.width === 0 || canvas.height === 0) return fallbackHex;
+
+    const scaleX = canvas.width / pageWidth;
+    const scaleY = canvas.height / pageHeight;
+
+    // Convert PDF coordinates (origin at bottom-left) to canvas coordinates (origin at top-left)
+    const screenLeft = Math.floor(rect.x * scaleX);
+    const screenRight = Math.ceil((rect.x + rect.width) * scaleX);
+    const screenTop = Math.floor((pageHeight - (rect.y + rect.height)) * scaleY);
+    const screenBottom = Math.ceil((pageHeight - rect.y) * scaleY);
+
+    const pad = Math.max(3, Math.round(4 * scaleX));
+    const samplePoints: { x: number; y: number }[] = [
+      // 4 points right outside the 4 edges of the text box
+      { x: Math.max(2, screenLeft - pad), y: Math.floor((screenTop + screenBottom) / 2) },
+      { x: Math.min(canvas.width - 2, screenRight + pad), y: Math.floor((screenTop + screenBottom) / 2) },
+      { x: Math.floor((screenLeft + screenRight) / 2), y: Math.max(2, screenTop - pad) },
+      { x: Math.floor((screenLeft + screenRight) / 2), y: Math.min(canvas.height - 2, screenBottom + pad) },
+      // Top-left and top-right margins of the page
+      { x: Math.min(20, Math.floor(canvas.width * 0.05)), y: Math.min(20, Math.floor(canvas.height * 0.05)) },
+      { x: Math.max(canvas.width - 20, Math.floor(canvas.width * 0.95)), y: Math.min(20, Math.floor(canvas.height * 0.05)) },
+    ];
+
+    const sampledHexes: string[] = [];
+    for (const pt of samplePoints) {
+      if (pt.x >= 0 && pt.x < canvas.width && pt.y >= 0 && pt.y < canvas.height) {
+        const p = ctx.getImageData(pt.x, pt.y, 1, 1).data;
+        // Ignore transparent or dark text pixels (brightness > 60)
+        const brightness = p[0] * 0.299 + p[1] * 0.587 + p[2] * 0.114;
+        if (p[3] > 30 && brightness > 50) {
+          sampledHexes.push(rgbToHex(p[0], p[1], p[2]));
+        }
+      }
+    }
+
+    if (sampledHexes.length > 0) {
+      // Count frequency of sampled colors to pick dominant background
+      const counts: Record<string, number> = {};
+      for (const h of sampledHexes) {
+        counts[h] = (counts[h] || 0) + 1;
+      }
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+  } catch {
+    // Canvas taint or context access fallback
+  }
+  return fallbackHex;
+}
+
+

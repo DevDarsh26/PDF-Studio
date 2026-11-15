@@ -178,6 +178,7 @@ export async function applyLocalReconstruction(
     fontWeight: "normal" | "bold";
     fontStyle: "normal" | "italic";
     fontColorHex: string;
+    backgroundColorHex?: string;
   }
 ): Promise<boolean> {
   const page = pdfDoc.getPage(pageIndex);

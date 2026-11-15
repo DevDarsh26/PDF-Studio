@@ -142,6 +142,12 @@ export default function Home() {
       } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "v") {
         setActiveTool("select");
         return;
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "e") {
+        setActiveTool("edit_text");
+        return;
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "t") {
+        setActiveTool("add_text");
+        return;
       }
 
       if (e.key === "PageDown" || (e.key === "ArrowRight" && !e.ctrlKey)) {
