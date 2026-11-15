@@ -72,19 +72,20 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
     preloadPdfjs();
   }, []);
 
-  // Automatically switch slides after interval (4s), pause when user hovers
+  // Automatically switch slides under 5 seconds (3.5s interval), pause when user hovers
   useEffect(() => {
     if (isSliderPaused) return;
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % 3);
-    }, 4000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [isSliderPaused]);
 
-  // Reveal elements smoothly on scroll using IntersectionObserver
+  // Reveal elements smoothly on scroll using IntersectionObserver + scroll listener fallback
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
 
+    const container = containerRef.current;
     const observerCallback: IntersectionObserverCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -94,25 +95,43 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
     };
 
     const containerObserver = new IntersectionObserver(observerCallback, {
-      root: containerRef.current,
-      threshold: 0.1,
-      rootMargin: "0px 0px -40px 0px",
+      root: container,
+      threshold: 0.05,
+      rootMargin: "0px 0px -20px 0px",
     });
 
     const windowObserver = new IntersectionObserver(observerCallback, {
-      threshold: 0.1,
-      rootMargin: "0px 0px -40px 0px",
+      threshold: 0.05,
+      rootMargin: "0px 0px -20px 0px",
     });
 
-    const elements = containerRef.current.querySelectorAll(".reveal-on-scroll");
+    const elements = container.querySelectorAll(".reveal-on-scroll");
     elements.forEach((el) => {
       containerObserver.observe(el);
       windowObserver.observe(el);
     });
 
+    const checkVisibility = () => {
+      const vh = window.innerHeight;
+      elements.forEach((el) => {
+        if (el.classList.contains("is-revealed")) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= vh * 0.92 && rect.bottom >= 0) {
+          el.classList.add("is-revealed");
+        }
+      });
+    };
+
+    // Run on initial render & on scroll
+    checkVisibility();
+    container.addEventListener("scroll", checkVisibility, { passive: true });
+    window.addEventListener("scroll", checkVisibility, { passive: true });
+
     return () => {
       containerObserver.disconnect();
       windowObserver.disconnect();
+      container.removeEventListener("scroll", checkVisibility);
+      window.removeEventListener("scroll", checkVisibility);
     };
   }, []);
 
@@ -517,18 +536,18 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         /* Reveal on scroll animations */
         .reveal-on-scroll {
           opacity: 0;
-          transform: translateY(32px);
+          transform: translateY(28px);
           filter: blur(4px);
-          transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-                      transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
-                      filter 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                      transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                      filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
           will-change: opacity, transform, filter;
         }
 
         .reveal-on-scroll.is-revealed {
-          opacity: 1;
-          transform: translateY(0);
-          filter: blur(0px);
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+          filter: blur(0px) !important;
         }
 
         @media (max-width: 1024px) {
@@ -539,8 +558,51 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           .wm {
             font-size: 130px;
           }
-          summary {
-            font-size: 32px;
+          .roll {
+            height: 80px;
+          }
+          .rl i {
+            height: 80px;
+          }
+          @keyframes roll {
+            0%, 18% { transform: none; }
+            25%, 43% { transform: translateY(-80px); }
+            50%, 68% { transform: translateY(-160px); }
+            75%, 93% { transform: translateY(-240px); }
+            100% { transform: translateY(-320px); }
+          }
+        }
+
+        @media (max-width: 640px) {
+          .pillnav {
+            width: calc(100% - 16px);
+            padding: 0 12px;
+            height: 56px;
+            margin-top: 8px;
+          }
+          .wm {
+            font-size: 64px;
+            margin-top: 32px;
+          }
+          .roll {
+            height: 54px;
+          }
+          .rl i {
+            height: 54px;
+          }
+          @keyframes roll {
+            0%, 18% { transform: none; }
+            25%, 43% { transform: translateY(-54px); }
+            50%, 68% { transform: translateY(-108px); }
+            75%, 93% { transform: translateY(-162px); }
+            100% { transform: translateY(-216px); }
+          }
+          .tile {
+            padding: 24px;
+          }
+          .ft {
+            padding: 56px 20px 32px;
+            border-radius: 28px 28px 0 0;
           }
         }
       `}</style>
@@ -560,12 +622,12 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         <header className="pillnav">
           <div className="flex items-center space-x-3">
-            <span className="serif text-3xl font-normal text-[#0d1b3d]">
+            <span className="serif text-2xl sm:text-3xl font-normal text-[#0d1b3d] tracking-tight">
               PDF Suite
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-9">
+          <nav className="hidden md:flex items-center gap-7 lg:gap-9">
             <a
               href="#s"
               onClick={(e) => scrollToSection(e, "s")}
@@ -596,16 +658,16 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </a>
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={onGoToDashboard}
-              className="btn ghost !h-11 !px-5 text-sm"
+              className="btn ghost !h-9 sm:!h-11 !px-3 sm:!px-5 text-xs sm:text-sm"
             >
               Dashboard
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="btn !h-11 !px-6 text-sm !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-[#0d1b3d] hover:!text-[#f4f1ea]"
+              className="btn !h-9 sm:!h-11 !px-3.5 sm:!px-6 text-xs sm:text-sm !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-[#0d1b3d] hover:!text-[#f4f1ea]"
             >
               Upload PDF
             </button>
@@ -615,19 +677,19 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* HERO SECTION */}
         {/* ========================================================================= */}
-        <section className="px-6 sm:px-12 lg:px-16 pt-14 pb-28 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <section className="px-5 sm:px-12 lg:px-16 pt-10 sm:pt-14 pb-20 sm:pb-28 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-7">
             {/* Status Pill */}
-            <div className="inline-flex items-center gap-3 font-semibold text-sm sm:text-base text-[#4a5168] mb-7">
+            <div className="inline-flex items-center gap-2.5 sm:gap-3 font-semibold text-xs sm:text-base text-[#4a5168] mb-6 sm:mb-7">
               <i
                 style={{ animation: "pu 2s ease-in-out infinite" }}
-                className="w-3 h-3 rounded-full bg-[#2447f5] block shrink-0"
+                className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-[#2447f5] block shrink-0"
               />
               <span>The PDF editor for people with deadlines</span>
             </div>
 
             {/* Monumental Serif Headline with Animated Roller */}
-            <h1 className="serif text-6xl sm:text-8xl lg:text-[104px] leading-[0.98] text-[#0d1b3d]">
+            <h1 className="serif text-5xl sm:text-7xl lg:text-[104px] leading-[0.98] text-[#0d1b3d] tracking-tight">
               Edit every
               <span className="roll">
                 <span className="rl">
@@ -641,12 +703,12 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
               like a doc.
             </h1>
 
-            <p className="text-[#4a5168] text-lg sm:text-xl leading-relaxed max-w-[500px] my-8 font-normal">
+            <p className="text-[#4a5168] text-base sm:text-xl leading-relaxed max-w-[500px] my-6 sm:my-8 font-normal">
               Click any line and type. Sign in a tap, merge in a drag. Everything runs locally in your browser with zero cloud uploads.
             </p>
 
             {/* Hero CTAs */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="btn !bg-[#2447f5] !border-[#2447f5] !text-[#f4f1ea] hover:!bg-[#ffd84d] hover:!border-[#ffd84d] hover:!text-[#0d1b3d]"
@@ -699,7 +761,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           </div>
 
           {/* Interactive 3D Floating Paper Mockup Stack */}
-          <div className="lg:col-span-5 relative h-[580px] sm:h-[680px] w-full select-none">
+          <div className="lg:col-span-5 relative h-[500px] sm:h-[620px] lg:h-[680px] w-full select-none overflow-hidden sm:overflow-visible flex items-center justify-center lg:block">
             {/* Background Paper 1: Invoice (Left Tilt -9deg) */}
             <div
               className="pp fl2"
@@ -1311,24 +1373,33 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
               </svg>
             </button>
 
-            <div className="flex flex-wrap gap-16 text-base">
+            <div className="flex flex-wrap gap-12 sm:gap-16 text-base">
               <div className="fl">
-                <b className="text-[#f4f1ea] font-semibold">Features</b>
+                <b className="text-[#f4f1ea] font-semibold tracking-wide">Features</b>
                 <a href="#s" onClick={(e) => scrollToSection(e, "s")}>How it works</a>
                 <a href="#f" onClick={(e) => scrollToSection(e, "f")}>Tools</a>
                 <a href="#converters" onClick={(e) => scrollToSection(e, "converters")}>Converters</a>
                 <a href="#faq" onClick={(e) => scrollToSection(e, "faq")}>FAQ</a>
               </div>
               <div className="fl">
-                <b className="text-[#f4f1ea] font-semibold">Creator</b>
-                <a href="https://darshmodii.in" target="_blank" rel="noreferrer">
-                  Darsh Modi
+                <b className="text-[#f4f1ea] font-semibold tracking-wide">Darsh Modii</b>
+                <a
+                  href="https://darshmodii.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 hover:text-[#ffd84d]"
+                >
+                  <span>Portfolio</span>
+                  <span className="text-xs text-[#ffd84d]">↗</span>
                 </a>
-                <a href="https://github.com/DevDarsh26" target="_blank" rel="noreferrer">
-                  GitHub Profile
-                </a>
-                <a href="https://darshmodii.in" target="_blank" rel="noreferrer">
-                  Portfolio
+                <a
+                  href="https://github.com/DevDarsh26"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 hover:text-[#ffd84d]"
+                >
+                  <span>GitHub Profile</span>
+                  <span className="text-xs text-[#ffd84d]">↗</span>
                 </a>
               </div>
             </div>
@@ -1340,7 +1411,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center text-[#aeb3c4] text-sm pt-8 border-t border-[#2a3a66] max-w-6xl mx-auto gap-4">
-            <span>© PDF Suite. Crafted with precision by Darsh Modi (darshmodii.in)</span>
+            <span>Crafted with precision by Darsh Modii</span>
             <a
               href="#"
               onClick={scrollToTop}
