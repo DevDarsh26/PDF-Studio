@@ -1,41 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  Lock,
-  Layers,
   FileText,
   FileSpreadsheet,
   Presentation,
   Image as ImageIcon,
+  Shield,
+  ArrowRight,
+  Upload,
+  Sparkles,
+  Lock,
+  Layers,
   Scissors,
   Minimize2,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  MousePointer,
-  Hand,
-  Pencil,
-  Type,
-  Eraser,
-  Square,
-  Circle,
-  Eye,
-  Sliders,
-  Cpu,
-  Database,
-  ArrowUpRight,
-  Search,
   Check,
-  ExternalLink,
-  FolderOpen,
-  HelpCircle,
-  RefreshCw,
-  Copy,
+  ChevronDown,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
@@ -52,75 +32,23 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
   onGoToDashboard,
 }) => {
   const { loadDocumentBytes } = useEditorStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeStep, setActiveStep] = useState<number>(0);
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
 
-  // Scroll Progress Tracking
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Before/After Comparison Slider Position (0 to 100%)
-  const [sliderPos, setSliderPos] = useState(50);
-  const [isDraggingSlider, setIsDraggingSlider] = useState(false);
-  const sliderContainerRef = useRef<HTMLDivElement>(null);
-
-  // Interactive Live Token Editor Demo in Chapter 3
-  const [activeTokenDemo, setActiveTokenDemo] = useState(0);
-  const [demoCustomText, setDemoCustomText] = useState("CONFIDENTIAL & PROPRIETARY");
-
-  // Feature Suite Category Tab
-  const [activeFeatureTab, setActiveFeatureTab] = useState<"edit" | "office" | "images" | "security">("edit");
-
-  // FAQ Accordion Active Item
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
-  const [faqSearch, setFaqSearch] = useState("");
-
-  // Update scroll progress
-  useEffect(() => {
-    const handleScroll = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      const totalHeight = el.scrollHeight - el.clientHeight;
-      if (totalHeight <= 0) return;
-      const progress = (el.scrollTop / totalHeight) * 100;
-      setScrollProgress(Math.min(100, Math.max(0, progress)));
-    };
-
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener("scroll", handleScroll, { passive: true });
-      return () => container.removeEventListener("scroll", handleScroll);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      await loadDocumentBytes(buffer, file.name);
+    } catch (err) {
+      console.error("Failed to load PDF:", err);
     }
-  }, []);
-
-  // Comparison slider drag handler
-  const handleSliderMove = (clientX: number) => {
-    if (!sliderContainerRef.current) return;
-    const rect = sliderContainerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const pct = Math.max(5, Math.min(95, (x / rect.width) * 100));
-    setSliderPos(pct);
   };
 
-  useEffect(() => {
-    if (!isDraggingSlider) return;
-
-    const onPointerMove = (e: PointerEvent) => {
-      handleSliderMove(e.clientX);
-    };
-
-    const onPointerUp = () => {
-      setIsDraggingSlider(false);
-    };
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    };
-  }, [isDraggingSlider]);
-
-  // Quick launch sample from landing page
   const handleLaunchSample = async (type: "single" | "multi" | "rotated") => {
+    setIsLoadingSample(true);
     try {
       let buffer: ArrayBuffer;
       let name: string;
@@ -135,937 +63,1179 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         name = "Sample-RotatedPresentation.pdf";
       }
       await loadDocumentBytes(buffer, name);
-    } catch {
-      // Handled in store
+    } catch (err) {
+      console.error("Failed to load sample:", err);
+    } finally {
+      setIsLoadingSample(false);
     }
   };
 
-  // FAQ Items Data
-  const FAQ_ITEMS = [
-    {
-      q: "How does PDF Studio edit text without converting pages into blurry images?",
-      a: "Unlike common online PDF tools that render pages into flattened low-res raster bitmaps, PDF Studio inspects the raw PDF content stream in WebAssembly. We extract text tokens with exact vector baselines, CapHeight metrics, and font encodings. When you modify text, the underlying stream is updated natively with matching Type1 or embedded TrueType font metrics, keeping every character crisp and vector-sharp at 1000% zoom.",
-    },
-    {
-      q: "Are my uploaded documents safe? Does anything get uploaded to a cloud server?",
-      a: "Zero bytes leave your computer. 100% of parsing, editing, image conversion, password encryption, and file generation executes locally in your browser memory via Web Workers and WebAssembly. You can disconnect your Wi-Fi entirely and PDF Studio will continue working without interruption.",
-    },
-    {
-      q: "How does the Grab / Pan Tool and zooming work?",
-      a: "PDF Studio features both an active Grab Tool (accessible by pressing 'H' or clicking the Hand icon in the toolbar) and universal quick-pan. Holding the Spacebar at any time switches your cursor to a grab hand, allowing you to pan around zoomed pages with silky 60fps performance without altering your active tool.",
-    },
-    {
-      q: "What is the difference between Blackout and Permanent Redaction?",
-      a: "A Blackout simply draws an opaque rectangle over an area — useful for presentations or visual masking, but underlying text may still exist in the PDF stream. Permanent Redaction completely purges and sanitizes the underlying text tokens, vector glyphs, and image coordinates from the raw PDF binary stream before applying the redaction box, ensuring sensitive data can never be copied, inspected, or recovered.",
-    },
-    {
-      q: "How do Office conversions (Word .docx and Excel .xlsx) work inside the browser?",
-      a: "PDF Studio features built-in client-side OOXML (Open Packaging Convention) generators. When exporting to Word, it reconstructs continuous paragraph flow, headings, and font weights into standard .docx packages. When exporting to Excel, our table detection engine parses grid coordinates and outputs structured .xlsx sheets and CSVs with zero server calls.",
-    },
-    {
-      q: "What happens if I accidentally refresh the page while editing?",
-      a: "Progress is protected. PDF Studio automatically caches active document sessions, operations ledger, page position, and view rotation in browser IndexedDB. Upon refreshing, you are immediately prompted to resume your previous workspace with all edits intact.",
-    },
-    {
-      q: "What is the maximum file size PDF Studio can handle?",
-      a: "Because operations run locally in 64-bit WebAssembly workers rather than over slow HTTP upload connections, PDF Studio easily processes large documents up to 250MB and documents with hundreds of pages without upload timeouts.",
-    },
-    {
-      q: "Can I add passwords or unlock secured PDFs?",
-      a: "Yes. PDF Studio includes client-side AES-256 cryptographic tools. You can apply user and owner passwords to protect documents, or enter the password once to remove restrictions and export an open document.",
-    },
-  ];
-
-  const filteredFaqs = FAQ_ITEMS.filter(
-    (item) =>
-      !faqSearch ||
-      item.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
-      item.a.toLowerCase().includes(faqSearch.toLowerCase())
-  );
-
   return (
-    <div
-      ref={containerRef}
-      className="flex-1 flex flex-col bg-[#07090E] text-slate-100 min-h-screen relative overflow-y-auto selection:bg-blue-500/30 selection:text-blue-200 scroll-smooth"
-    >
-      {/* Top 2px Scroll Progress Meter */}
-      <div
-        className="fixed top-0 left-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-400 z-50 transition-all duration-75 shadow-lg shadow-blue-500/50"
-        style={{ width: `${scrollProgress}%` }}
+    <div className="paperly-landing-root min-h-screen w-full relative overflow-y-auto selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+      <style jsx global>{`
+        .paperly-landing-root {
+          background-color: #f4f1ea;
+          background-image: radial-gradient(#d8d4c8 1.2px, transparent 1.2px);
+          background-size: 28px 28px;
+          font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          color: #0d1b3d;
+        }
+
+        .serif {
+          font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+          font-weight: 400;
+          letter-spacing: -0.02em;
+        }
+
+        .pillnav {
+          position: sticky;
+          top: 16px;
+          z-index: 40;
+          margin: 16px auto 0;
+          width: calc(100% - 32px);
+          max-width: 1312px;
+          height: 64px;
+          border-radius: 32px;
+          background: rgba(244, 241, 234, 0.88);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid #d8d4c8;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 12px 0 28px;
+          box-shadow: 0 4px 20px -4px rgba(13, 27, 61, 0.06);
+        }
+
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 52px;
+          padding: 0 28px;
+          border-radius: 99px;
+          font: 600 16px 'Inter Tight', sans-serif;
+          background: #0d1b3d;
+          color: #f4f1ea;
+          border: 1px solid #0d1b3d;
+          transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s, color 0.3s, border-color 0.3s;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .btn:hover {
+          transform: translateY(-3px);
+          background: #ffd84d;
+          border-color: #ffd84d;
+          color: #0d1b3d;
+        }
+        .btn.ghost {
+          background: transparent;
+          color: #0d1b3d;
+        }
+        .btn.ghost:hover {
+          background: #0d1b3d;
+          border-color: #0d1b3d;
+          color: #f4f1ea;
+        }
+        .btn:active {
+          transform: scale(0.96);
+        }
+
+        .nav-link {
+          position: relative;
+          color: #4a5168;
+          font-weight: 500;
+          font-size: 15px;
+          transition: color 0.2s;
+          text-decoration: none;
+        }
+        .nav-link:hover {
+          color: #0d1b3d;
+        }
+        .nav-link::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          bottom: -4px;
+          height: 2px;
+          width: 100%;
+          background: #2447f5;
+          transform: scaleX(0);
+          transform-origin: left;
+          transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .nav-link:hover::after {
+          transform: scaleX(1);
+        }
+
+        .pp {
+          position: absolute;
+          background: #fbf9f4;
+          border: 1px solid #d8d4c8;
+          border-radius: 10px;
+          box-shadow: 0 30px 60px -20px rgba(13, 27, 61, 0.22);
+        }
+
+        .bar {
+          height: 10px;
+          border-radius: 5px;
+          background: #d9d6cc;
+        }
+
+        .tile {
+          border-radius: 32px;
+          padding: 36px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow: hidden;
+          position: relative;
+          transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s;
+        }
+        .tile:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 24px 48px -12px rgba(13, 27, 61, 0.16);
+        }
+        .tn {
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          font-size: 13px;
+        }
+
+        .pg3 {
+          position: absolute;
+          width: 150px;
+          height: 190px;
+          border-radius: 8px;
+          background: #f4f1ea;
+          border: 1px solid #d8d4c8;
+          transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+          box-shadow: 0 8px 24px rgba(13, 27, 61, 0.08);
+        }
+        .tile:hover .pg3.a {
+          transform: translate(-70px, -12px) rotate(-10deg);
+        }
+        .tile:hover .pg3.c {
+          transform: translate(70px, -12px) rotate(10deg);
+        }
+
+        .roll {
+          display: block;
+          height: 110px;
+          overflow: hidden;
+        }
+        .rl {
+          display: flex;
+          flex-direction: column;
+          animation: roll 10s cubic-bezier(0.7, 0, 0.2, 1) infinite;
+        }
+        .rl i {
+          display: block;
+          height: 110px;
+          font-style: italic;
+          color: #2447f5;
+        }
+        @keyframes roll {
+          0%, 18% { transform: none; }
+          25%, 43% { transform: translateY(-110px); }
+          50%, 68% { transform: translateY(-220px); }
+          75%, 93% { transform: translateY(-330px); }
+          100% { transform: translateY(-440px); }
+        }
+
+        @keyframes fl2 {
+          50% { transform: translateY(-12px) rotate(1deg); }
+        }
+        .fl2 {
+          animation: fl2 6s ease-in-out infinite;
+        }
+
+        @keyframes hw {
+          0%, 20% { width: 0; }
+          45%, 85% { width: 100%; }
+          100% { width: 0; }
+        }
+        @keyframes hd {
+          0%, 30% { stroke-dashoffset: 340; }
+          60%, 88% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: 340; }
+        }
+        @keyframes hc {
+          0% { transform: translate(240px, 310px); }
+          25%, 40% { transform: translate(70px, 150px); }
+          55%, 70% { transform: translate(110px, 330px); }
+          100% { transform: translate(240px, 310px); }
+        }
+        @keyframes pop {
+          0%, 55% { opacity: 0; transform: rotate(-14deg) scale(1.6); }
+          62%, 90% { opacity: 1; transform: rotate(-14deg) scale(1); }
+          100% { opacity: 0; }
+        }
+        @keyframes pu {
+          50% { box-shadow: 0 0 0 8px rgba(36, 71, 245, 0.18); }
+        }
+        @keyframes shr {
+          0%, 15% { width: 96%; }
+          55%, 85% { width: 28%; }
+          100% { width: 96%; }
+        }
+
+        .mq {
+          display: flex;
+          width: max-content;
+          animation: mq 32s linear infinite;
+        }
+        .mq:hover {
+          animation-play-state: paused;
+        }
+        @keyframes mq {
+          to { transform: translateX(-50%); }
+        }
+
+        details {
+          border-top: 1px solid #0d1b3d;
+        }
+        details:last-child {
+          border-bottom: 1px solid #0d1b3d;
+        }
+        summary {
+          list-style: none;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 24px;
+          padding: 28px 0;
+          font: 400 40px 'Instrument Serif', Georgia, serif;
+          letter-spacing: -0.01em;
+          transition: padding 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.3s;
+        }
+        summary::-webkit-details-marker {
+          display: none;
+        }
+        summary:hover {
+          color: #2447f5;
+          padding-left: 14px;
+        }
+        .pl {
+          width: 48px;
+          height: 48px;
+          border-radius: 24px;
+          border: 1px solid #0d1b3d;
+          display: grid;
+          place-items: center;
+          flex: none;
+          color: #0d1b3d;
+          transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s, border-color 0.3s;
+        }
+        details[open] .pl {
+          transform: rotate(135deg);
+          background: #ffd84d;
+          border-color: #ffd84d;
+        }
+        .ans {
+          padding: 0 88px 32px 0;
+          max-width: 820px;
+          font-size: 19px;
+          line-height: 1.6;
+          color: #4a5168;
+        }
+
+        .ft {
+          background: #0d1b3d;
+          color: #f4f1ea;
+          margin-top: 40px;
+          padding: 96px 64px 40px;
+          border-radius: 40px 40px 0 0;
+          overflow: hidden;
+        }
+        .fl {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          font-size: 18px;
+        }
+        .fl a {
+          color: #aeb3c4;
+          transition: color 0.25s, transform 0.25s;
+          width: max-content;
+          text-decoration: none;
+        }
+        .fl a:hover {
+          color: #ffd84d;
+          transform: translateX(6px);
+        }
+        .fb {
+          font: 400 56px/1 'Instrument Serif', Georgia, serif;
+          color: #f4f1ea;
+          display: inline-flex;
+          align-items: center;
+          gap: 20px;
+          transition: color 0.3s, gap 0.35s;
+          text-decoration: none;
+        }
+        .fb:hover {
+          color: #ffd84d;
+          gap: 34px;
+        }
+        .wm {
+          font: 400 240px / 0.8 'Instrument Serif', Georgia, serif;
+          letter-spacing: -0.04em;
+          color: transparent;
+          background: repeating-linear-gradient(100deg, #ffd84d 0 140px, #2447f5 140px 280px, #f4f1ea 280px 420px);
+          background-size: 840px 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          margin: 64px 0 0;
+          white-space: nowrap;
+          text-align: center;
+          padding-bottom: 24px;
+          user-select: none;
+        }
+        .up {
+          width: 56px;
+          height: 56px;
+          border-radius: 28px;
+          border: 1px solid #2a3a66;
+          display: grid;
+          place-items: center;
+          color: #f4f1ea;
+          transition: background 0.3s, color 0.3s, transform 0.3s;
+          text-decoration: none;
+        }
+        .up:hover {
+          background: #ffd84d;
+          color: #0d1b3d;
+          transform: translateY(-4px);
+        }
+
+        @media (max-width: 1024px) {
+          .pillnav {
+            width: calc(100% - 24px);
+            padding: 0 16px;
+          }
+          .wm {
+            font-size: 130px;
+          }
+          summary {
+            font-size: 32px;
+          }
+        }
+      `}</style>
+
+      {/* Hidden PDF Upload Input for instantaneous file drag/click */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="application/pdf"
+        className="hidden"
       />
 
-      {/* Atmospheric Ambient Lighting Gradients */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[1100px] h-[600px] bg-gradient-to-b from-blue-600/18 via-indigo-600/10 to-transparent blur-[160px] rounded-full" />
-        <div className="absolute top-[35%] -left-48 w-[650px] h-[650px] bg-cyan-500/6 blur-[180px] rounded-full" />
-        <div className="absolute top-[65%] -right-48 w-[650px] h-[650px] bg-indigo-500/8 blur-[180px] rounded-full" />
-      </div>
-
-      {/* Sticky Global Top Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#07090E]/85 border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all">
-        {/* Brandmark */}
-        <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 border border-white/20">
-            <span className="font-black text-sm tracking-tight">PS</span>
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-white text-base tracking-tight">
-                PDF Studio
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                PRO SUITE
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium hidden sm:block">
-              Client-Side WebAssembly Workspace
-            </span>
-          </div>
-        </div>
-
-        {/* Center Navigation Anchors (Desktop) */}
-        <nav className="hidden lg:flex items-center space-x-6 text-xs font-medium text-slate-400">
-          <a href="#fidelity" className="hover:text-white transition">
-            Vector Fidelity
-          </a>
-          <a href="#text-engine" className="hover:text-white transition">
-            Text Engine
-          </a>
-          <a href="#all-features" className="hover:text-white transition">
-            All 15+ Tools
-          </a>
-          <a href="#architecture" className="hover:text-white transition">
-            Architecture
-          </a>
-          <a href="#faq" className="hover:text-white transition">
-            FAQ
-          </a>
-        </nav>
-
-        {/* Right Action: Go To Dashboard */}
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={onGoToDashboard}
-            className="group relative px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold shadow-xl shadow-blue-600/30 transition-all flex items-center space-x-2 border border-white/20 active:scale-95 cursor-pointer overflow-hidden"
-          >
-            <span className="relative z-10 flex items-center space-x-1.5">
-              <span>Go To Dashboard</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
-          </button>
-        </div>
-      </header>
-
-      {/* Main Scrollytelling Journey */}
-      <main className="flex flex-col items-center w-full relative z-10">
+      <div className="w-full max-w-[1440px] mx-auto overflow-clip">
         {/* ========================================================================= */}
-        {/* CHAPTER 1: HERO & SPATIAL INTERACTIVE WORKSPACE REVEAL */}
+        {/* FLOATING PILL NAVIGATION */}
         {/* ========================================================================= */}
-        <section className="min-h-[85vh] sm:min-h-[92vh] max-w-6xl mx-auto w-full px-4 sm:px-6 pt-12 sm:pt-20 pb-16 flex flex-col items-center text-center justify-center">
-          {/* Status Capsule */}
-          <div className="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-slate-300 text-xs font-medium mb-6 shadow-xl backdrop-blur-md">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        <header className="pillnav">
+          <div className="flex items-center space-x-3">
+            <span className="serif text-3xl font-normal text-[#0d1b3d]">
+              PDF Suite
             </span>
-            <span>100% In-Browser Engine • Zero File Uploads • 15+ Native Tools</span>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2447f5]/10 text-[#2447f5] border border-[#2447f5]/20">
+              100% In-Browser
+            </span>
           </div>
 
-          {/* Monumental Hero Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight mb-6 leading-[1.08] max-w-4xl">
-            The PDF Editor & Studio Built Without Compromise.
-          </h1>
+          <nav className="hidden md:flex items-center gap-9">
+            <a href="#s" className="nav-link">
+              How it works
+            </a>
+            <a href="#f" className="nav-link">
+              Features
+            </a>
+            <a href="#converters" className="nav-link">
+              Converters
+            </a>
+            <a href="#faq" className="nav-link">
+              FAQ
+            </a>
+          </nav>
 
-          <p className="text-base sm:text-xl text-slate-300 leading-relaxed max-w-2xl mx-auto mb-9 font-normal">
-            Directly edit original text, convert to Word & Excel, compress, protect, and reorganize documents in your browser. Complete privacy with WebAssembly speed.
-          </p>
-
-          {/* Dual Primary Call-to-Actions */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mb-14">
+          <div className="flex items-center gap-2">
             <button
               onClick={onGoToDashboard}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-2xl shadow-blue-600/40 transition-all flex items-center justify-center space-x-2.5 border border-white/20 active:scale-95 cursor-pointer"
+              className="btn ghost !h-11 !px-5 text-sm"
             >
-              <span>Go To Dashboard</span>
-              <ArrowRight className="w-4 h-4" />
+              Dashboard
             </button>
-
-            <a
-              href="#fidelity"
-              className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-xs sm:text-sm border border-slate-700/80 transition flex items-center justify-center space-x-2"
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="btn !h-11 !px-6 text-sm !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-[#0d1b3d] hover:!text-[#f4f1ea]"
             >
-              <span>Explore Scrollytelling Tour</span>
-              <ChevronDown className="w-4 h-4" />
-            </a>
+              Upload PDF
+            </button>
           </div>
-
-          {/* Spatial 3D Perspective Workspace Preview Card */}
-          <div className="w-full max-w-5xl rounded-3xl p-1 bg-gradient-to-b from-blue-500/30 via-slate-800/40 to-transparent shadow-2xl shadow-blue-500/10">
-            <div className="bg-[#0B0F19] rounded-[22px] border border-slate-800/90 overflow-hidden text-left relative shadow-2xl">
-              {/* Simulated Editor Window Chrome */}
-              <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                  <span className="ml-3 text-xs font-mono text-slate-400">
-                    Non-Disclosure-Agreement.pdf (24.8 KB) — PDF Studio
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    Interactive Overlay Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Simulated Editor Workspace Body */}
-              <div className="grid grid-cols-1 md:grid-cols-12 min-h-[380px] bg-[#121622]/90">
-                {/* Left Mini Thumbnails */}
-                <div className="hidden md:flex md:col-span-2 border-r border-slate-800/80 p-3 flex-col space-y-3 bg-slate-950/60">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Pages (3)
-                  </div>
-                  <div className="w-full aspect-[3/4] bg-white rounded-lg p-2 shadow-md border-2 border-blue-500 ring-2 ring-blue-500/20 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      <div className="h-1.5 bg-slate-800 rounded w-3/4" />
-                      <div className="h-1 bg-slate-400 rounded w-full" />
-                      <div className="h-1 bg-slate-400 rounded w-5/6" />
-                    </div>
-                    <div className="text-[9px] text-slate-400 text-center font-mono">Pg 1</div>
-                  </div>
-                  <div className="w-full aspect-[3/4] bg-white/90 rounded-lg p-2 opacity-60 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      <div className="h-1 bg-slate-400 rounded w-full" />
-                      <div className="h-1 bg-slate-400 rounded w-4/5" />
-                    </div>
-                    <div className="text-[9px] text-slate-400 text-center font-mono">Pg 2</div>
-                  </div>
-                </div>
-
-                {/* Center Canvas with Interactive Simulated Page */}
-                <div className="col-span-12 md:col-span-7 p-6 flex flex-col items-center justify-center relative overflow-hidden bg-slate-900/40">
-                  <div className="w-full max-w-md bg-white text-slate-900 rounded-sm shadow-2xl p-6 sm:p-8 space-y-4 border border-slate-300 relative select-none">
-                    {/* Page Content */}
-                    <div className="flex items-center justify-between border-b pb-3 border-slate-200">
-                      <div>
-                        <h3 className="font-black text-sm text-slate-900 tracking-tight">
-                          MUTUAL NON-DISCLOSURE AGREEMENT
-                        </h3>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          CONTRACT REF: #NDA-2026-X89
-                        </p>
-                      </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                        EXECUTABLE
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      This Agreement is entered into on this 14th day of November, 2026, by and between the undersigned parties.
-                    </p>
-
-                    {/* Active In-Place Text Selection Bounding Box Mockup */}
-                    <div className="relative p-2 rounded bg-blue-50/80 border-2 border-blue-500 ring-2 ring-blue-500/20 shadow-sm">
-                      <div className="absolute -top-3 -right-2 px-1.5 py-0.2 rounded bg-blue-600 text-[9px] font-bold text-white tracking-wider">
-                        EDITING: HELVETICA 11PT
-                      </div>
-                      <p className="text-[11px] text-blue-950 font-semibold leading-relaxed">
-                        &quot;All confidential proprietary intellectual assets shall remain strictly encrypted client-side with zero cloud exposure.&quot;
-                      </p>
-                    </div>
-
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      In witness whereof, each party has caused this Agreement to be executed by its duly authorized representative.
-                    </p>
-
-                    <div className="pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-500">
-                      <div>Signature: <span className="font-mono text-slate-800 font-bold underline">Verified In-Browser</span></div>
-                      <div>Date: 14-Nov-2026</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Inspector Drawer */}
-                <div className="hidden md:flex md:col-span-3 border-l border-slate-800/80 p-4 flex-col space-y-4 bg-slate-950/60 text-xs">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                      Detected Font Metrics
-                    </span>
-                    <div className="bg-slate-900 rounded-xl p-2.5 border border-slate-800 space-y-1.5 font-mono text-[11px]">
-                      <div className="flex justify-between text-slate-300">
-                        <span>Family:</span>
-                        <span className="text-blue-400 font-bold">Helvetica</span>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Size / Weight:</span>
-                        <span>11.0 pt / Bold</span>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Baseline Snapping:</span>
-                        <span className="text-emerald-400 font-bold">Vector Snap</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                      Preservation Guarantees
-                    </span>
-                    <div className="space-y-1.5 text-[11px] text-slate-400">
-                      <div className="flex items-center space-x-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Hyperlinks Intact</span>
-                      </div>
-                      <div className="flex items-center space-x-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>TrueType Tables Preserved</span>
-                      </div>
-                      <div className="flex items-center space-x-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Zero JPEG Raster Artifacts</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-auto pt-2">
-                    <button
-                      onClick={onGoToDashboard}
-                      className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center space-x-1.5"
-                    >
-                      <span>Open in Dashboard</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        </header>
 
         {/* ========================================================================= */}
-        {/* CHAPTER 2: VECTOR FIDELITY VS RASTER RUIN (INTERACTIVE SPLIT SLIDER) */}
+        {/* HERO SECTION */}
         {/* ========================================================================= */}
-        <section
-          id="fidelity"
-          className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 border-t border-slate-800/80"
-        >
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-              Chapter 02 • True Vector Architecture
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mt-4 mb-4">
-              Why Other PDF Tools Ruin Your Documents.
-            </h2>
-            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-              Standard web PDF tools flatten your pages into fuzzy, low-resolution JPEG images to fake editing. Drag the interactive comparison slider below to see how PDF Studio maintains 100% original vector typography.
-            </p>
-          </div>
-
-          {/* Draggable Interactive Before / After Split View Slider */}
-          <div
-            ref={sliderContainerRef}
-            onMouseDown={() => setIsDraggingSlider(true)}
-            onTouchStart={() => setIsDraggingSlider(true)}
-            className="w-full max-w-4xl mx-auto h-[360px] sm:h-[440px] rounded-3xl overflow-hidden relative cursor-ew-resize select-none border border-slate-700/80 shadow-2xl bg-slate-950"
-          >
-            {/* Left Side: Legacy Web PDF Tools (Fuzzy, Rasterized, Degraded) */}
-            <div className="absolute inset-0 bg-[#f8fafc] flex flex-col justify-center items-center p-8 sm:p-14 text-slate-900 overflow-hidden filter blur-[1.8px] scale-[1.01]">
-              <div className="w-full max-w-xl space-y-4">
-                <div className="inline-block px-3 py-1 rounded bg-red-100 text-red-800 font-bold text-xs">
-                  ❌ Conventional Tools: 72 DPI Flattened Raster
-                </div>
-                <h3 className="text-xl sm:text-3xl font-bold text-slate-800 tracking-tight">
-                  Commercial Lease & Indemnity Terms
-                </h3>
-                <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-serif">
-                  The Lessee covenants and agrees with the Lessor that during the lease term, all structural maintenance and indemnity covenants shall remain binding upon subsequent assignees.
-                </p>
-                <div className="pt-2 text-xs text-red-600 font-mono">
-                  [!] Text flattened into blurry pixels • Cannot select or copy original font • File bloated by 400%
-                </div>
-              </div>
+        <section className="px-6 sm:px-12 lg:px-16 pt-14 pb-28 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="lg:col-span-7">
+            {/* Status Pill */}
+            <div className="inline-flex items-center gap-3 font-semibold text-sm sm:text-base text-[#4a5168] mb-7">
+              <i
+                style={{ animation: "pu 2s ease-in-out infinite" }}
+                className="w-3 h-3 rounded-full bg-[#2447f5] block shrink-0"
+              />
+              <span>The PDF editor for people with deadlines</span>
             </div>
 
-            {/* Right Side: PDF Studio Engine (100% Crisp Vector, TrueType Intact) */}
-            <div
-              className="absolute inset-0 bg-white flex flex-col justify-center items-center p-8 sm:p-14 text-slate-900 overflow-hidden"
-              style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
-            >
-              <div className="w-full max-w-xl space-y-4">
-                <div className="inline-block px-3 py-1 rounded bg-emerald-100 text-emerald-800 font-bold text-xs">
-                  ✓ PDF Studio: 100% Crisp Vector Typography
-                </div>
-                <h3 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                  Commercial Lease & Indemnity Terms
-                </h3>
-                <p className="text-sm sm:text-base text-slate-800 leading-relaxed font-serif">
-                  The Lessee covenants and agrees with the Lessor that during the lease term, all structural maintenance and indemnity covenants shall remain binding upon subsequent assignees.
-                </p>
-                <div className="pt-2 text-xs text-emerald-700 font-mono">
-                  [✓] 100% Vector clarity at any zoom • Embedded OpenType fonts preserved • Clickable hyperlinks intact
-                </div>
-              </div>
-            </div>
-
-            {/* Draggable Divider Line & Handle */}
-            <div
-              className="absolute top-0 bottom-0 w-1 bg-white shadow-2xl cursor-ew-resize z-20 flex items-center justify-center -translate-x-1/2"
-              style={{ left: `${sliderPos}%` }}
-            >
-              <div className="w-9 h-9 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center text-xs font-bold border-2 border-white">
-                ↔
-              </div>
-            </div>
-
-            {/* Float Labels */}
-            <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-full bg-slate-900/90 text-white text-xs font-mono backdrop-blur-md pointer-events-none border border-slate-700">
-              Other Web Tools (Rasterized)
-            </div>
-            <div className="absolute top-4 right-4 z-10 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-mono shadow-md pointer-events-none">
-              PDF Studio (Vector Engine)
-            </div>
-          </div>
-
-          <div className="text-center mt-6 text-xs text-slate-400 font-mono">
-            Drag the handle left or right to inspect text edge sharpness and vector preservation.
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* CHAPTER 3: IN-PLACE TEXT MODIFICATION ENGINE */}
-        {/* ========================================================================= */}
-        <section
-          id="text-engine"
-          className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 border-t border-slate-800/80"
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-5 space-y-6">
-              <span className="text-xs font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
-                Chapter 03 • Native Text Engine
+            {/* Monumental Serif Headline with Animated Roller */}
+            <h1 className="serif text-6xl sm:text-8xl lg:text-[104px] leading-[0.98] text-[#0d1b3d]">
+              Edit every
+              <span className="roll">
+                <span className="rl">
+                  <i>contract</i>
+                  <i>invoice</i>
+                  <i>résumé</i>
+                  <i>report</i>
+                  <i>contract</i>
+                </span>
               </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-                Edit Text Inside Existing PDFs. Really.
-              </h2>
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
-                Click on any text line in your document. PDF Studio detects the exact font size, CapHeight, baseline orientation, and text color, allowing you to edit strings in-place without misaligning the page flow.
-              </p>
+              like a doc.
+            </h1>
 
-              {/* Engine Highlights List */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-start space-x-3">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 border border-blue-500/30">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs sm:text-sm">
-                    <span className="font-bold text-white">Baseline Angle Snapping</span>
-                    <p className="text-slate-400 text-xs mt-0.5">Calculates exact matrix transforms so angled text aligns perfectly.</p>
-                  </div>
-                </div>
+            <p className="text-[#4a5168] text-lg sm:text-xl leading-relaxed max-w-[500px] my-8 font-normal">
+              Click any line and type. Sign in a tap, merge in a drag. Everything runs locally in your browser with zero cloud uploads.
+            </p>
 
-                <div className="flex items-start space-x-3">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 border border-blue-500/30">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs sm:text-sm">
-                    <span className="font-bold text-white">Automatic Font Inheritance</span>
-                    <p className="text-slate-400 text-xs mt-0.5">Inherits font family, weight, and tracking from neighboring words.</p>
-                  </div>
-                </div>
+            {/* Hero CTAs */}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="btn !bg-[#2447f5] !border-[#2447f5] !text-[#f4f1ea] hover:!bg-[#ffd84d] hover:!border-[#ffd84d] hover:!text-[#0d1b3d]"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                <span>Upload a PDF</span>
+              </button>
 
-                <div className="flex items-start space-x-3">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 border border-blue-500/30">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs sm:text-sm">
-                    <span className="font-bold text-white">Full Keyboard Nudging</span>
-                    <p className="text-slate-400 text-xs mt-0.5">Nudge any text or shape by 1pt (or 10pt with Shift) via arrow keys.</p>
-                  </div>
-                </div>
+              <button
+                onClick={() => handleLaunchSample("single")}
+                disabled={isLoadingSample}
+                className="btn ghost"
+              >
+                <span>{isLoadingSample ? "Loading Sample..." : "Try Sample Invoice"}</span>
+              </button>
+
+              <a href="#s" className="btn ghost !border-transparent text-sm">
+                <span>See how it works &darr;</span>
+              </a>
+            </div>
+
+            {/* Quick Sample Links */}
+            <div className="mt-8 flex items-center gap-2 text-xs text-[#4a5168]">
+              <span className="font-semibold text-[#0d1b3d]">Or launch sample:</span>
+              <button
+                onClick={() => handleLaunchSample("single")}
+                className="underline hover:text-[#2447f5] cursor-pointer"
+              >
+                Contract
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => handleLaunchSample("multi")}
+                className="underline hover:text-[#2447f5] cursor-pointer"
+              >
+                Annual Report
+              </button>
+              <span>•</span>
+              <button
+                onClick={() => handleLaunchSample("rotated")}
+                className="underline hover:text-[#2447f5] cursor-pointer"
+              >
+                Presentation Deck
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive 3D Floating Paper Mockup Stack */}
+          <div className="lg:col-span-5 relative h-[580px] sm:h-[680px] w-full select-none">
+            {/* Background Paper 1: Invoice (Left Tilt -9deg) */}
+            <div
+              className="pp fl2"
+              style={{
+                left: "4%",
+                top: "110px",
+                width: "250px",
+                height: "340px",
+                transform: "rotate(-9deg)",
+                padding: "26px",
+              }}
+            >
+              <div className="font-extrabold tracking-widest text-xs text-[#2447f5]">
+                INVOICE
               </div>
+              <div className="flex flex-col gap-3 mt-5">
+                <div className="bar" />
+                <div className="bar" style={{ width: "70%" }} />
+                <div className="bar" />
+                <div className="bar" style={{ width: "55%" }} />
+              </div>
+              <div className="mt-10 h-16 rounded-xl bg-[#f3c9c0]" />
+            </div>
 
-              <div className="pt-4">
-                <button
-                  onClick={onGoToDashboard}
-                  className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-600/25 transition flex items-center space-x-2"
-                >
-                  <span>Test In Dashboard</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+            {/* Background Paper 2: Checklist (Right Tilt +7deg) */}
+            <div
+              className="pp fl2"
+              style={{
+                right: "4%",
+                top: "40px",
+                width: "240px",
+                height: "320px",
+                transform: "rotate(7deg)",
+                padding: "24px",
+                animationDelay: "-2s",
+              }}
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-3 items-center">
+                  <i className="w-5 h-5 rounded-md bg-[#2447f5] block shrink-0" />
+                  <div className="bar flex-1" />
+                </div>
+                <div className="flex gap-3 items-center">
+                  <i className="w-5 h-5 rounded-md border-2 border-[#aeb3c4] block shrink-0" />
+                  <div className="bar flex-1" />
+                </div>
+                <div className="flex gap-3 items-center">
+                  <i className="w-5 h-5 rounded-md bg-[#2447f5] block shrink-0" />
+                  <div className="bar" style={{ flex: 1, width: "70%" }} />
+                </div>
               </div>
             </div>
 
-            {/* Interactive Live Token Playground Simulator */}
-            <div className="lg:col-span-7 bg-slate-900/80 rounded-3xl border border-slate-800 p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative">
-              <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-800 text-xs">
-                <span className="text-slate-400 font-mono">Live Interactive Token Simulator</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-[11px] border border-emerald-500/20">
-                  Ready to test
+            {/* Center Front Paper: Service Agreement with Live Interactive Overlay Mockup */}
+            <div
+              className="pp fl2"
+              style={{
+                left: "14%",
+                top: "100px",
+                width: "330px",
+                height: "460px",
+                transform: "rotate(-2deg)",
+                padding: "32px",
+                background: "#ffffff",
+                boxShadow: "0 50px 90px -24px rgba(13,27,61,0.35)",
+                animationDelay: "-4s",
+              }}
+            >
+              <div className="serif text-3xl text-[#0d1b3d]">Service Agreement</div>
+              <div className="bar mt-4" style={{ width: "90%" }} />
+
+              {/* In-Place Active Text Selection Box */}
+              <div className="relative my-5 p-3 outline-2 outline-[#2447f5] bg-blue-50/20">
+                <span className="absolute -left-0.5 -top-6 bg-[#2447f5] text-white font-bold text-xs px-2 py-0.5">
+                  Text
+                </span>
+                {/* 4 Corner Resize Handles */}
+                <i className="absolute -left-1.5 -top-1.5 w-2.5 h-2.5 bg-white border-2 border-[#2447f5]" />
+                <i className="absolute -right-1.5 -top-1.5 w-2.5 h-2.5 bg-white border-2 border-[#2447f5]" />
+                <i className="absolute -left-1.5 -bottom-1.5 w-2.5 h-2.5 bg-white border-2 border-[#2447f5]" />
+                <i className="absolute -right-1.5 -bottom-1.5 w-2.5 h-2.5 bg-white border-2 border-[#2447f5]" />
+
+                {/* Animated Yellow Highlight Wipe */}
+                <div className="relative">
+                  <div
+                    style={{ animation: "hw 7s ease-in-out infinite" }}
+                    className="absolute inset-0 bg-[#ffd84d]"
+                  />
+                  <div className="bar relative bg-transparent border-b-2 border-[#cfcbbf] rounded-none" />
+                </div>
+                <div className="bar mt-2" style={{ width: "65%" }} />
+              </div>
+
+              <div className="bar" style={{ width: "80%" }} />
+              <div className="bar mt-3" style={{ width: "55%" }} />
+
+              {/* Animated Live Signature Stroke */}
+              <svg
+                width="200"
+                height="75"
+                viewBox="0 0 240 90"
+                className="absolute left-8 bottom-8"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 60c24-50 40-50 44-14s18 14 36-20 28 8 52 4 30-16 60-8"
+                  fill="none"
+                  stroke="#2447f5"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray="340"
+                  style={{ animation: "hd 7s ease-in-out infinite" }}
+                />
+              </svg>
+
+              {/* Animated Cursor Tooltip "You" */}
+              <div
+                style={{ animation: "hc 7s ease-in-out infinite" }}
+                className="absolute left-0 top-0 pointer-events-none"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 3l14 9-6 1-3 6z"
+                    fill="#0d1b3d"
+                    stroke="#fff"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+                <span className="bg-[#0d1b3d] text-[#f4f1ea] font-bold text-xs px-2.5 py-1 rounded-full ml-3 inline-block shadow-md">
+                  You
                 </span>
               </div>
+            </div>
 
-              {/* Sample Selector Tabs */}
-              <div className="flex gap-2 mb-6">
-                {["Legal Clause", "Invoice Total", "NDA Header"].map((name, i) => (
+            {/* Rotating Circular Stamp Badge "SIGNED" */}
+            <div
+              style={{ animation: "pop 7s ease-in-out infinite" }}
+              className="absolute right-4 bottom-10 w-28 h-28 rounded-full border-4 border-[#2447f5] text-[#2447f5] bg-[#f4f1ea] grid place-items-center font-black tracking-widest text-sm shadow-xl"
+            >
+              SIGNED
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* TICKER MARQUEE RIBBON */}
+        {/* ========================================================================= */}
+        <section className="border-y border-[#0d1b3d] py-6 overflow-hidden bg-white/40">
+          <div className="mq serif text-4xl sm:text-5xl whitespace-nowrap text-[#0d1b3d]">
+            <span>
+              Edit &nbsp;·&nbsp; Sign &nbsp;·&nbsp; Merge &nbsp;·&nbsp; Split &nbsp;·&nbsp; Compress &nbsp;·&nbsp; Convert &nbsp;·&nbsp; Protect &nbsp;·&nbsp; Redact &nbsp;·&nbsp; Word &nbsp;·&nbsp; Excel &nbsp;·&nbsp;&nbsp;
+            </span>
+            <span>
+              Edit &nbsp;·&nbsp; Sign &nbsp;·&nbsp; Merge &nbsp;·&nbsp; Split &nbsp;·&nbsp; Compress &nbsp;·&nbsp; Convert &nbsp;·&nbsp; Protect &nbsp;·&nbsp; Redact &nbsp;·&nbsp; Word &nbsp;·&nbsp; Excel &nbsp;·&nbsp;&nbsp;
+            </span>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* HOW IT WORKS: 3 STAGES */}
+        {/* ========================================================================= */}
+        <section id="s" className="px-6 sm:px-12 lg:px-16 py-28 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* Left Steps Controls */}
+            <div className="space-y-10">
+              <div className="space-y-3">
+                <div className="text-xs font-bold tracking-widest text-[#4a5168] uppercase">
+                  {activeStep === 0
+                    ? "01 — DROP"
+                    : activeStep === 1
+                    ? "02 — EDIT"
+                    : "03 — SIGN & CONVERT"}
+                </div>
+
+                <h2 className="serif text-6xl sm:text-7xl lg:text-8xl leading-none text-[#0d1b3d]">
+                  {activeStep === 0
+                    ? "Bring your file."
+                    : activeStep === 1
+                    ? "Change anything."
+                    : "Sign. Send. Done."}
+                </h2>
+
+                <p className="text-[#4a5168] text-lg sm:text-xl leading-relaxed max-w-md pt-2">
+                  {activeStep === 0
+                    ? "Drag it in. It opens instantly in browser memory, every page vector-crisp and ready to touch."
+                    : activeStep === 1
+                    ? "Click any text line and type. Swap an image, add shapes, fix figures, and reorganize pages."
+                    : "Draw your signature, place it with sub-pixel precision, and export a clean PDF or Word document."}
+                </p>
+              </div>
+
+              {/* Step Navigation Switcher */}
+              <div className="flex items-center gap-3 pt-4">
+                {[0, 1, 2].map((idx) => (
                   <button
-                    key={name}
-                    onClick={() => {
-                      setActiveTokenDemo(i);
-                      if (i === 0) setDemoCustomText("All intellectual property rights remain strictly confidential.");
-                      if (i === 1) setDemoCustomText("TOTAL DUE: $14,850.00 (NET 30)");
-                      if (i === 2) setDemoCustomText("MUTUAL NON-DISCLOSURE AND DATA SANITIZATION");
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      activeTokenDemo === i
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-slate-800/80 text-slate-400 hover:text-white"
+                    key={idx}
+                    onClick={() => setActiveStep(idx)}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      activeStep === idx
+                        ? "w-12 bg-[#2447f5]"
+                        : "w-5 bg-[#aeb3c4] hover:bg-[#4a5168]"
                     }`}
-                  >
-                    {name}
-                  </button>
+                    title={`Step 0${idx + 1}`}
+                  />
                 ))}
               </div>
 
-              {/* Live Interactive Input Box */}
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    Type below to preview live in-memory replacement:
-                  </label>
-                  <input
-                    type="text"
-                    value={demoCustomText}
-                    onChange={(e) => setDemoCustomText(e.target.value)}
-                    className="w-full bg-slate-950 border-2 border-blue-500/60 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-hidden focus:border-blue-400 shadow-inner"
-                  />
-                </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn !bg-[#0d1b3d] !text-white text-sm"
+                >
+                  <span>Open PDF in Studio</span>
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </button>
+              </div>
+            </div>
 
-                {/* Real-Time Metrics Breakdown */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono text-left">
-                    <span className="text-[10px] text-slate-500 uppercase block">Font Match</span>
-                    <span className="text-xs font-bold text-white">Helvetica-Bold</span>
+            {/* Right Interactive Visual Card */}
+            <div className="bg-[#f3c9c0] rounded-[36px] p-8 sm:p-14 flex items-center justify-center min-h-[460px] shadow-lg">
+              <div className="w-[340px] sm:w-[380px] bg-[#f4f1ea] rounded-xl p-8 sm:p-10 shadow-2xl flex flex-col gap-4 border border-[#d8d4c8] relative">
+                <div className="serif text-3xl text-[#0d1b3d]">Service Agreement</div>
+                <div className="bar" />
+                <div className="bar" style={{ width: "80%" }} />
+
+                {activeStep === 1 ? (
+                  <div className="p-2 border-2 border-[#2447f5] rounded bg-white my-1">
+                    <span className="text-[10px] font-bold text-[#2447f5] uppercase block">
+                      Direct Vector Edit
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-[#0d1b3d]">
+                      Helvetica-Bold 12pt: Verified Terms
+                    </span>
                   </div>
-                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono text-left">
-                    <span className="text-[10px] text-slate-500 uppercase block">Character Width</span>
-                    <span className="text-xs font-bold text-blue-400">{demoCustomText.length * 8.4} pt</span>
-                  </div>
-                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono text-left">
-                    <span className="text-[10px] text-slate-500 uppercase block">Baseline Angle</span>
-                    <span className="text-xs font-bold text-emerald-400">0.00° Horizontal</span>
-                  </div>
-                  <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono text-left">
-                    <span className="text-[10px] text-slate-500 uppercase block">Stream Action</span>
-                    <span className="text-xs font-bold text-cyan-400">Tj Glyph Inject</span>
-                  </div>
-                </div>
+                ) : (
+                  <div
+                    className="bar"
+                    style={{
+                      width: "60%",
+                      backgroundColor: activeStep === 2 ? "#ffe99a" : "#d9d6cc",
+                    }}
+                  />
+                )}
+
+                <div className="bar" />
+                <div className="bar" style={{ width: "55%" }} />
+
+                <svg
+                  width="220"
+                  height="80"
+                  viewBox="0 0 240 90"
+                  className="mt-4"
+                  aria-label="Signature drawing"
+                >
+                  <path
+                    d="M8 60c24-50 40-50 44-14s18 14 36-20 28 8 52 4 30-16 60-8"
+                    fill="none"
+                    stroke="#2447f5"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray="320"
+                    strokeDashoffset={activeStep === 2 ? 0 : 200}
+                    className="transition-all duration-700"
+                  />
+                </svg>
               </div>
             </div>
           </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* CHAPTER 4: COMPLETE 15+ INDUSTRIAL TOOLS SUITE */}
+        {/* MONUMENTAL STATEMENT */}
         {/* ========================================================================= */}
-        <section
-          id="all-features"
-          className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 border-t border-slate-800/80"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                Chapter 04 • The Complete Ecosystem
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mt-3">
-                15+ Tools. One Client-Side Suite.
-              </h2>
-              <p className="text-sm text-slate-400 mt-2 max-w-xl">
-                Every converter, organizer, and security utility operates inside browser memory with zero upload lag.
-              </p>
-            </div>
-
-            {/* Category Filter Switcher */}
-            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-2xl text-xs self-start sm:self-auto">
-              {[
-                { id: "edit", label: "Edit & Annotate" },
-                { id: "office", label: "Office & Converters" },
-                { id: "images", label: "Images" },
-                { id: "security", label: "Security & Organize" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveFeatureTab(tab.id as any)}
-                  className={`px-3.5 py-2 rounded-xl font-semibold transition ${
-                    activeFeatureTab === tab.id
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dynamic Feature Grid based on Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {activeFeatureTab === "edit" && (
-              <>
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-                    <Pencil className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">In-Place Text Modification</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Edit existing paragraphs, headers, and numbers with automatic font family and baseline matching.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                    <Hand className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Grab & Pan Document Tool</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Navigate large zoomed documents effortlessly with the dedicated Hand Tool or universal Spacebar hold.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                    <Eraser className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Precision Whiteout & Blackout</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Cover unwanted content with pixel-perfect color matching or create opaque redaction blocks.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {activeFeatureTab === "office" && (
-              <>
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-sky-600/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">PDF to Word (.docx)</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Convert PDF pages into editable Microsoft Word documents following official OOXML specifications.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-green-600/20 text-green-400 flex items-center justify-center border border-green-500/30">
-                    <FileSpreadsheet className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">PDF to Excel (.xlsx) & CSV</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Extract tabular figures and financial data directly into structured Excel spreadsheets.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-red-600/20 text-red-400 flex items-center justify-center border border-red-500/30">
-                    <Presentation className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">PDF to PowerPoint (.pptx)</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Transform PDF report pages into standalone presentation slide decks ready for executive meetings.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {activeFeatureTab === "images" && (
-              <>
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
-                    <ImageIcon className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">PDF to High-DPI JPG</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Export every page as high-resolution JPG images packaged in a convenient .zip archive.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-orange-600/20 text-orange-400 flex items-center justify-center border border-orange-500/30">
-                    <ImageIcon className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Lossless PDF to PNG</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Render pixel-perfect, lossless PNG graphics suitable for digital publishing and high-res print.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
-                    <ImageIcon className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Images to PDF Compiler</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Combine collections of JPG, PNG, WebP, and photos into a formatted, unified PDF document.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {activeFeatureTab === "security" && (
-              <>
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center border border-violet-500/30">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">AES-256 Document Encryption</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Lock sensitive files with military-grade client-side encryption. Passwords are never transmitted.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                    <Minimize2 className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Intelligent PDF Compressor</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Reduce file sizes up to 70% by optimizing embedded object streams without compromising text legibility.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 space-y-3 hover:border-blue-500/50 transition backdrop-blur-md">
-                  <div className="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
-                    <Scissors className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-white text-base">Split & Merge Engine</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Split page ranges into separate files or join dozens of documents in custom sequence.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="mt-10 text-center">
-            <button
-              onClick={onGoToDashboard}
-              className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-xl shadow-blue-600/25 transition inline-flex items-center space-x-2"
-            >
-              <span>View All Tools In Dashboard</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+        <section className="px-6 sm:px-12 lg:px-16 py-24 sm:py-32 max-w-6xl mx-auto">
+          <h2 className="serif text-5xl sm:text-7xl lg:text-[88px] leading-[1.08] text-[#0d1b3d] max-w-5xl">
+            Built for the paperwork that never ends. Quietly fixing every page, every signature, every deadline.
+          </h2>
         </section>
 
         {/* ========================================================================= */}
-        {/* CHAPTER 5: PERFORMANCE ARCHITECTURE (THE NUMBERS) */}
+        {/* FEATURE TILES GRID ("Every tool, one calm place") */}
         {/* ========================================================================= */}
-        <section
-          id="architecture"
-          className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 border-t border-slate-800/80"
-        >
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-              Chapter 05 • Architectural Excellence
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mt-3">
-              Built for Enterprise Security & Raw Speed.
-            </h2>
-            <p className="text-sm text-slate-400 mt-2">
-              Performance metrics measured across real-world enterprise PDF workloads.
+        <section id="f" className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-6">
+            <div>
+              <h2 className="serif text-6xl sm:text-7xl lg:text-8xl leading-none text-[#0d1b3d]">
+                Every tool,
+                <br />
+                <i className="text-[#2447f5]">one calm place.</i>
+              </h2>
+            </div>
+            <p className="text-[#4a5168] text-lg sm:text-xl max-w-sm leading-relaxed">
+              Pick a tool, drop a file, and it is done. Zero upload lag and zero menus to hunt through.
             </p>
           </div>
 
-          {/* 4 Massive Metric Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-14">
-            <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 text-center space-y-2 backdrop-blur-md">
-              <span className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-emerald-400 to-teal-200 font-mono">
-                0 KB
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-white">Cloud Data Transferred</p>
-              <p className="text-[11px] text-slate-400">100% In-Browser Memory Isolation</p>
-            </div>
-
-            <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 text-center space-y-2 backdrop-blur-md">
-              <span className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-blue-400 to-cyan-200 font-mono">
-                60 FPS
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-white">Grab & Pan Canvas Speed</p>
-              <p className="text-[11px] text-slate-400">Hardware-accelerated viewport</p>
-            </div>
-
-            <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 text-center space-y-2 backdrop-blur-md">
-              <span className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 to-purple-200 font-mono">
-                250 MB
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-white">Max Document Capacity</p>
-              <p className="text-[11px] text-slate-400">Multi-threaded Web Worker workers</p>
-            </div>
-
-            <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 text-center space-y-2 backdrop-blur-md">
-              <span className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-rose-400 to-amber-200 font-mono">
-                100%
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-white">Vector Quality Preserved</p>
-              <p className="text-[11px] text-slate-400">Zero raster image flattening</p>
-            </div>
-          </div>
-
-          {/* Architectural Execution Flow Diagram */}
-          <div className="w-full bg-slate-900/40 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-6 font-mono text-center">
-              LOCAL EXECUTION PIPELINE ARCHITECTURE
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-center text-center">
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <FileText className="w-5 h-5 text-blue-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-white block">Local File</span>
-                <span className="text-[10px] text-slate-400">Direct disk load</span>
+          {/* Grid Layout matching the Mockup */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+            {/* Tile 1 (Span 7, Midnight) */}
+            <div className="tile md:col-span-7 min-h-[380px] bg-[#0d1b3d] text-[#f4f1ea]">
+              <div className="flex justify-between items-center">
+                <span className="tn text-[#ffd84d]">01 — VECTOR TEXT</span>
               </div>
 
-              <div className="hidden sm:block text-slate-600 font-mono text-xs">→</div>
-
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <Cpu className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-white block">WASM Sandbox</span>
-                <span className="text-[10px] text-slate-400">Token discovery</span>
+              {/* Mini Document Mockup */}
+              <div className="absolute right-8 top-10 w-[220px] bg-[#f4f1ea] rounded-xl p-5 flex flex-col gap-3 shadow-xl text-[#0d1b3d]">
+                <div className="bar" />
+                <div
+                  className="bar"
+                  style={{
+                    width: "70%",
+                    backgroundColor: "#ffd84d",
+                    outline: "2px solid #0d1b3d",
+                    outlineOffset: "3px",
+                  }}
+                />
+                <div className="bar" />
+                <div className="bar" style={{ width: "50%" }} />
               </div>
 
-              <div className="hidden sm:block text-slate-600 font-mono text-xs">→</div>
+              <div className="mt-auto pt-24">
+                <h3 className="serif text-4xl sm:text-5xl leading-tight">Edit in place</h3>
+                <p className="mt-2.5 text-base sm:text-lg opacity-80 max-w-md">
+                  Click a line and type. Fonts, baseline angles, and metrics stay native without raster degradation.
+                </p>
+              </div>
+            </div>
 
-              <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700">
-                <Layers className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-white block">Vector Overlay</span>
-                <span className="text-[10px] text-slate-400">In-place manipulation</span>
+            {/* Tile 2 (Span 5, Golden Yellow) */}
+            <div className="tile md:col-span-5 min-h-[380px] bg-[#ffd84d] text-[#0d1b3d]">
+              <div className="flex justify-between items-center">
+                <span className="tn">02 — SIGNATURES</span>
+              </div>
+
+              <svg
+                width="220"
+                height="80"
+                viewBox="0 0 240 90"
+                className="absolute right-8 top-12"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 60c24-50 40-50 44-14s18 14 36-20 28 8 52 4 30-16 60-8"
+                  fill="none"
+                  stroke="#0d1b3d"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+
+              <div className="mt-auto pt-24">
+                <h3 className="serif text-4xl sm:text-5xl leading-tight">Sign in seconds</h3>
+                <p className="mt-2.5 text-base sm:text-lg opacity-85 max-w-sm">
+                  Draw, type or upload your signature and drop it anywhere with 8-handle scaling.
+                </p>
+              </div>
+            </div>
+
+            {/* Tile 3 (Span 4, Coral Rose with Interactive Fanning Pages) */}
+            <div className="tile md:col-span-4 min-h-[380px] bg-[#f3c9c0] text-[#0d1b3d] group">
+              <div className="flex justify-between items-center">
+                <span className="tn">03 — REORGANIZE</span>
+              </div>
+
+              {/* Fanning Page Cards */}
+              <div className="absolute right-12 top-14 w-[140px] h-[170px]">
+                <div className="pg3 a left-0 top-0" />
+                <div className="pg3 b left-0 top-0 translate-x-3 translate-y-2" />
+                <div className="pg3 c left-0 top-0 translate-x-6 translate-y-4" />
+              </div>
+
+              <div className="mt-auto pt-28">
+                <h3 className="serif text-4xl leading-tight">Merge and split</h3>
+                <p className="mt-2 text-base opacity-85">
+                  Combine files, then drag pages into order. Hover to see them fan out.
+                </p>
+              </div>
+            </div>
+
+            {/* Tile 4 (Span 4, Sand with Shrinking Bar) */}
+            <div className="tile md:col-span-4 min-h-[380px] bg-[#e7e3d8] text-[#0d1b3d]">
+              <div className="flex justify-between items-center">
+                <span className="tn">04 — OPTIMIZATION</span>
+              </div>
+
+              <div className="my-auto py-8">
+                <div className="h-5 rounded-full bg-[#cfcbbf] overflow-hidden">
+                  <div
+                    style={{ animation: "shr 6s ease-in-out infinite" }}
+                    className="h-full rounded-full bg-[#0d1b3d]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="serif text-4xl leading-tight">Compress</h3>
+                <p className="mt-2 text-base opacity-85">
+                  Shrink files for email attachments without losing vector typography.
+                </p>
+              </div>
+            </div>
+
+            {/* Tile 5 (Span 4, Electric Cobalt) */}
+            <div className="tile md:col-span-4 min-h-[380px] bg-[#2447f5] text-[#f4f1ea]">
+              <div className="flex justify-between items-center">
+                <span className="tn text-[#ffd84d]">05 — PRIVACY</span>
+              </div>
+
+              <Shield className="w-16 h-16 text-[#ffd84d] absolute right-8 top-10" />
+
+              <div className="mt-auto pt-24">
+                <h3 className="serif text-4xl leading-tight">Private by design</h3>
+                <p className="mt-2 text-base opacity-90">
+                  100% in-browser WebAssembly. Your files never touch a cloud server.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
         {/* ========================================================================= */}
-        {/* CHAPTER 6: DEEP COMPREHENSIVE TECHNICAL FAQ ACCORDION */}
+        {/* OFFICE & CONVERTERS SUITE */}
+        {/* ========================================================================= */}
+        <section id="converters" className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
+          <div className="bg-white rounded-3xl p-8 sm:p-14 border border-[#d8d4c8] shadow-sm">
+            <div className="max-w-2xl mb-10">
+              <span className="tn text-[#2447f5] uppercase">Format Bridges</span>
+              <h3 className="serif text-4xl sm:text-6xl text-[#0d1b3d] mt-2">
+                Convert across all formats without cloud lag.
+              </h3>
+              <p className="text-[#4a5168] text-base sm:text-lg mt-3">
+                Built-in client-side OOXML compilers convert PDF pages directly into editable Microsoft Word documents, Excel grids, and high-DPI image archives.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+                <FileText className="w-8 h-8 text-[#2447f5]" />
+                <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Word</h4>
+                <p className="text-xs text-[#4a5168] leading-relaxed">
+                  Converts layout flow and typography into clean Microsoft Word (.docx) packages.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+                <FileSpreadsheet className="w-8 h-8 text-[#16a34a]" />
+                <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Excel</h4>
+                <p className="text-xs text-[#4a5168] leading-relaxed">
+                  Extracts tables and numeric coordinates directly into .xlsx sheets and CSVs.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+                <ImageIcon className="w-8 h-8 text-[#9333ea]" />
+                <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Images</h4>
+                <p className="text-xs text-[#4a5168] leading-relaxed">
+                  Exports pages to high-DPI JPG or transparent PNG images packaged in a zip.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+                <Lock className="w-8 h-8 text-[#d97706]" />
+                <h4 className="font-bold text-base text-[#0d1b3d]">AES-256 Crypto</h4>
+                <p className="text-xs text-[#4a5168] leading-relaxed">
+                  Add user and owner passwords or permanently redact targeted content streams.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* INTERACTIVE FAQ ACCORDION */}
         {/* ========================================================================= */}
         <section
           id="faq"
-          className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 border-t border-slate-800/80"
+          className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12"
         >
-          <div className="text-center mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-              Chapter 06 • Frequently Asked Questions
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mt-3">
-              Frequently Asked Questions
+          <div className="lg:col-span-4">
+            <div className="text-xs font-bold tracking-widest text-[#4a5168] uppercase">
+              FAQ
+            </div>
+            <h2 className="serif text-6xl sm:text-7xl leading-none text-[#0d1b3d] mt-4">
+              Questions,
+              <br />
+              <i className="text-[#2447f5]">answered.</i>
             </h2>
-            <p className="text-sm text-slate-400 mt-2">
-              Everything you need to know about PDF Studio&apos;s client-side architecture.
-            </p>
-
-            {/* Quick FAQ Search */}
-            <div className="mt-6 max-w-md mx-auto relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={faqSearch}
-                onChange={(e) => setFaqSearch(e.target.value)}
-                placeholder="Search FAQ keywords (e.g. privacy, word, grab, font)..."
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-hidden focus:border-blue-500"
-              />
-            </div>
           </div>
 
-          {/* Accordion List */}
-          <div className="space-y-3.5">
-            {filteredFaqs.map((faq, idx) => {
-              const isOpen = expandedFaq === idx;
-              return (
-                <div
-                  key={faq.q}
-                  className="bg-slate-900/60 rounded-2xl border border-slate-800/80 overflow-hidden backdrop-blur-md transition-all"
-                >
-                  <button
-                    onClick={() => setExpandedFaq(isOpen ? null : idx)}
-                    className="w-full p-5 text-left flex items-center justify-between text-sm sm:text-base font-bold text-white hover:text-blue-400 transition cursor-pointer"
-                  >
-                    <span>{faq.q}</span>
-                    <span className="ml-4 p-1 rounded-lg bg-slate-800 text-slate-400 shrink-0">
-                      {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="px-5 pb-5 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 pt-3">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* CHAPTER 7: GRAND FINALE CALL TO ACTION */}
-        {/* ========================================================================= */}
-        <section className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-20 sm:py-28 text-center">
-          <div className="bg-gradient-to-b from-blue-950/40 via-slate-900/70 to-indigo-950/40 border border-blue-500/30 rounded-3xl p-8 sm:p-14 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-            <div className="relative z-10 max-w-2xl mx-auto space-y-6">
-              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-                Ready to Experience True PDF Freedom?
-              </h2>
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                Open any PDF document now or explore our complete 15+ tool suite in the dashboard. Zero setup, zero accounts, 100% private.
+          <div className="lg:col-span-8">
+            <details open>
+              <summary>
+                <span>Is PDF Suite really free to use?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                Yes. PDF Suite is 100% free, open-source under the MIT License, and client-side. You can upload, edit, annotate, convert, and export without creating an account or providing a credit card.
               </p>
+            </details>
 
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button
-                  onClick={onGoToDashboard}
-                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-2xl shadow-blue-600/40 transition flex items-center justify-center space-x-2.5 active:scale-95 cursor-pointer"
-                >
-                  <span>Go To Dashboard</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
+            <details>
+              <summary>
+                <span>Do I need to install software or plugins?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                No. Everything runs directly inside your browser on desktop, tablet, or mobile using WebAssembly and Web Workers. There are zero extensions, binaries, or plugins to download.
+              </p>
+            </details>
 
-              {/* Instant sample template links */}
-              <div className="pt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
-                <span className="text-[11px] font-medium text-slate-500">Test sample right now:</span>
-                <button
-                  onClick={() => handleLaunchSample("single")}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
-                >
-                  Contract Template (1 Pg)
-                </button>
-                <button
-                  onClick={() => handleLaunchSample("multi")}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
-                >
-                  Annual Report (5 Pgs)
-                </button>
-              </div>
-            </div>
+            <details>
+              <summary>
+                <span>Are my documents private? Does anything upload to the cloud?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                Zero bytes leave your computer. 100% of parsing, stream surgery, rendering, and file compilation executes in your device memory. You can turn off your Wi-Fi completely and PDF Suite will continue functioning without interruption.
+              </p>
+            </details>
+
+            <details>
+              <summary>
+                <span>How does in-place text editing work without making text blurry?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                Unlike common web tools that convert pages into 72 DPI JPEG raster images, PDF Suite inspects raw PDF content streams. It detects baseline angles, CapHeight, and font metrics to substitute or reconstruct text tokens natively. Your document stays crisp at 1000% zoom.
+              </p>
+            </details>
+
+            <details>
+              <summary>
+                <span>What happens if I accidentally refresh my browser?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                Your workspace is protected. Active documents, operations ledger, zoom settings, and page position automatically sync to local browser IndexedDB. Refreshing will immediately restore your progress.
+              </p>
+            </details>
+
+            <details>
+              <summary>
+                <span>What file types can I convert to?</span>
+                <span className="pl">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="ans">
+                You can convert PDF documents to Microsoft Word (.docx), Excel spreadsheets (.xlsx), PowerPoint slides (.pptx), plain text (.txt), and high-DPI image archives (.png / .jpg). You can also convert photos and images into standardized PDFs.
+              </p>
+            </details>
           </div>
         </section>
-      </main>
 
-      {/* Global Footer */}
-      <footer className="mt-auto border-t border-slate-800/80 bg-[#07090E]/95 py-8 px-4 text-xs text-slate-500 relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-slate-400 font-medium">PDF Studio Platform • Client-Side Operational</span>
-          </div>
-          <div className="flex items-center space-x-6 text-slate-400">
-            <a href="#fidelity" className="hover:text-white transition">Vector Fidelity</a>
-            <a href="#all-features" className="hover:text-white transition">Features</a>
-            <a href="#faq" className="hover:text-white transition">FAQ</a>
-            <button onClick={onGoToDashboard} className="hover:text-blue-400 transition font-bold">
-              Go To Dashboard →
+        {/* ========================================================================= */}
+        {/* CALL TO ACTION CARD */}
+        {/* ========================================================================= */}
+        <section className="px-6 sm:px-12 lg:px-16 pb-24 max-w-6xl mx-auto">
+          <div className="bg-[#2447f5] text-[#f4f1ea] rounded-[40px] px-8 py-20 sm:p-24 text-center flex flex-col items-center gap-8 shadow-2xl">
+            <h2 className="serif text-6xl sm:text-8xl lg:text-9xl leading-[0.95]">
+              Open your first PDF.
+            </h2>
+            <p className="text-white/80 text-lg sm:text-xl max-w-lg">
+              No account required. Runs 100% locally in your browser with complete privacy.
+            </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="btn !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-white hover:!border-white text-lg !px-10 !h-14"
+            >
+              Upload a PDF
             </button>
           </div>
-        </div>
-      </footer>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* CURVED FOOTER */}
+        {/* ========================================================================= */}
+        <footer className="ft">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-12 max-w-6xl mx-auto">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="fb"
+            >
+              <span>Start editing, free</span>
+              <svg
+                width="44"
+                height="44"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </button>
+
+            <div className="flex flex-wrap gap-16 text-base">
+              <div className="fl">
+                <b className="text-[#f4f1ea] font-semibold">Features</b>
+                <a href="#s">How it works</a>
+                <a href="#f">Tools</a>
+                <a href="#converters">Converters</a>
+                <a href="#faq">FAQ</a>
+              </div>
+              <div className="fl">
+                <b className="text-[#f4f1ea] font-semibold">Creator</b>
+                <a href="https://darshmodii.in" target="_blank" rel="noreferrer">
+                  Darsh Modi
+                </a>
+                <a href="https://github.com/DevDarsh26" target="_blank" rel="noreferrer">
+                  GitHub Profile
+                </a>
+                <a href="https://darshmodii.in" target="_blank" rel="noreferrer">
+                  Portfolio
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Giant Monumental Watermark */}
+          <div className="wm serif" aria-hidden="true">
+            PDF Suite
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center text-[#aeb3c4] text-sm pt-8 border-t border-[#2a3a66] max-w-6xl mx-auto gap-4">
+            <span>© PDF Suite. Crafted with precision by Darsh Modi (darshmodii.in)</span>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="up"
+              aria-label="Back to top"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 19V5M6 11l6-6 6 6" />
+              </svg>
+            </a>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 };
