@@ -220,7 +220,13 @@ export default function Home() {
   }
 
   return (
-    <div className="editor-app-shell flex flex-col h-screen w-screen overflow-hidden text-slate-800 antialiased select-none">
+    <div
+      className={`editor-app-shell flex flex-col text-slate-800 antialiased ${
+        hasDocument
+          ? "h-screen w-screen overflow-hidden select-none"
+          : "min-h-screen w-full overflow-x-hidden"
+      }`}
+    >
       {/* Modals & Toasts */}
       <PasswordModal />
       <TextEditModal />

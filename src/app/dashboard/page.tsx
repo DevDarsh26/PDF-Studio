@@ -20,7 +20,7 @@ export default function DashboardPage() {
   }, [rawBytes, metadata, router]);
 
   return (
-    <div className="flex flex-col min-h-screen w-screen bg-[#f4f1ea] text-[#0d1b3d] antialiased overflow-x-hidden">
+    <div className="flex flex-col min-h-screen w-full bg-[#f4f1ea] text-[#0d1b3d] antialiased overflow-x-hidden">
       <PasswordModal />
       <Toast />
       <UploadHomepage onBackToLanding={() => router.push("/")} />
