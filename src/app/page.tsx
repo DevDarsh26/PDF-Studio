@@ -60,9 +60,6 @@ export default function Home() {
     }
   }, []);
 
-  // Responsive drawer visibility for mobile/tablet screens
-  const [mobileShowThumbnails, setMobileShowThumbnails] = useState(false);
-  const [mobileShowAnalysis, setMobileShowAnalysis] = useState(false);
 
   // Restore previous editing session on initial mount so reload NEVER loses work or redirects to home
   useEffect(() => {
@@ -203,7 +200,7 @@ export default function Home() {
           <div className="w-10 h-10 rounded-xl bg-[#2447f5] flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
             PS
           </div>
-          <span className="serif text-2xl font-bold tracking-tight text-[#0d1b3d]">PDF Suite</span>
+          <span className="serif text-2xl font-bold tracking-tight text-[#0d1b3d]">PDF Studio</span>
         </div>
         <div className="flex items-center space-x-2 text-[#4a5168] text-xs">
           <Loader2 className="w-4 h-4 text-[#2447f5] animate-spin" />
@@ -265,67 +262,36 @@ export default function Home() {
             {/* 72px Left Tool Rail */}
             <EditorToolRail />
 
-            {/* Left Thumbnail Sidebar (172px) */}
+            {/* Left Thumbnail Sidebar (172px on desktop, drawer on mobile) */}
             {showThumbnails && (
-              <div
-                className={`${
-                  mobileShowThumbnails ? "fixed inset-y-0 left-[72px] z-30 flex shadow-2xl" : "hidden md:flex"
-                } shrink-0 transition-all duration-200`}
-              >
-                <ThumbnailSidebar />
-              </div>
-            )}
-
-            {/* Mobile backdrop for sidebar */}
-            {mobileShowThumbnails && (
-              <div
-                onClick={() => setMobileShowThumbnails(false)}
-                className="fixed inset-0 z-20 bg-slate-900/40 backdrop-blur-2xs md:hidden"
-              />
+              <>
+                <div
+                  onClick={toggleThumbnails}
+                  className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-2xs md:hidden"
+                  aria-label="Close thumbnails"
+                />
+                <div className="fixed inset-y-0 left-0 z-40 flex shadow-2xl md:relative md:inset-auto md:z-10 md:shadow-none shrink-0 transition-all duration-200">
+                  <ThumbnailSidebar />
+                </div>
+              </>
             )}
 
             {/* Central Viewport */}
             <PdfCanvasViewport containerRef={viewportContainerRef} />
 
-            {/* Right Style & Document Analysis / Properties Panel (310px) */}
+            {/* Right Style & Document Analysis / Properties Panel (310px on desktop, drawer on mobile) */}
             {showAnalysisPanel && (
-              <div
-                className={`${
-                  mobileShowAnalysis ? "fixed inset-y-0 right-0 z-30 flex shadow-2xl" : "hidden lg:flex"
-                } shrink-0 transition-all duration-200`}
-              >
-                <DocumentAnalysisPanel />
-              </div>
+              <>
+                <div
+                  onClick={toggleAnalysisPanel}
+                  className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-2xs lg:hidden"
+                  aria-label="Close inspector"
+                />
+                <div className="fixed inset-y-0 right-0 z-40 flex shadow-2xl lg:relative lg:inset-auto lg:z-10 lg:shadow-none shrink-0 transition-all duration-200">
+                  <DocumentAnalysisPanel />
+                </div>
+              </>
             )}
-
-            {/* Mobile backdrop for analysis panel */}
-            {mobileShowAnalysis && (
-              <div
-                onClick={() => setMobileShowAnalysis(false)}
-                className="fixed inset-0 z-20 bg-slate-900/40 backdrop-blur-2xs lg:hidden"
-              />
-            )}
-
-            {/* Floating Mobile Panel Toggle Buttons (Only on smaller screens) */}
-            <div className="absolute bottom-16 left-20 z-20 flex md:hidden items-center space-x-2">
-              <button
-                onClick={() => setMobileShowThumbnails((v) => !v)}
-                className="px-3.5 py-1.5 bg-[#fbf9f4] border border-[#d8d4c8] rounded-full shadow-md text-xs font-semibold text-[#0d1b3d] flex items-center space-x-1.5"
-              >
-                <LayoutList className="w-3.5 h-3.5 text-[#2447f5]" />
-                <span>Pages</span>
-              </button>
-            </div>
-
-            <div className="absolute bottom-16 right-4 z-20 flex lg:hidden items-center space-x-2">
-              <button
-                onClick={() => setMobileShowAnalysis((v) => !v)}
-                className="px-3.5 py-1.5 bg-[#fbf9f4] border border-[#d8d4c8] rounded-full shadow-md text-xs font-semibold text-[#0d1b3d] flex items-center space-x-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#2447f5]" />
-                <span>Inspector</span>
-              </button>
-            </div>
           </div>
         </>
       )}

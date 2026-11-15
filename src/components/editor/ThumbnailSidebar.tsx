@@ -6,6 +6,7 @@ import {
   Trash2,
   Plus,
   Layers,
+  X,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 
@@ -128,6 +129,7 @@ export const ThumbnailSidebar: React.FC = () => {
     deletePageFromDocument,
     openPageManager,
     viewRotation,
+    toggleThumbnails,
   } = useEditorStore();
 
   const numPages = pageInfos.length;
@@ -136,14 +138,23 @@ export const ThumbnailSidebar: React.FC = () => {
     <aside className="w-[172px] bg-[#fbf9f4] border-r border-[#d8d4c8] p-3 flex flex-col items-center gap-2 overflow-y-auto z-10 shrink-0 select-none">
       <div className="w-full flex items-center justify-between pb-2 border-b border-[#d8d4c8] px-1">
         <span className="serif text-xl font-normal text-[#0d1b3d]">Pages</span>
-        <button
-          onClick={openPageManager}
-          className="text-[11px] font-semibold text-[#2447f5] hover:underline flex items-center gap-0.5"
-          title="Open Page Organizer"
-        >
-          <Layers className="w-3 h-3" />
-          <span>Manage</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openPageManager}
+            className="text-[11px] font-semibold text-[#2447f5] hover:underline flex items-center gap-0.5"
+            title="Open Page Organizer"
+          >
+            <Layers className="w-3 h-3" />
+            <span>Manage</span>
+          </button>
+          <button
+            onClick={toggleThumbnails}
+            className="md:hidden text-[#4a5168] hover:text-[#0d1b3d] p-0.5"
+            aria-label="Close Pages"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="w-full flex flex-col items-center gap-2 overflow-y-auto py-1">

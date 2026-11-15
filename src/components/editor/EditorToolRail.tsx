@@ -136,12 +136,12 @@ export const EditorToolRail: React.FC = () => {
   ];
 
   return (
-    <div className="w-[72px] bg-[#fbf9f4] border-r border-[#d8d4c8] flex flex-col items-center gap-2 py-4 z-10 shrink-0 select-none">
+    <div className="fixed bottom-0 inset-x-0 h-14 bg-[#fbf9f4] border-t border-[#d8d4c8] flex flex-row items-center justify-start px-2 gap-1.5 overflow-x-auto z-30 shadow-lg md:relative md:bottom-auto md:inset-auto md:w-[72px] md:h-full md:flex-col md:border-r md:border-t-0 md:py-4 md:shadow-none shrink-0 select-none no-scrollbar">
       <style jsx>{`
         .ib {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
           border: 1px solid transparent;
           background: transparent;
           display: grid;
@@ -149,6 +149,14 @@ export const EditorToolRail: React.FC = () => {
           cursor: pointer;
           color: #0d1b3d;
           transition: background .2s, transform .2s, color .2s;
+          flex-shrink: 0;
+        }
+        @media (min-width: 768px) {
+          .ib {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+          }
         }
         .ib:hover {
           background: #e7e3d8;
@@ -157,6 +165,13 @@ export const EditorToolRail: React.FC = () => {
         .ib.on {
           background: #0d1b3d;
           color: #ffd84d;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
 
@@ -186,7 +201,7 @@ export const EditorToolRail: React.FC = () => {
             title={t.label}
             aria-label={t.label}
           >
-            <Icon className="w-5 h-5" />
+            <Icon className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         );
       })}

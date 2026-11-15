@@ -224,7 +224,7 @@ export const PageManagerModal: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 px-6 bg-slate-50/50">
+        <div className="flex border-b border-slate-200 px-4 sm:px-6 bg-slate-50/50 overflow-x-auto">
           <button
             onClick={() => setActiveTab("organize")}
             className={`py-2.5 px-4 text-xs font-semibold border-b-2 flex items-center space-x-1.5 transition ${

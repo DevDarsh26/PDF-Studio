@@ -160,7 +160,7 @@ export const DocumentAnalysisPanel: React.FC = () => {
   ];
 
   return (
-    <aside className="w-[310px] bg-[#fbf9f4] border-l border-[#d8d4c8] p-5 flex flex-col gap-5 overflow-y-auto z-10 shrink-0 select-none">
+    <aside className="w-[300px] sm:w-[320px] max-w-[90vw] bg-[#fbf9f4] border-l border-[#d8d4c8] p-4 sm:p-5 flex flex-col gap-4 sm:gap-5 overflow-y-auto z-10 shrink-0 select-none">
       <style jsx>{`
         .serif {
           font-family: 'Instrument Serif', Georgia, serif;

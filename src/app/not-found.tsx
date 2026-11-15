@@ -12,7 +12,7 @@ export default function NotFound() {
         href="/"
         className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-[#0d1b3d] text-[#f4f1ea] font-medium hover:bg-[#ffd84d] hover:text-[#0d1b3d] transition-colors"
       >
-        Return to PDF Suite
+        Return to PDF Studio
       </Link>
     </div>
   );

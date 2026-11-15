@@ -1027,6 +1027,19 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onTouchStart={(e) => {
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          handleMouseDown({ clientX: t.clientX, clientY: t.clientY, target: e.target } as any);
+        }
+      }}
+      onTouchMove={(e) => {
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          handleMouseMove({ clientX: t.clientX, clientY: t.clientY } as any);
+        }
+      }}
+      onTouchEnd={() => handleMouseUp()}
       className={`absolute inset-0 z-10 w-full h-full select-none ${
         isGrabMode
           ? isOverlayPanning

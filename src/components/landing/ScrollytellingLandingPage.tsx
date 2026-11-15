@@ -27,8 +27,8 @@ import { preloadPdfjs } from "@/core/utils/pdfjs-loader";
 
 const FAQ_ITEMS = [
   {
-    q: "Is PDF Suite really free to use?",
-    a: "Yes. PDF Suite is 100% free, open-source under the MIT License, and client-side. You can upload, edit, annotate, convert, and export without creating an account or providing a credit card.",
+    q: "Is PDF Studio really free to use?",
+    a: "Yes. PDF Studio is 100% free, open-source under the MIT License, and client-side. You can upload, edit, annotate, convert, and export without creating an account or providing a credit card.",
   },
   {
     q: "Do I need to install software or plugins?",
@@ -36,11 +36,11 @@ const FAQ_ITEMS = [
   },
   {
     q: "Are my documents private? Does anything upload to the cloud?",
-    a: "Zero bytes leave your computer. 100% of parsing, stream surgery, rendering, and file compilation executes in your device memory. You can turn off your Wi-Fi completely and PDF Suite will continue functioning without interruption.",
+    a: "Zero bytes leave your computer. 100% of parsing, stream surgery, rendering, and file compilation executes in your device memory. You can turn off your Wi-Fi completely and PDF Studio will continue functioning without interruption.",
   },
   {
     q: "How does in-place text editing work without making text blurry?",
-    a: "Unlike common web tools that convert pages into 72 DPI JPEG raster images, PDF Suite inspects raw PDF content streams. It detects baseline angles, CapHeight, and font metrics to substitute or reconstruct text tokens natively. Your document stays crisp at 1000% zoom.",
+    a: "Unlike common web tools that convert pages into 72 DPI JPEG raster images, PDF Studio inspects raw PDF content streams. It detects baseline angles, CapHeight, and font metrics to substitute or reconstruct text tokens natively. Your document stays crisp at 1000% zoom.",
   },
   {
     q: "What happens if I accidentally refresh my browser?",
@@ -623,7 +623,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         <header className="pillnav">
           <div className="flex items-center space-x-3">
             <span className="serif text-2xl sm:text-3xl font-normal text-[#0d1b3d] tracking-tight">
-              PDF Suite
+              PDF Studio
             </span>
           </div>
 
@@ -1407,7 +1407,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
 
           {/* Giant Monumental Watermark */}
           <div className="wm serif" aria-hidden="true">
-            PDF Suite
+            PDF Studio
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center text-[#aeb3c4] text-sm pt-8 border-t border-[#2a3a66] max-w-6xl mx-auto gap-4">

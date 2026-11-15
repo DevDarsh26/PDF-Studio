@@ -158,7 +158,7 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
     <main
       ref={containerRef}
       onPointerDown={handlePointerDown}
-      className={`editor-workbench flex-1 flex flex-col items-center justify-start p-5 sm:p-8 lg:p-10 overflow-auto relative select-none ${
+      className={`editor-workbench flex-1 flex flex-col items-center justify-start p-3 sm:p-6 lg:p-10 overflow-auto relative select-none pb-24 md:pb-12 ${
         isGrabActive
           ? isPanning
             ? "cursor-grabbing"
@@ -250,45 +250,45 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
       )}
 
       {/* Floating Bottom Navigation Pill (Mockup Style) */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#0d1b3d] text-[#f4f1ea] rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-2xl z-30 select-none border border-slate-700/50">
+      <div className="fixed bottom-16 md:bottom-5 left-1/2 -translate-x-1/2 bg-[#0d1b3d] text-[#f4f1ea] rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 flex items-center gap-1 sm:gap-1.5 shadow-2xl z-20 select-none border border-slate-700/50">
         <button
           onClick={prevPage}
           disabled={currentPageNumber <= 1}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition text-white"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition text-white"
           title="Previous Page"
           aria-label="Previous Page"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <b className="text-xs sm:text-sm px-2 font-mono whitespace-nowrap">
+        <b className="text-[11px] sm:text-sm px-1.5 sm:px-2 font-mono whitespace-nowrap">
           {currentPageNumber} / {pageInfos.length}
         </b>
 
         <button
           onClick={nextPage}
           disabled={currentPageNumber >= pageInfos.length}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition text-white"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition text-white"
           title="Next Page"
           aria-label="Next Page"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
-        <span className="w-px h-5 bg-[#2a3a66] mx-1" />
+        <span className="w-px h-4 sm:h-5 bg-[#2a3a66] mx-0.5 sm:mx-1" />
 
         <button
           onClick={zoomOut}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition text-white"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition text-white"
           title="Zoom Out"
           aria-label="Zoom Out"
         >
-          <Minus className="w-4 h-4" />
+          <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
 
         <button
           onClick={() => fitToWidth(containerRef.current?.clientWidth || 800)}
-          className="text-xs sm:text-sm font-mono px-1.5 hover:text-[#ffd84d] transition"
+          className="text-[11px] sm:text-sm font-mono px-1 sm:px-1.5 hover:text-[#ffd84d] transition"
           title="Click to Fit Width"
         >
           {Math.round(zoomScale * 100)}%
@@ -296,11 +296,11 @@ export const PdfCanvasViewport: React.FC<PdfCanvasViewportProps> = ({ containerR
 
         <button
           onClick={zoomIn}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition text-white"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-white/15 transition text-white"
           title="Zoom In"
           aria-label="Zoom In"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
     </main>

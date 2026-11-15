@@ -311,7 +311,7 @@ export const ExportModal: React.FC = () => {
                 </div>
 
                 {/* Preservation Metrics Overview */}
-                <div className="grid grid-cols-3 gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
                   <div>
                     <span className="text-[10px] text-slate-500 uppercase font-semibold">
                       Pages & Dimensions

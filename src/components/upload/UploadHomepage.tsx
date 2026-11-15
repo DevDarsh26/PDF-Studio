@@ -322,7 +322,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-      alert("Please upload a valid PDF document to open in PDF Suite.");
+      alert("Please upload a valid PDF document to open in PDF Studio.");
       return;
     }
 
@@ -577,7 +577,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           onClick={() => (onBackToLanding ? onBackToLanding() : null)}
           className="serif text-3xl font-normal tracking-tight text-[#0d1b3d] hover:opacity-80 transition select-none flex items-center gap-2"
         >
-          <span>PDF Suite</span>
+          <span>PDF Studio</span>
         </button>
 
         <div className="flex items-center gap-3">
@@ -1089,7 +1089,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
         <footer className="mt-8 pt-6 border-t border-[#d8d4c8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#4a5168]">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>PDF Suite Engine • 100% Client-Side WebAssembly</span>
+            <span>PDF Studio Engine • 100% Client-Side WebAssembly</span>
           </div>
 
           <div className="flex items-center gap-4">
