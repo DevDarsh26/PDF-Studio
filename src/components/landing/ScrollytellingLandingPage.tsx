@@ -25,6 +25,33 @@ import {
 } from "@/core/utils/sample-pdfs";
 import { preloadPdfjs } from "@/core/utils/pdfjs-loader";
 
+const FAQ_ITEMS = [
+  {
+    q: "Is PDF Suite really free to use?",
+    a: "Yes. PDF Suite is 100% free, open-source under the MIT License, and client-side. You can upload, edit, annotate, convert, and export without creating an account or providing a credit card.",
+  },
+  {
+    q: "Do I need to install software or plugins?",
+    a: "No. Everything runs directly inside your browser on desktop, tablet, or mobile using WebAssembly and Web Workers. There are zero extensions, binaries, or plugins to download.",
+  },
+  {
+    q: "Are my documents private? Does anything upload to the cloud?",
+    a: "Zero bytes leave your computer. 100% of parsing, stream surgery, rendering, and file compilation executes in your device memory. You can turn off your Wi-Fi completely and PDF Suite will continue functioning without interruption.",
+  },
+  {
+    q: "How does in-place text editing work without making text blurry?",
+    a: "Unlike common web tools that convert pages into 72 DPI JPEG raster images, PDF Suite inspects raw PDF content streams. It detects baseline angles, CapHeight, and font metrics to substitute or reconstruct text tokens natively. Your document stays crisp at 1000% zoom.",
+  },
+  {
+    q: "What happens if I accidentally refresh my browser?",
+    a: "Your workspace is protected. Active documents, operations ledger, zoom settings, and page position automatically sync to local browser IndexedDB. Refreshing will immediately restore your progress.",
+  },
+  {
+    q: "What file types can I convert to?",
+    a: "You can convert PDF documents to Microsoft Word (.docx), Excel spreadsheets (.xlsx), PowerPoint slides (.pptx), plain text (.txt), and high-DPI image archives (.png / .jpg). You can also convert photos and images into standardized PDFs.",
+  },
+];
+
 interface ScrollytellingLandingPageProps {
   onGoToDashboard: () => void;
 }
@@ -36,11 +63,57 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState<number>(0);
+  const [isSliderPaused, setIsSliderPaused] = useState<boolean>(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
 
   // Preload PDF.js worker and core bundle in the background for zero-latency sample & file loading
   useEffect(() => {
     preloadPdfjs();
+  }, []);
+
+  // Automatically switch slides after interval (4s), pause when user hovers
+  useEffect(() => {
+    if (isSliderPaused) return;
+    const interval = setInterval(() => {
+      setActiveStep((prev) => (prev + 1) % 3);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isSliderPaused]);
+
+  // Reveal elements smoothly on scroll using IntersectionObserver
+  useEffect(() => {
+    if (typeof window === "undefined" || !containerRef.current) return;
+
+    const observerCallback: IntersectionObserverCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-revealed");
+        }
+      });
+    };
+
+    const containerObserver = new IntersectionObserver(observerCallback, {
+      root: containerRef.current,
+      threshold: 0.1,
+      rootMargin: "0px 0px -40px 0px",
+    });
+
+    const windowObserver = new IntersectionObserver(observerCallback, {
+      threshold: 0.1,
+      rootMargin: "0px 0px -40px 0px",
+    });
+
+    const elements = containerRef.current.querySelectorAll(".reveal-on-scroll");
+    elements.forEach((el) => {
+      containerObserver.observe(el);
+      windowObserver.observe(el);
+    });
+
+    return () => {
+      containerObserver.disconnect();
+      windowObserver.disconnect();
+    };
   }, []);
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
@@ -441,6 +514,23 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           transform: translateY(-4px);
         }
 
+        /* Reveal on scroll animations */
+        .reveal-on-scroll {
+          opacity: 0;
+          transform: translateY(32px);
+          filter: blur(4px);
+          transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                      transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+                      filter 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: opacity, transform, filter;
+        }
+
+        .reveal-on-scroll.is-revealed {
+          opacity: 1;
+          transform: translateY(0);
+          filter: blur(0px);
+        }
+
         @media (max-width: 1024px) {
           .pillnav {
             width: calc(100% - 24px);
@@ -757,7 +847,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* TICKER MARQUEE RIBBON */}
         {/* ========================================================================= */}
-        <section className="border-y border-[#0d1b3d] py-6 overflow-hidden bg-white/40">
+        <section className="reveal-on-scroll border-y border-[#0d1b3d] py-6 overflow-hidden bg-white/40">
           <div className="mq serif text-4xl sm:text-5xl whitespace-nowrap text-[#0d1b3d]">
             <span>
               Edit &nbsp;·&nbsp; Sign &nbsp;·&nbsp; Merge &nbsp;·&nbsp; Split &nbsp;·&nbsp; Compress &nbsp;·&nbsp; Convert &nbsp;·&nbsp; Protect &nbsp;·&nbsp; Redact &nbsp;·&nbsp; Word &nbsp;·&nbsp; Excel &nbsp;·&nbsp;&nbsp;
@@ -771,7 +861,12 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* HOW IT WORKS: 3 STAGES */}
         {/* ========================================================================= */}
-        <section id="s" className="px-6 sm:px-12 lg:px-16 py-28 max-w-6xl mx-auto">
+        <section
+          id="s"
+          onMouseEnter={() => setIsSliderPaused(true)}
+          onMouseLeave={() => setIsSliderPaused(false)}
+          className="reveal-on-scroll px-6 sm:px-12 lg:px-16 py-28 max-w-6xl mx-auto"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* Left Steps Controls */}
             <div className="space-y-10">
@@ -801,15 +896,15 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
                 </p>
               </div>
 
-              {/* Step Navigation Switcher */}
+              {/* Step Navigation Switcher with Auto-Interval Indicator */}
               <div className="flex items-center gap-3 pt-4">
                 {[0, 1, 2].map((idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveStep(idx)}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                    className={`h-2.5 rounded-full transition-all duration-300 relative overflow-hidden cursor-pointer ${
                       activeStep === idx
-                        ? "w-12 bg-[#2447f5]"
+                        ? "w-14 bg-[#2447f5]"
                         : "w-5 bg-[#aeb3c4] hover:bg-[#4a5168]"
                     }`}
                     title={`Step 0${idx + 1}`}
@@ -883,7 +978,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* MONUMENTAL STATEMENT */}
         {/* ========================================================================= */}
-        <section className="px-6 sm:px-12 lg:px-16 py-24 sm:py-32 max-w-6xl mx-auto">
+        <section className="reveal-on-scroll px-6 sm:px-12 lg:px-16 py-24 sm:py-32 max-w-6xl mx-auto">
           <h2 className="serif text-5xl sm:text-7xl lg:text-[88px] leading-[1.08] text-[#0d1b3d] max-w-5xl">
             Built for the paperwork that never ends. Quietly fixing every page, every signature, every deadline.
           </h2>
@@ -892,7 +987,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* FEATURE TILES GRID ("Every tool, one calm place") */}
         {/* ========================================================================= */}
-        <section id="f" className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
+        <section id="f" className="reveal-on-scroll px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-6">
             <div>
               <h2 className="serif text-6xl sm:text-7xl lg:text-8xl leading-none text-[#0d1b3d]">
@@ -909,7 +1004,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
           {/* Grid Layout matching the Mockup */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
             {/* Tile 1 (Span 7, Midnight) */}
-            <div className="tile md:col-span-7 min-h-[380px] bg-[#0d1b3d] text-[#f4f1ea]">
+            <div className="tile md:col-span-7 min-h-[380px] bg-[#0d1b3d] text-[#f4f1ea] reveal-on-scroll">
               <div className="flex justify-between items-center">
                 <span className="tn text-[#ffd84d]">01 — VECTOR TEXT</span>
               </div>
@@ -939,7 +1034,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </div>
 
             {/* Tile 2 (Span 5, Golden Yellow) */}
-            <div className="tile md:col-span-5 min-h-[380px] bg-[#ffd84d] text-[#0d1b3d]">
+            <div
+              className="tile md:col-span-5 min-h-[380px] bg-[#ffd84d] text-[#0d1b3d] reveal-on-scroll"
+              style={{ transitionDelay: "120ms" }}
+            >
               <div className="flex justify-between items-center">
                 <span className="tn">02 — SIGNATURES</span>
               </div>
@@ -969,7 +1067,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </div>
 
             {/* Tile 3 (Span 4, Coral Rose with Interactive Fanning Pages) */}
-            <div className="tile md:col-span-4 min-h-[380px] bg-[#f3c9c0] text-[#0d1b3d] group">
+            <div
+              className="tile md:col-span-4 min-h-[380px] bg-[#f3c9c0] text-[#0d1b3d] group reveal-on-scroll"
+              style={{ transitionDelay: "180ms" }}
+            >
               <div className="flex justify-between items-center">
                 <span className="tn">03 — REORGANIZE</span>
               </div>
@@ -990,7 +1091,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </div>
 
             {/* Tile 4 (Span 4, Sand with Shrinking Bar) */}
-            <div className="tile md:col-span-4 min-h-[380px] bg-[#e7e3d8] text-[#0d1b3d]">
+            <div
+              className="tile md:col-span-4 min-h-[380px] bg-[#e7e3d8] text-[#0d1b3d] reveal-on-scroll"
+              style={{ transitionDelay: "240ms" }}
+            >
               <div className="flex justify-between items-center">
                 <span className="tn">04 — OPTIMIZATION</span>
               </div>
@@ -1013,7 +1117,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </div>
 
             {/* Tile 5 (Span 4, Electric Cobalt) */}
-            <div className="tile md:col-span-4 min-h-[380px] bg-[#2447f5] text-[#f4f1ea]">
+            <div
+              className="tile md:col-span-4 min-h-[380px] bg-[#2447f5] text-[#f4f1ea] reveal-on-scroll"
+              style={{ transitionDelay: "300ms" }}
+            >
               <div className="flex justify-between items-center">
                 <span className="tn text-[#ffd84d]">05 — PRIVACY</span>
               </div>
@@ -1033,7 +1140,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* OFFICE & CONVERTERS SUITE */}
         {/* ========================================================================= */}
-        <section id="converters" className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
+        <section id="converters" className="reveal-on-scroll px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto">
           <div className="bg-white rounded-3xl p-8 sm:p-14 border border-[#d8d4c8] shadow-sm">
             <div className="max-w-2xl mb-10">
               <span className="tn text-[#2447f5] uppercase">Format Bridges</span>
@@ -1046,7 +1153,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2 reveal-on-scroll">
                 <FileText className="w-8 h-8 text-[#2447f5]" />
                 <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Word</h4>
                 <p className="text-xs text-[#4a5168] leading-relaxed">
@@ -1054,7 +1161,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+              <div
+                className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2 reveal-on-scroll"
+                style={{ transitionDelay: "100ms" }}
+              >
                 <FileSpreadsheet className="w-8 h-8 text-[#16a34a]" />
                 <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Excel</h4>
                 <p className="text-xs text-[#4a5168] leading-relaxed">
@@ -1062,7 +1172,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+              <div
+                className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2 reveal-on-scroll"
+                style={{ transitionDelay: "200ms" }}
+              >
                 <ImageIcon className="w-8 h-8 text-[#9333ea]" />
                 <h4 className="font-bold text-base text-[#0d1b3d]">PDF to Images</h4>
                 <p className="text-xs text-[#4a5168] leading-relaxed">
@@ -1070,7 +1183,10 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2">
+              <div
+                className="p-6 rounded-2xl bg-[#f4f1ea] border border-[#d8d4c8] space-y-2 reveal-on-scroll"
+                style={{ transitionDelay: "300ms" }}
+              >
                 <Lock className="w-8 h-8 text-[#d97706]" />
                 <h4 className="font-bold text-base text-[#0d1b3d]">AES-256 Crypto</h4>
                 <p className="text-xs text-[#4a5168] leading-relaxed">
@@ -1082,11 +1198,11 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         </section>
 
         {/* ========================================================================= */}
-        {/* INTERACTIVE FAQ ACCORDION */}
+        {/* INTERACTIVE FAQ ACCORDION (Single-Open Auto-Collapsing Accordion) */}
         {/* ========================================================================= */}
         <section
           id="faq"
-          className="px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12"
+          className="reveal-on-scroll px-6 sm:px-12 lg:px-16 py-20 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12"
         >
           <div className="lg:col-span-4">
             <div className="text-xs font-bold tracking-widest text-[#4a5168] uppercase">
@@ -1099,97 +1215,62 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </h2>
           </div>
 
-          <div className="lg:col-span-8">
-            <details open>
-              <summary>
-                <span>Is PDF Suite really free to use?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                Yes. PDF Suite is 100% free, open-source under the MIT License, and client-side. You can upload, edit, annotate, convert, and export without creating an account or providing a credit card.
-              </p>
-            </details>
-
-            <details>
-              <summary>
-                <span>Do I need to install software or plugins?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                No. Everything runs directly inside your browser on desktop, tablet, or mobile using WebAssembly and Web Workers. There are zero extensions, binaries, or plugins to download.
-              </p>
-            </details>
-
-            <details>
-              <summary>
-                <span>Are my documents private? Does anything upload to the cloud?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                Zero bytes leave your computer. 100% of parsing, stream surgery, rendering, and file compilation executes in your device memory. You can turn off your Wi-Fi completely and PDF Suite will continue functioning without interruption.
-              </p>
-            </details>
-
-            <details>
-              <summary>
-                <span>How does in-place text editing work without making text blurry?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                Unlike common web tools that convert pages into 72 DPI JPEG raster images, PDF Suite inspects raw PDF content streams. It detects baseline angles, CapHeight, and font metrics to substitute or reconstruct text tokens natively. Your document stays crisp at 1000% zoom.
-              </p>
-            </details>
-
-            <details>
-              <summary>
-                <span>What happens if I accidentally refresh my browser?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                Your workspace is protected. Active documents, operations ledger, zoom settings, and page position automatically sync to local browser IndexedDB. Refreshing will immediately restore your progress.
-              </p>
-            </details>
-
-            <details>
-              <summary>
-                <span>What file types can I convert to?</span>
-                <span className="pl">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="ans">
-                You can convert PDF documents to Microsoft Word (.docx), Excel spreadsheets (.xlsx), PowerPoint slides (.pptx), plain text (.txt), and high-DPI image archives (.png / .jpg). You can also convert photos and images into standardized PDFs.
-              </p>
-            </details>
+          <div className="lg:col-span-8 space-y-0">
+            {FAQ_ITEMS.map((item, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className="border-t border-[#0d1b3d] last:border-b transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    className="w-full py-7 flex justify-between items-center gap-6 text-left transition-all duration-300 hover:text-[#2447f5] hover:pl-3 cursor-pointer group"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="serif text-3xl sm:text-4xl text-[#0d1b3d] group-hover:text-[#2447f5] transition-colors leading-snug">
+                      {item.q}
+                    </span>
+                    <span
+                      className={`pl shrink-0 transition-transform duration-300 ${
+                        isOpen ? "rotate-45 !bg-[#ffd84d] !border-[#ffd84d]" : ""
+                      }`}
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </span>
+                  </button>
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-out ${
+                      isOpen
+                        ? "max-h-96 opacity-100 pb-8"
+                        : "max-h-0 opacity-0 pb-0 pointer-events-none"
+                    }`}
+                  >
+                    <p className="ans text-lg sm:text-xl text-[#4a5168] leading-relaxed max-w-3xl pr-4">
+                      {item.a}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
         {/* ========================================================================= */}
         {/* CALL TO ACTION CARD */}
         {/* ========================================================================= */}
-        <section className="px-6 sm:px-12 lg:px-16 pb-24 max-w-6xl mx-auto">
+        <section className="reveal-on-scroll px-6 sm:px-12 lg:px-16 pb-24 max-w-6xl mx-auto">
           <div className="bg-[#2447f5] text-[#f4f1ea] rounded-[40px] px-8 py-20 sm:p-24 text-center flex flex-col items-center gap-8 shadow-2xl">
             <h2 className="serif text-6xl sm:text-8xl lg:text-9xl leading-[0.95]">
               Open your first PDF.
@@ -1199,7 +1280,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="btn !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-white hover:!border-white text-lg !px-10 !h-14"
+              className="btn !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] hover:!bg-white hover:!border-white text-lg !px-10 !h-14 cursor-pointer"
             >
               Upload a PDF
             </button>
@@ -1209,7 +1290,7 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
         {/* ========================================================================= */}
         {/* CURVED FOOTER */}
         {/* ========================================================================= */}
-        <footer className="ft">
+        <footer className="reveal-on-scroll ft">
           <div className="flex flex-col md:flex-row justify-between items-start gap-12 max-w-6xl mx-auto">
             <button
               onClick={() => fileInputRef.current?.click()}
