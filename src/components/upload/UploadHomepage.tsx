@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import {
   UploadCloud,
   FileCheck2,
@@ -21,14 +21,16 @@ import {
   FilePlus2,
   Search,
   X,
-  Clock,
-  CheckCircle2,
-  FileCode2,
   Command,
-  HelpCircle,
-  FolderOpen,
   ArrowUpRight,
   ArrowLeft,
+  Menu,
+  CheckCircle2,
+  Share2,
+  PenTool,
+  Home,
+  Database,
+  Trash2,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import {
@@ -38,7 +40,10 @@ import {
 } from "@/core/utils/sample-pdfs";
 import { ToolCategory, ToolId, ToolDefinition } from "@/core/tools/types";
 import { PdfToolsRunnerModal } from "../tools/PdfToolsRunnerModal";
-import { loadDocumentSession } from "@/core/persistence/document-persistence";
+import {
+  loadDocumentSession,
+  clearDocumentSession,
+} from "@/core/persistence/document-persistence";
 
 const ALL_TOOLS: (ToolDefinition & { keywords?: string[] })[] = [
   // ROW 1: PRIMARY ESSENTIALS
@@ -100,101 +105,103 @@ const ALL_TOOLS: (ToolDefinition & { keywords?: string[] })[] = [
     badge: "OOXML Standard",
     popular: true,
     acceptedFormats: ".pdf",
-    color: "sky",
-    gradient: "from-sky-600 to-blue-700",
-    keywords: ["word", "docx", "doc", "microsoft", "office", "editable"],
+    color: "blue",
+    gradient: "from-blue-700 to-indigo-800",
+    keywords: ["word", "docx", "doc", "microsoft", "convert"],
   },
   {
     id: "pdf-to-excel",
     title: "PDF to Excel (.xlsx)",
-    shortDesc: "Detect and extract data tables into Excel workbooks or clean structured CSVs.",
+    shortDesc: "Detect tabular row columns and export numerical figures into clean spreadsheets.",
     category: "convert-from-pdf",
-    badge: "Table Extract",
+    badge: "Tabular Parser",
+    popular: true,
     acceptedFormats: ".pdf",
     color: "emerald",
-    gradient: "from-emerald-500 to-green-700",
-    keywords: ["excel", "xlsx", "csv", "spreadsheet", "table", "data", "sheets"],
+    gradient: "from-emerald-700 to-green-800",
+    keywords: ["excel", "xlsx", "csv", "sheets", "spreadsheet", "tables"],
   },
   {
     id: "pdf-to-ppt",
-    title: "PDF to PowerPoint",
-    shortDesc: "Transform pages into editable presentation slides ready to present or share.",
+    title: "PDF to PowerPoint (.pptx)",
+    shortDesc: "Convert presentation slides into editable slides with retained geometries.",
     category: "convert-from-pdf",
     acceptedFormats: ".pdf",
-    color: "red",
-    gradient: "from-red-500 to-amber-600",
-    keywords: ["powerpoint", "ppt", "pptx", "slides", "presentation", "keynote"],
+    color: "orange",
+    gradient: "from-orange-600 to-amber-700",
+    keywords: ["powerpoint", "ppt", "pptx", "slides", "presentation"],
   },
   {
     id: "word-to-pdf",
-    title: "Word & Text to PDF",
-    shortDesc: "Convert rich text, markdown, or Office documents directly into standard PDF format.",
+    title: "Word (.docx) to PDF",
+    shortDesc: "Compile DOCX documents into universal vector PDF files with preserved formatting.",
     category: "convert-to-pdf",
-    acceptedFormats: ".txt,.docx,.md",
+    acceptedFormats: ".docx,.doc",
     color: "blue",
-    gradient: "from-blue-500 to-cyan-600",
-    keywords: ["convert", "text", "markdown", "word", "create"],
+    gradient: "from-sky-600 to-blue-700",
+    keywords: ["doc", "docx", "word", "convert to pdf"],
   },
 
-  // ROW 3: IMAGE CONVERSIONS
+  // ROW 3: IMAGE SUITE
   {
     id: "pdf-to-jpg",
     title: "PDF to JPG",
-    shortDesc: "Convert each PDF page into high-resolution JPG images with custom DPI settings.",
+    shortDesc: "Rasterize pages into high-resolution JPG images with selectable DPI quality.",
     category: "convert-from-pdf",
+    popular: true,
     acceptedFormats: ".pdf",
     color: "amber",
-    gradient: "from-amber-500 to-orange-600",
-    keywords: ["jpg", "jpeg", "image", "photo", "convert"],
+    gradient: "from-amber-600 to-orange-600",
+    keywords: ["jpg", "jpeg", "image", "export pages", "raster"],
   },
   {
     id: "pdf-to-png",
-    title: "PDF to PNG",
-    shortDesc: "Render pages into crisp, lossless PNG images with pixel-perfect vector clarity.",
+    title: "PDF to PNG (Lossless)",
+    shortDesc: "Export crisp pages with transparent alpha background support.",
     category: "convert-from-pdf",
-    badge: "Lossless",
     acceptedFormats: ".pdf",
-    color: "orange",
-    gradient: "from-orange-500 to-red-600",
-    keywords: ["png", "lossless", "image", "transparent", "photo"],
+    color: "violet",
+    gradient: "from-violet-600 to-purple-700",
+    keywords: ["png", "lossless", "transparent", "alpha"],
   },
   {
     id: "jpg-to-pdf",
     title: "JPG to PDF",
-    shortDesc: "Transform photos, receipts, and scans into a clean, formatted PDF document.",
+    shortDesc: "Collate multiple JPEG photos into a single paginated PDF portfolio.",
     category: "convert-to-pdf",
-    acceptedFormats: "image/jpeg,image/jpg",
-    color: "amber",
-    gradient: "from-amber-600 to-yellow-600",
-    keywords: ["photo", "scan", "receipt", "jpg", "jpeg"],
+    acceptedFormats: ".jpg,.jpeg",
+    color: "yellow",
+    gradient: "from-yellow-600 to-amber-600",
+    keywords: ["jpg to pdf", "photos", "portfolio"],
   },
   {
-    id: "images-to-pdf",
-    title: "PNG & Images to PDF",
-    shortDesc: "Combine multiple PNG, WebP, or SVG graphics into a multi-page PDF.",
+    id: "png-to-pdf",
+    title: "PNG to PDF",
+    shortDesc: "Package lossless illustrations and diagrams into a print-ready document.",
     category: "convert-to-pdf",
-    acceptedFormats: "image/*",
-    color: "rose",
-    gradient: "from-rose-500 to-pink-600",
-    keywords: ["images", "gallery", "portfolio", "webp", "combine"],
+    acceptedFormats: ".png",
+    color: "indigo",
+    gradient: "from-indigo-600 to-blue-700",
+    keywords: ["png to pdf", "diagrams", "vector-like"],
   },
 
-  // ROW 4: SECURITY & STRUCTURAL
+  // ROW 4: ADVANCED SECURITY & WORKFLOWS
   {
     id: "protect-pdf",
     title: "Protect with Password",
-    shortDesc: "Encrypt your PDF document with AES-256 client-side cryptographic security.",
+    shortDesc: "Apply military-grade AES-256 encryption and configure read/edit permissions.",
     category: "security",
     badge: "AES-256",
+    popular: true,
     acceptedFormats: ".pdf",
-    color: "violet",
-    gradient: "from-violet-600 to-purple-800",
-    keywords: ["password", "lock", "encrypt", "protect", "security", "aes"],
+    color: "rose",
+    gradient: "from-rose-600 to-red-700",
+    keywords: ["protect", "encrypt", "password", "security", "aes", "lock"],
   },
   {
     id: "unlock-pdf",
-    title: "Unlock PDF",
-    shortDesc: "Remove password security restrictions and export an open document.",
+    title: "Unlock Password PDF",
+    shortDesc: "Permanently remove owner restrictions and decryption barriers locally.",
     category: "security",
     acceptedFormats: ".pdf",
     color: "teal",
@@ -223,13 +230,21 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   const [isDragging, setIsDragging] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAllTools, setShowAllTools] = useState(false);
   const [activeRunnerTool, setActiveRunnerTool] = useState<ToolId | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState<"dashboard" | "files" | "signatures" | "shared" | "vault">("dashboard");
+
+  // Dynamic time greeting & date
+  const [greeting, setGreeting] = useState("morning");
+  const [formattedDate, setFormattedDate] = useState("Sunday, 15 November");
 
   // Resume session check
   const [recentSession, setRecentSession] = useState<{
     documentName: string;
     timestamp: number;
     currentPageNumber: number;
+    byteSize?: number;
   } | null>(null);
 
   const {
@@ -243,6 +258,25 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   } = useEditorStore();
 
   useEffect(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    if (hour < 12) setGreeting("morning");
+    else if (hour < 17) setGreeting("afternoon");
+    else setGreeting("evening");
+
+    try {
+      const dateStr = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
+      setFormattedDate(dateStr);
+    } catch {
+      setFormattedDate("Sunday, 15 November");
+    }
+  }, []);
+
+  useEffect(() => {
     let isCancelled = false;
     loadDocumentSession().then((session) => {
       if (!isCancelled && session && session.rawBytes && session.rawBytes.byteLength > 0) {
@@ -250,6 +284,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           documentName: session.documentName,
           timestamp: session.timestamp,
           currentPageNumber: session.currentPageNumber || 1,
+          byteSize: session.rawBytes.byteLength,
         });
       }
     });
@@ -291,7 +326,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-      alert("Please upload a valid PDF document to open in PDF Studio.");
+      alert("Please upload a valid PDF document to open in PDF Suite.");
       return;
     }
 
@@ -309,13 +344,13 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
       let name: string;
       if (type === "single") {
         buffer = await createSinglePageSamplePdf();
-        name = "Sample-InvoiceContract.pdf";
+        name = "Service-agreement.pdf";
       } else if (type === "multi") {
         buffer = await createMultiPageSamplePdf();
-        name = "Sample-AnnualReport.pdf";
+        name = "Annual-Report-2026.pdf";
       } else {
         buffer = await createRotatedPageSamplePdf();
-        name = "Sample-RotatedPresentation.pdf";
+        name = "Pitch-Deck-Landscape.pdf";
       }
       await loadDocumentBytes(buffer, name);
     } catch {
@@ -323,71 +358,250 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
     }
   };
 
-  const handleToolClick = (tool: ToolDefinition) => {
-    if (tool.id === "edit-pdf") {
+  const handleClearStorage = async () => {
+    try {
+      await clearDocumentSession();
+      setRecentSession(null);
+      showToast("Local memory vault cleared");
+    } catch {
+      showToast("Storage cleared");
+    }
+  };
+
+  const handleToolClick = (toolId: ToolId | "edit-pdf" | "sign" | "to-image") => {
+    if (toolId === "edit-pdf") {
       fileInputRef.current?.click();
+    } else if (toolId === "sign") {
+      loadSample("single");
+    } else if (toolId === "to-image") {
+      setActiveRunnerTool("pdf-to-jpg");
     } else {
-      setActiveRunnerTool(tool.id);
+      setActiveRunnerTool(toolId as ToolId);
     }
   };
 
   // Filter tools by category and search query
   const query = searchQuery.trim().toLowerCase();
-  const filteredTools = ALL_TOOLS.filter((tool) => {
-    const matchesCategory = activeCategory === "all" || tool.category === activeCategory;
-    if (!matchesCategory) return false;
-    if (!query) return true;
+  const filteredTools = useMemo(() => {
+    return ALL_TOOLS.filter((tool) => {
+      const matchesCategory = activeCategory === "all" || tool.category === activeCategory;
+      if (!matchesCategory) return false;
+      if (!query) return true;
 
-    return (
-      tool.title.toLowerCase().includes(query) ||
-      tool.shortDesc.toLowerCase().includes(query) ||
-      tool.category.toLowerCase().includes(query) ||
-      tool.badge?.toLowerCase().includes(query) ||
-      tool.keywords?.some((k) => k.toLowerCase().includes(query))
-    );
-  });
+      return (
+        tool.title.toLowerCase().includes(query) ||
+        tool.shortDesc.toLowerCase().includes(query) ||
+        tool.category.toLowerCase().includes(query) ||
+        tool.badge?.toLowerCase().includes(query) ||
+        tool.keywords?.some((k) => k.toLowerCase().includes(query))
+      );
+    });
+  }, [activeCategory, query]);
 
-  const getToolIcon = (id: ToolId) => {
-    switch (id) {
-      case "edit-pdf":
-        return Sparkles;
-      case "merge-pdf":
-        return Layers;
-      case "split-pdf":
-        return Scissors;
-      case "compress-pdf":
-        return Minimize2;
-      case "pdf-to-jpg":
-      case "pdf-to-png":
-      case "jpg-to-pdf":
-      case "png-to-pdf":
-      case "images-to-pdf":
-        return ImageIcon;
-      case "pdf-to-word":
-      case "word-to-pdf":
-        return FileText;
-      case "pdf-to-excel":
-      case "excel-to-pdf":
-        return FileSpreadsheet;
-      case "pdf-to-ppt":
-        return Presentation;
-      case "protect-pdf":
-        return Lock;
-      case "unlock-pdf":
-        return Unlock;
-      default:
-        return FileText;
-    }
-  };
+  // Filtered recent files
+  const sampleFiles = [
+    {
+      name: recentSession ? recentSession.documentName : "Service-agreement.pdf",
+      date: "Today",
+      size: recentSession?.byteSize ? `${(recentSession.byteSize / (1024 * 1024)).toFixed(1)} MB` : "1.2 MB",
+      badge: "Draft",
+      badgeBg: "#f3c9c0",
+      badgeColor: "#0d1b3d",
+      action: () => (recentSession ? restoreSession() : loadSample("single")),
+    },
+    {
+      name: "Invoice-0042.pdf",
+      date: "Yesterday",
+      size: "340 KB",
+      badge: "Signed",
+      badgeBg: "#ffd84d",
+      badgeColor: "#0d1b3d",
+      action: () => loadSample("single"),
+    },
+    {
+      name: "Annual-Report-2026.pdf",
+      date: "3 days ago",
+      size: "4.8 MB",
+      badge: "Protected",
+      badgeBg: "#2447f5",
+      badgeColor: "#f4f1ea",
+      action: () => loadSample("multi"),
+    },
+  ];
+
+  const filteredRecentFiles = useMemo(() => {
+    if (!query) return sampleFiles;
+    return sampleFiles.filter((f) => f.name.toLowerCase().includes(query));
+  }, [query, sampleFiles]);
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0B0F17] text-slate-100 min-h-screen relative overflow-y-auto selection:bg-blue-500/30 selection:text-blue-200">
-      {/* Ambient background glow accents */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-blue-600/15 via-indigo-600/10 to-transparent blur-[140px] rounded-full" />
-        <div className="absolute top-1/3 -left-40 w-[600px] h-[600px] bg-blue-500/5 blur-[160px] rounded-full" />
-        <div className="absolute top-2/3 -right-40 w-[600px] h-[600px] bg-indigo-500/5 blur-[160px] rounded-full" />
-      </div>
+    <div className="pdf-dashboard-shell min-h-screen w-full relative flex flex-col lg:grid lg:grid-cols-[264px_1fr] bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+      <style jsx global>{`
+        .serif {
+          font-family: 'Instrument Serif', Georgia, serif;
+          font-weight: 400;
+          letter-spacing: -0.02em;
+        }
+        .muted {
+          color: #4a5168;
+        }
+        .bar {
+          height: 9px;
+          border-radius: 5px;
+          background: #d9d6cc;
+        }
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          height: 48px;
+          padding: 0 24px;
+          border-radius: 99px;
+          font: 600 15px 'Inter Tight', sans-serif;
+          border: 1px solid #0d1b3d;
+          background: transparent;
+          color: #0d1b3d;
+          cursor: pointer;
+          transition: transform .3s cubic-bezier(.2,.8,.2,1), background .3s, color .3s;
+          text-decoration: none;
+        }
+        .btn:hover {
+          transform: translateY(-2px);
+          background: #ffd84d;
+        }
+        .btn.pri {
+          background: #2447f5;
+          border-color: #2447f5;
+          color: #f4f1ea;
+        }
+        .btn.pri:hover {
+          background: #0d1b3d;
+          border-color: #0d1b3d;
+        }
+        .nv {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          height: 48px;
+          padding: 0 16px;
+          border-radius: 99px;
+          font-weight: 600;
+          color: #4a5168;
+          transition: background .25s, color .25s, padding .3s;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .nv:hover {
+          background: #e7e3d8;
+          color: #0d1b3d;
+          padding-left: 22px;
+        }
+        .nv.on {
+          background: #0d1b3d;
+          color: #f4f1ea;
+        }
+        .nv.on i {
+          background: #ffd84d;
+        }
+        .nv i {
+          width: 8px;
+          height: 8px;
+          border-radius: 4px;
+          margin-left: auto;
+          background: transparent;
+          display: inline-block;
+        }
+        .tl {
+          border-radius: 24px;
+          padding: 20px;
+          height: 132px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          border: 1px solid #d8d4c8;
+          cursor: pointer;
+          transition: transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s;
+          text-decoration: none;
+        }
+        .tl:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 40px -16px rgba(13,27,61,.3);
+        }
+        .tl .ar {
+          opacity: 0;
+          transform: translateX(-10px);
+          transition: all .35s;
+        }
+        .tl:hover .ar {
+          opacity: 1;
+          transform: none;
+        }
+        .rw {
+          display: grid;
+          grid-template-columns: 56px 2fr 1fr 1fr 110px 40px;
+          align-items: center;
+          padding: 12px 24px;
+          border-top: 1px solid #d8d4c8;
+          transition: background .25s;
+        }
+        .rw:hover {
+          background: #f4f1ea;
+        }
+        .ch {
+          font-size: 13px;
+          font-weight: 700;
+          padding: 5px 12px;
+          border-radius: 99px;
+          width: max-content;
+        }
+        .ib {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          border: 1px solid transparent;
+          background: transparent;
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          color: #0d1b3d;
+          transition: background .25s, transform .25s;
+        }
+        .ib:hover {
+          background: #e7e3d8;
+          transform: translateY(-2px);
+        }
+        .ib.on {
+          background: #0d1b3d;
+          color: #ffd84d;
+        }
+        @keyframes bob {
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes grow {
+          from { width: 0; }
+        }
+        @keyframes fin {
+          from { opacity: 0; transform: translateY(16px); }
+        }
+        .in {
+          animation: fin .7s cubic-bezier(.2,.8,.2,1) both;
+        }
+        .pdf-dashboard-shell {
+          background-color: #f4f1ea;
+          background-image: radial-gradient(#d8d4c8 1.2px, transparent 1.2px);
+          background-size: 24px 24px;
+        }
+      `}</style>
+
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".pdf,application/pdf"
+        className="hidden"
+      />
 
       {/* Interactive Tool Runner Modal */}
       <PdfToolsRunnerModal
@@ -395,148 +609,264 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
         onClose={() => setActiveRunnerTool(null)}
       />
 
-      {/* Top Application Navbar */}
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0B0F17]/85 border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between transition-all">
-        <div className="flex items-center space-x-3.5">
+      {/* Mobile Top Header (Visible on < lg screens) */}
+      <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-[#fbf9f4] border-b border-[#d8d4c8] sticky top-0 z-30">
+        <button
+          onClick={() => (onBackToLanding ? onBackToLanding() : null)}
+          className="serif text-2xl font-bold tracking-tight text-[#0d1b3d]"
+        >
+          PDF Suite
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn pri !h-9 !px-3.5 !text-xs"
+          >
+            <FilePlus2 className="w-3.5 h-3.5" />
+            <span>Upload</span>
+          </button>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="ib !w-9 !h-9"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Sidebar (Desktop sticky, Mobile drawer) */}
+      <aside
+        className={`bg-[#fbf9f4] border-r border-[#d8d4c8] p-6 lg:p-7 flex flex-col gap-1.5 transition-all z-40 ${
+          mobileMenuOpen
+            ? "fixed inset-0 w-80 max-w-[85vw] shadow-2xl overflow-y-auto"
+            : "hidden lg:flex lg:h-screen lg:sticky lg:top-0"
+        }`}
+      >
+        {mobileMenuOpen && (
+          <div className="flex items-center justify-between pb-4 border-b border-[#d8d4c8] mb-2 lg:hidden">
+            <span className="serif text-2xl">PDF Suite</span>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="ib !w-8 !h-8"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Brand / Logo */}
+        <div className="flex items-center justify-between px-4 pb-6">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              if (onBackToLanding) onBackToLanding();
+            }}
+            className="serif text-[34px] leading-none hover:opacity-85 transition-opacity"
+            title="Return to Landing Page"
+          >
+            PDF Suite
+          </a>
           {onBackToLanding && (
             <button
               onClick={onBackToLanding}
-              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700/80 transition flex items-center space-x-1.5 cursor-pointer mr-1"
-              title="Return to Overview / Landing Page"
+              className="text-xs text-[#4a5168] hover:text-[#0d1b3d] font-semibold flex items-center gap-1 transition"
+              title="Back to Landing Page"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Overview</span>
+              <span className="hidden xl:inline">Overview</span>
             </button>
           )}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 border border-white/20">
-            <span className="font-black text-sm tracking-tight">PS</span>
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-white text-base tracking-tight">
-                PDF Studio
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                PRO SUITE
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium hidden sm:block">
-              Client-Side WebAssembly Workspace
+        </div>
+
+        {/* Navigation Items */}
+        <a
+          href="#dashboard"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav("dashboard");
+            setMobileMenuOpen(false);
+          }}
+          className={`nv ${activeNav === "dashboard" ? "on" : ""}`}
+        >
+          <Home className="w-5 h-5" />
+          <span>Dashboard</span>
+          <i />
+        </a>
+
+        <a
+          href="#files"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav("files");
+            setMobileMenuOpen(false);
+            const el = document.getElementById("recent-files-card");
+            el?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className={`nv ${activeNav === "files" ? "on" : ""}`}
+        >
+          <FileText className="w-5 h-5" />
+          <span>My files</span>
+          <i />
+        </a>
+
+        <a
+          href="#signatures"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav("signatures");
+            setMobileMenuOpen(false);
+            loadSample("single");
+          }}
+          className={`nv ${activeNav === "signatures" ? "on" : ""}`}
+        >
+          <PenTool className="w-5 h-5" />
+          <span>Signatures</span>
+          <i />
+        </a>
+
+        <a
+          href="#shared"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav("shared");
+            setMobileMenuOpen(false);
+            showToast("Zero-server sharing: all files remain local");
+          }}
+          className={`nv ${activeNav === "shared" ? "on" : ""}`}
+        >
+          <Share2 className="w-5 h-5" />
+          <span>Shared</span>
+          <i />
+        </a>
+
+        <a
+          href="#vault"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav("vault");
+            setMobileMenuOpen(false);
+            setActiveRunnerTool("protect-pdf");
+          }}
+          className={`nv ${activeNav === "vault" ? "on" : ""}`}
+        >
+          <Lock className="w-5 h-5" />
+          <span>Vault</span>
+          <i />
+        </a>
+
+        {/* Storage Card at Bottom */}
+        <div className="mt-auto bg-[#0d1b3d] text-[#f4f1ea] rounded-3xl p-5 shadow-lg">
+          <div className="flex items-center justify-between font-semibold">
+            <span>Storage</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[#ffd84d]">
+              100% Local
             </span>
           </div>
-        </div>
 
-        {/* Center Live Privacy Status Badge */}
-        <div className="hidden md:inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>100% In-Browser Sandbox • Zero Data Uploads</span>
-        </div>
+          <div className="h-2 rounded-full bg-[#2a3a66] my-3 overflow-hidden">
+            <div
+              className="h-2 rounded-full bg-[#ffd84d]"
+              style={{
+                width: recentSession ? "42%" : "18%",
+                animation: "grow 1.4s cubic-bezier(.2,.8,.2,1) both",
+              }}
+            />
+          </div>
 
-        {/* Right CTA */}
-        <div className="flex items-center space-x-2.5">
+          <div className="text-[13px] text-[#aeb3c4]">
+            {recentSession?.byteSize
+              ? `${(recentSession.byteSize / (1024 * 1024)).toFixed(1)} MB of local memory used`
+              : "0.8 MB of local memory used"}
+          </div>
+
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2 border border-white/10 active:scale-95 cursor-pointer"
+            onClick={handleClearStorage}
+            className="btn !h-10 mt-4 w-full !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] font-bold text-xs hover:!bg-white"
           >
-            <FilePlus2 className="w-3.5 h-3.5" />
-            <span>Open Document</span>
-            <span className="hidden sm:inline-block ml-1 px-1.5 py-0.2 rounded bg-black/30 text-[10px] text-blue-200 font-mono">
-              ⌘O
-            </span>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear Storage</span>
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Error Alert Notice */}
-      {errorMessage && (
-        <div className="max-w-3xl mx-auto mt-6 px-4 w-full relative z-10 animate-fade-in">
-          <div className="bg-red-950/60 border border-red-800/80 rounded-2xl p-4 shadow-xl flex items-start space-x-3.5 text-red-200 backdrop-blur-md">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-red-100 text-sm mb-1">Failed to open document</p>
-              <p className="text-red-300 leading-relaxed">{errorMessage}</p>
+      {/* Main Workspace Area */}
+      <main className="p-6 sm:p-8 lg:p-11 flex flex-col gap-6 overflow-y-auto max-w-[1400px]">
+        {/* Error Alert Notice */}
+        {errorMessage && (
+          <div className="w-full bg-red-100 border border-red-300 rounded-2xl p-4 flex items-center justify-between text-red-900 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <div className="text-xs">
+                <span className="font-bold text-sm">Failed to open document: </span>
+                <span>{errorMessage}</span>
+              </div>
             </div>
             <button
               onClick={clearError}
-              className="text-red-400 hover:text-white font-bold text-base px-2 py-1 rounded-lg hover:bg-red-900/50 transition cursor-pointer"
+              className="text-red-700 hover:text-red-950 font-bold px-2 py-1"
             >
               ✕
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 flex flex-col items-center relative z-10">
-        {/* Hero Section */}
-        <div className="text-center max-w-3xl mx-auto mb-10">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-slate-300 text-xs font-medium mb-5 shadow-inner backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            <span>Complete PDF Studio • Native Text Editing • 15+ Free Converters</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight mb-4 leading-[1.12]">
-            Professional PDF Tools. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-              100% Private in Your Browser.
-            </span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            Directly edit original text, convert to Word, Excel, JPG, compress, split, merge, and protect PDFs without uploading your files anywhere.
-          </p>
-        </div>
-
-        {/* Resume Session Banner (If Previous Document Exists in Local Storage) */}
-        {recentSession && (
-          <div className="w-full max-w-3xl mb-8 animate-fade-in">
-            <div className="bg-gradient-to-r from-blue-950/40 via-slate-900/70 to-indigo-950/40 border border-blue-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">
-                      Previous Session
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      Page {recentSession.currentPageNumber}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-semibold text-white truncate max-w-md mt-0.5">
-                    {recentSession.documentName}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 self-end sm:self-auto shrink-0">
-                <button
-                  onClick={() => setRecentSession(null)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white transition rounded-lg hover:bg-slate-800"
-                >
-                  Dismiss
-                </button>
-                <button
-                  onClick={async () => {
-                    await restoreSession();
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-                >
-                  <span>Resume Workspace</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
         )}
 
-        {/* Master Dropzone & Document Command Hub */}
-        <div className="w-full max-w-3xl mb-14">
+        {/* Header: Date + Greeting + Search & Actions */}
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <div className="muted font-semibold text-sm">{formattedDate}</div>
+            <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05]">
+              Good {greeting},{" "}
+              <i style={{ color: "#2447f5", fontStyle: "italic" }}>Darsh.</i>
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+            {/* Search Files & Tools Input */}
+            <label className="flex items-center gap-2.5 h-12 w-full sm:w-[280px] lg:w-[320px] rounded-full bg-[#fbf9f4] border border-[#d8d4c8] px-4 text-[#4a5168] transition focus-within:border-[#2447f5] focus-within:ring-2 focus-within:ring-[#2447f5]/15">
+              <Search className="w-4 h-4 shrink-0" />
+              <input
+                ref={searchInputRef}
+                aria-label="Search files & tools"
+                placeholder="Search files & tools"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border-0 outline-none bg-transparent text-[15px] font-medium text-[#0d1b3d] flex-1 placeholder:text-[#4a5168]"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-[#4a5168] hover:text-[#0d1b3d] p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </label>
+
+            {/* Upload PDF Primary Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="btn pri shrink-0 shadow-lg shadow-blue-600/20 active:scale-95"
+            >
+              <FilePlus2 className="w-4 h-4" />
+              <span>Upload PDF</span>
+            </button>
+
+            {/* User Avatar */}
+            <div
+              className="w-12 h-12 rounded-full bg-[#f3c9c0] text-[#0d1b3d] font-black text-base grid place-items-center shadow-sm shrink-0 select-none cursor-default"
+              title="Darsh Modi (darshmodii.in)"
+            >
+              D
+            </div>
+          </div>
+        </div>
+
+        {/* Hero 2-Column Action Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Card 1: Dropzone (Span 2) */}
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -545,73 +875,36 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl border-2 border-dashed p-8 sm:p-12 cursor-pointer transition-all duration-300 shadow-2xl relative overflow-hidden group ${
+            className={`in lg:col-span-2 border-2 border-dashed rounded-[28px] min-h-[172px] flex items-center gap-6 px-6 sm:px-9 py-6 cursor-pointer transition-all duration-300 ${
               isDragging
-                ? "border-blue-400 bg-blue-600/15 scale-[1.01] shadow-blue-500/25 ring-4 ring-blue-500/20"
-                : "border-slate-700/80 hover:border-blue-500/80 hover:bg-slate-900/80"
+                ? "border-[#2447f5] bg-[#eef3ff] scale-[1.01] shadow-xl"
+                : "border-[#2447f5] bg-[#fbf9f4] hover:bg-[#f6f3eb]"
             }`}
+            style={{ animationDelay: "0.05s" }}
           >
-            {/* Ambient inner glow */}
-            <div className="absolute inset-0 bg-radial from-blue-600/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf,application/pdf"
-              className="hidden"
-            />
-
-            <div className="flex flex-col items-center justify-center relative z-10">
-              <div
-                className={`w-18 h-18 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mb-5 transition-all duration-300 shadow-xl ${
-                  isDragging
-                    ? "bg-blue-600 text-white scale-110 shadow-blue-500/40"
-                    : "bg-gradient-to-tr from-slate-800 to-slate-700/80 text-blue-400 border border-slate-700 group-hover:scale-105 group-hover:text-blue-300 group-hover:border-blue-500/40"
-                }`}
-              >
-                <UploadCloud className="w-9 h-9 sm:w-10 sm:h-10 transition-transform group-hover:-translate-y-0.5" />
+            <span
+              className="w-[72px] h-[72px] rounded-full bg-[#2447f5] text-[#f4f1ea] grid place-items-center shrink-0 shadow-lg shadow-blue-600/25"
+              style={{ animation: "bob 2.4s ease-in-out infinite" }}
+            >
+              <UploadCloud className="w-8 h-8" />
+            </span>
+            <div className="min-w-0">
+              <div className="serif text-[32px] sm:text-[38px] leading-tight text-[#0d1b3d]">
+                Drop a PDF to begin
+              </div>
+              <div className="muted text-sm sm:text-base mt-1.5">
+                or browse your device. Up to 100MB.
               </div>
 
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-2 text-center tracking-tight">
-                Select PDF file or drop it anywhere
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mb-6 text-center max-w-md leading-relaxed">
-                Opens instantly in the high-fidelity PDF Studio Editor. Vector glyphs, interactive links, and embedded styles preserved.
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <button
-                  type="button"
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center space-x-2 border border-white/10 group-hover:shadow-blue-500/40"
-                >
-                  <FileCheck2 className="w-4 h-4" />
-                  <span>Choose Local PDF</span>
-                </button>
-              </div>
-
-              {/* Supported format badges */}
-              <div className="flex items-center space-x-2 mt-6 text-[11px] text-slate-500">
-                <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded text-slate-400 border border-slate-700/60">
-                  .pdf (All Standards 1.4 - 2.0)
-                </span>
-                <span>•</span>
-                <span>Encrypted & Scanned PDFs supported</span>
-              </div>
-
-              {/* Loading Bar Indicator */}
               {isLoading && (
-                <div className="w-full max-w-sm mt-6 animate-fade-in">
-                  <div className="flex justify-between text-xs text-slate-300 mb-2 font-medium">
-                    <span className="flex items-center space-x-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                      <span>Parsing & analyzing document structure...</span>
-                    </span>
-                    <span className="font-mono text-blue-400 font-bold">{loadingProgress}%</span>
+                <div className="mt-3 max-w-xs">
+                  <div className="flex justify-between text-xs text-[#2447f5] font-semibold mb-1">
+                    <span>Parsing structure...</span>
+                    <span>{loadingProgress}%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/80">
+                  <div className="h-1.5 w-full bg-[#d8d4c8] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 shadow-md shadow-blue-500/50"
+                      className="h-full bg-[#2447f5] transition-all duration-300"
                       style={{ width: `${loadingProgress}%` }}
                     />
                   </div>
@@ -620,282 +913,524 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
             </div>
           </div>
 
-          {/* Quick Interactive Sample Document Launchers */}
-          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 px-4 backdrop-blur-md">
-            <span className="text-xs text-slate-400 font-medium flex items-center space-x-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Or explore with instant sample templates:</span>
-            </span>
+          {/* Card 2: Continue Editing (Span 1) */}
+          <div
+            onClick={async () => {
+              if (recentSession) {
+                await restoreSession();
+              } else {
+                await loadSample("single");
+              }
+            }}
+            className="in bg-[#0d1b3d] text-[#f4f1ea] rounded-[28px] min-h-[172px] p-6 sm:p-7 flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#0d1b3d]/25 transition-all group"
+            style={{ animationDelay: "0.12s" }}
+          >
+            <div className="flex items-center justify-between font-semibold text-[#ffd84d]">
+              <span>Continue editing</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => loadSample("single")}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-              >
-                <FileText aria-hidden="true" className="w-3.5 h-3.5 text-blue-300" />
-                <span>Contract & Terms (1 Pg)</span>
-              </button>
-              <button
-                onClick={() => loadSample("multi")}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-              >
-                <Layers aria-hidden="true" className="w-3.5 h-3.5 text-violet-300" />
-                <span>Annual Report (5 Pgs)</span>
-              </button>
-              <button
-                onClick={() => loadSample("rotated")}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-slate-200 text-xs font-medium transition flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-              >
-                <Presentation aria-hidden="true" className="w-3.5 h-3.5 text-cyan-300" />
-                <span>Landscape Slides</span>
-              </button>
+            <div>
+              <div className="serif text-[28px] sm:text-[32px] leading-tight truncate">
+                {recentSession?.documentName || "Service-agreement.pdf"}
+              </div>
+
+              <div className="flex items-center gap-3 mt-3 text-sm text-[#aeb3c4]">
+                <div className="flex-1 h-1.5 rounded-full bg-[#2a3a66] overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-[#ffd84d]"
+                    style={{
+                      width: recentSession ? "75%" : "62%",
+                      animation: "grow 1.6s 0.3s cubic-bezier(.2,.8,.2,1) both",
+                    }}
+                  />
+                </div>
+                <span>
+                  Page {recentSession?.currentPageNumber || 2} of 3
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Tools Suite Section with Live Search & Category Filtering */}
-        <section className="w-full space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  All PDF Tools & Converters
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                  {filteredTools.length}
+        {/* Tools Section */}
+        <div>
+          <div className="flex justify-between items-baseline mb-3.5">
+            <h2 className="serif text-[30px] sm:text-[34px]">Tools</h2>
+            <button
+              onClick={() => setShowAllTools(!showAllTools)}
+              className="font-semibold text-[#2447f5] hover:underline text-sm sm:text-base cursor-pointer"
+            >
+              {showAllTools ? "Show essentials" : "See all (24 tools)"}
+            </button>
+          </div>
+
+          {/* 8 Primary Signature Tool Tiles (Matching Mockup) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Edit PDF */}
+            <div
+              onClick={() => handleToolClick("edit-pdf")}
+              className="tl in"
+              style={{
+                background: "#2447f5",
+                color: "#f4f1ea",
+                borderColor: "#2447f5",
+                animationDelay: "0.10s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />
+                </svg>
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Run any tool directly inside your browser. No registration, no queues, no file limits.
-              </p>
+              <div>
+                <div className="serif text-[30px] leading-tight">Edit PDF</div>
+                <div className="text-sm opacity-80 mt-1">Change text and images</div>
+              </div>
             </div>
 
-            {/* Search Input Bar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative min-w-[240px] sm:min-w-[280px]">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search tools (e.g. compress, word, merge...)"
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+            {/* 2. Sign */}
+            <div
+              onClick={() => handleToolClick("sign")}
+              className="tl in"
+              style={{
+                background: "#ffd84d",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.15s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 17c3-6 5-6 6-2s3 2 5-3 3 0 7 0" />
+                </svg>
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
               </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Sign</div>
+                <div className="text-sm opacity-80 mt-1">Add your signature</div>
+              </div>
+            </div>
 
-              {/* Category Filter Pills */}
-              <div className="flex flex-wrap gap-1 p-1 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
-                <button
-                  onClick={() => setActiveCategory("all")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    activeCategory === "all"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
+            {/* 3. Merge */}
+            <div
+              onClick={() => handleToolClick("merge-pdf")}
+              className="tl in"
+              style={{
+                background: "#f3c9c0",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.20s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  All ({ALL_TOOLS.length})
-                </button>
-                <button
-                  onClick={() => setActiveCategory("convert-from-pdf")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    activeCategory === "convert-from-pdf"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  From PDF
-                </button>
-                <button
-                  onClick={() => setActiveCategory("convert-to-pdf")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    activeCategory === "convert-to-pdf"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  To PDF
-                </button>
-                <button
-                  onClick={() => setActiveCategory("organize")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    activeCategory === "organize"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Organize
-                </button>
-                <button
-                  onClick={() => setActiveCategory("security")}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-                    activeCategory === "security"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Security
-                </button>
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Merge</div>
+                <div className="text-sm opacity-80 mt-1">Combine files</div>
+              </div>
+            </div>
+
+            {/* 4. Split */}
+            <div
+              onClick={() => handleToolClick("split-pdf")}
+              className="tl in"
+              style={{
+                background: "#fbf9f4",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.25s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <Scissors className="w-6 h-6" />
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Split</div>
+                <div className="text-sm opacity-80 mt-1">Extract pages</div>
+              </div>
+            </div>
+
+            {/* 5. Compress */}
+            <div
+              onClick={() => handleToolClick("compress-pdf")}
+              className="tl in"
+              style={{
+                background: "#fbf9f4",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.30s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <Minimize2 className="w-6 h-6" />
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Compress</div>
+                <div className="text-sm opacity-80 mt-1">Reduce file size</div>
+              </div>
+            </div>
+
+            {/* 6. Convert */}
+            <div
+              onClick={() => handleToolClick("pdf-to-word")}
+              className="tl in"
+              style={{
+                background: "#fbf9f4",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.35s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <FileText className="w-6 h-6" />
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Convert</div>
+                <div className="text-sm opacity-80 mt-1">PDF to Word or image</div>
+              </div>
+            </div>
+
+            {/* 7. Protect */}
+            <div
+              onClick={() => handleToolClick("protect-pdf")}
+              className="tl in"
+              style={{
+                background: "#0d1b3d",
+                color: "#f4f1ea",
+                borderColor: "#0d1b3d",
+                animationDelay: "0.40s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <Lock className="w-6 h-6" />
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">Protect</div>
+                <div className="text-sm opacity-80 mt-1">Password and redact</div>
+              </div>
+            </div>
+
+            {/* 8. To image */}
+            <div
+              onClick={() => handleToolClick("to-image")}
+              className="tl in"
+              style={{
+                background: "#fbf9f4",
+                color: "#0d1b3d",
+                borderColor: "#d8d4c8",
+                animationDelay: "0.45s",
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <ImageIcon className="w-6 h-6" />
+                <span className="ar">
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              </div>
+              <div>
+                <div className="serif text-[30px] leading-tight">To image</div>
+                <div className="text-sm opacity-80 mt-1">Export pages</div>
               </div>
             </div>
           </div>
 
-          {/* Tools Grid Display */}
-          {filteredTools.length === 0 ? (
-            <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-slate-800/80">
-              <Search className="w-8 h-8 text-slate-500 mx-auto mb-3" />
-              <h4 className="text-sm font-semibold text-slate-300 mb-1">
-                No tools found matching &quot;{searchQuery}&quot;
-              </h4>
-              <p className="text-xs text-slate-500 mb-4">
-                Try searching for words like &quot;merge&quot;, &quot;compress&quot;, &quot;word&quot;, or &quot;excel&quot;.
-              </p>
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setActiveCategory("all");
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition"
-              >
-                Reset Search & Filters
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredTools.map((tool) => {
-                const Icon = getToolIcon(tool.id);
-                return (
+          {/* Expanded Full Tools View (When Toggled or Searching) */}
+          {(showAllTools || query.length > 0) && (
+            <div className="mt-6 pt-6 border-t border-[#d8d4c8] space-y-4 animate-fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-[#0d1b3d]">
+                  Showing {filteredTools.length} tools
+                </div>
+                <div className="flex flex-wrap gap-1.5 p-1 bg-[#fbf9f4] rounded-full border border-[#d8d4c8] text-xs">
+                  <button
+                    onClick={() => setActiveCategory("all")}
+                    className={`px-3 py-1 rounded-full font-semibold transition ${
+                      activeCategory === "all" ? "bg-[#0d1b3d] text-white" : "text-[#4a5168] hover:text-[#0d1b3d]"
+                    }`}
+                  >
+                    All ({ALL_TOOLS.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveCategory("convert-from-pdf")}
+                    className={`px-3 py-1 rounded-full font-semibold transition ${
+                      activeCategory === "convert-from-pdf" ? "bg-[#0d1b3d] text-white" : "text-[#4a5168] hover:text-[#0d1b3d]"
+                    }`}
+                  >
+                    From PDF
+                  </button>
+                  <button
+                    onClick={() => setActiveCategory("convert-to-pdf")}
+                    className={`px-3 py-1 rounded-full font-semibold transition ${
+                      activeCategory === "convert-to-pdf" ? "bg-[#0d1b3d] text-white" : "text-[#4a5168] hover:text-[#0d1b3d]"
+                    }`}
+                  >
+                    To PDF
+                  </button>
+                  <button
+                    onClick={() => setActiveCategory("organize")}
+                    className={`px-3 py-1 rounded-full font-semibold transition ${
+                      activeCategory === "organize" ? "bg-[#0d1b3d] text-white" : "text-[#4a5168] hover:text-[#0d1b3d]"
+                    }`}
+                  >
+                    Organize
+                  </button>
+                  <button
+                    onClick={() => setActiveCategory("security")}
+                    className={`px-3 py-1 rounded-full font-semibold transition ${
+                      activeCategory === "security" ? "bg-[#0d1b3d] text-white" : "text-[#4a5168] hover:text-[#0d1b3d]"
+                    }`}
+                  >
+                    Security
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                {filteredTools.map((tool) => (
                   <div
                     key={tool.id}
-                    onClick={() => handleToolClick(tool)}
-                    className="group bg-slate-900/70 hover:bg-slate-850 rounded-2xl border border-slate-800 hover:border-blue-500/60 p-5 cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-200 flex flex-col justify-between relative overflow-hidden backdrop-blur-md hover:-translate-y-1"
+                    onClick={() => {
+                      if (tool.id === "edit-pdf") fileInputRef.current?.click();
+                      else setActiveRunnerTool(tool.id);
+                    }}
+                    className="p-4 rounded-2xl bg-[#fbf9f4] border border-[#d8d4c8] hover:border-[#2447f5] hover:-translate-y-1 hover:shadow-lg transition cursor-pointer flex flex-col justify-between"
                   >
-                    {/* Top ambient hover gradient */}
-                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                    <div className="space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <div
-                          className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${tool.gradient} text-white flex items-center justify-center shadow-lg shadow-black/40 transition-transform group-hover:scale-105 border border-white/20`}
-                        >
-                          <Icon className="w-5 h-5" />
-                        </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-sm text-[#0d1b3d]">{tool.title}</span>
                         {tool.badge && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#eef3ff] text-[#2447f5] border border-blue-200">
                             {tool.badge}
                           </span>
                         )}
                       </div>
-
-                      <div>
-                        <h3 className="font-bold text-white text-sm group-hover:text-blue-400 transition-colors flex items-center justify-between">
-                          <span>{tool.title}</span>
-                          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-blue-400 transition-opacity" />
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                          {tool.shortDesc}
-                        </p>
-                      </div>
+                      <p className="text-xs text-[#4a5168] leading-relaxed">{tool.shortDesc}</p>
                     </div>
-
-                    <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-blue-400">
-                      <span className="group-hover:translate-x-0.5 transition-transform">Launch Tool</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-1 transition-transform" />
+                    <div className="mt-3 pt-2 border-t border-[#d8d4c8]/60 flex items-center justify-between text-xs font-semibold text-[#2447f5]">
+                      <span>Open tool</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Enterprise Architecture & Security Pillar Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-16 text-left w-full pt-12 border-t border-slate-800/80">
-          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-              <Lock className="w-5 h-5" />
+        {/* Recent Files Section (Matching Mockup) */}
+        <div
+          id="recent-files-card"
+          className="bg-[#fbf9f4] border border-[#d8d4c8] rounded-[28px] overflow-hidden shadow-sm"
+        >
+          <div className="flex justify-between items-center p-5 sm:p-6 pb-4">
+            <h2 className="serif text-[26px] sm:text-[30px]">Recent files</h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadSample("single")}
+                className="text-xs font-bold text-[#4a5168] hover:text-[#0d1b3d] transition"
+              >
+                + Load Sample
+              </button>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  showToast("Showing all recent files");
+                }}
+                className="font-semibold text-[#2447f5] hover:underline text-sm"
+              >
+                View all
+              </button>
             </div>
-            <h4 className="text-sm font-bold text-white">100% In-Browser Confidential</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Your confidential contracts, financials, and legal files never leave your computer. All WebAssembly parsing, rendering, and conversion run inside your isolated browser sandbox.
-            </p>
           </div>
 
-          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
-              <Layers className="w-5 h-5" />
-            </div>
-            <h4 className="text-sm font-bold text-white">True Vector & Font Preservation</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Unlike web tools that degrade PDFs into blurry flattened raster images, PDF Studio maintains exact vector glyphs, embedded OpenType fonts, form fields, and clickable URLs.
-            </p>
-          </div>
+          {/* Table Header for Mobile/Desktop Clarity */}
+          <div className="overflow-x-auto">
+            {filteredRecentFiles.length === 0 ? (
+              <div className="p-8 text-center text-[#4a5168] text-sm">
+                No recent files matching &quot;{searchQuery}&quot;
+              </div>
+            ) : (
+              filteredRecentFiles.map((file, idx) => (
+                <div key={idx} className="rw min-w-[600px]">
+                  {/* Thumbnail */}
+                  <div className="w-8 h-10 rounded-md bg-[#f4f1ea] border border-[#d8d4c8] p-1.5 flex flex-col gap-1 shrink-0">
+                    <div className="bar !h-[3px] w-full" />
+                    <div className="bar !h-[3px] w-3/5" />
+                  </div>
 
-          <div className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 space-y-3 shadow-xl backdrop-blur-md hover:border-slate-700 transition">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-              <Zap className="w-5 h-5" />
-            </div>
-            <h4 className="text-sm font-bold text-white">Zero Limits & Multi-Threaded</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              No uploading or downloading over slow connections. Process massive documents up to 250MB instantly with multi-threaded Web Workers and zero rate limits.
-            </p>
-          </div>
-        </section>
+                  {/* Name */}
+                  <b className="truncate pr-3 text-[#0d1b3d]">{file.name}</b>
 
-        {/* Global Keyboard Shortcuts Strip */}
-        <section className="w-full mt-10 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 backdrop-blur-md">
-          <div className="flex items-center space-x-2 font-medium text-slate-300">
-            <Command className="w-4 h-4 text-blue-400" />
+                  {/* Date */}
+                  <span className="muted text-sm">{file.date}</span>
+
+                  {/* Size */}
+                  <span className="muted text-sm">{file.size}</span>
+
+                  {/* Chip */}
+                  <span
+                    className="ch"
+                    style={{
+                      backgroundColor: file.badgeBg,
+                      color: file.badgeColor,
+                    }}
+                  >
+                    {file.badge}
+                  </span>
+
+                  {/* Action Icon */}
+                  <button
+                    onClick={file.action}
+                    className="ib"
+                    aria-label={`Open ${file.name}`}
+                    title={`Open ${file.name}`}
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Global Keyboard Shortcuts Pill Strip */}
+        <div className="mt-2 bg-[#fbf9f4] border border-[#d8d4c8] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[#4a5168]">
+          <div className="flex items-center gap-2 font-semibold text-[#0d1b3d]">
+            <Command className="w-4 h-4 text-[#2447f5]" />
             <span>Editor Shortcuts:</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">V</kbd>
-              <span className="text-slate-400 font-sans">Select</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                ⌘O
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Open PDF</span>
             </span>
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">H</kbd>
-              <span className="text-slate-400 font-sans">Grab & Position</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                /
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Search</span>
             </span>
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Space</kbd>
-              <span className="text-slate-400 font-sans">Quick Grab</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                V
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Select</span>
             </span>
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">T</kbd>
-              <span className="text-slate-400 font-sans">Add Text</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                T
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Add Text</span>
             </span>
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ctrl+D</kbd>
-              <span className="text-slate-400 font-sans">Duplicate</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                Space
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Hand Tool</span>
             </span>
-            <span className="flex items-center space-x-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ctrl+Z</kbd>
-              <span className="text-slate-400 font-sans">Undo</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#f4f1ea] text-[#0d1b3d] border border-[#d8d4c8]">
+                ⌘Z
+              </kbd>
+              <span className="text-[#4a5168] font-sans">Undo</span>
             </span>
           </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-auto border-t border-slate-800/80 bg-[#0B0F17]/95 py-6 px-4 text-center text-xs text-slate-500 relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>PDF Studio Engine v2.4 • Client-Side Operational</span>
-          </div>
-          <p>© 2026 PDF Studio Platform • 100% Client-Side Privacy Guaranteed</p>
         </div>
-      </footer>
+
+        {/* Footer with Creator Links */}
+        <footer className="mt-8 pt-6 border-t border-[#d8d4c8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#4a5168]">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>PDF Suite Engine • 100% Client-Side WebAssembly</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <a
+              href="https://darshmodii.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-[#0d1b3d] hover:text-[#2447f5] transition underline"
+            >
+              Darsh Modii
+            </a>
+            <span>•</span>
+            <a
+              href="https://github.com/DevDarsh26"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#0d1b3d] transition underline"
+            >
+              GitHub
+            </a>
+          </div>
+
+          <div className="text-center sm:text-right">
+            Crafted with precision by{" "}
+            <a
+              href="https://darshmodii.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[#0d1b3d] hover:underline"
+            >
+              Darsh Modii
+            </a>
+          </div>
+        </footer>
+      </main>
     </div>
   );
 };

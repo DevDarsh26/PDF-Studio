@@ -192,20 +192,20 @@ export default function Home() {
 
   if (isCheckingSession) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#0B0F17] text-white select-none">
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#f4f1ea] text-[#0d1b3d] select-none">
         <div className="flex items-center space-x-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
+          <div className="w-10 h-10 rounded-xl bg-[#2447f5] flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
             PS
           </div>
-          <span className="font-bold text-lg tracking-tight text-white">PDF Suite</span>
+          <span className="serif text-2xl font-bold tracking-tight text-[#0d1b3d]">PDF Suite</span>
         </div>
-        <div className="flex items-center space-x-2 text-slate-400 text-xs">
-          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+        <div className="flex items-center space-x-2 text-[#4a5168] text-xs">
+          <Loader2 className="w-4 h-4 text-[#2447f5] animate-spin" />
           <span>Restoring document workspace...</span>
         </div>
         <button
           onClick={() => setIsCheckingSession(false)}
-          className="mt-4 px-3 py-1.5 text-xs text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg transition-colors cursor-pointer"
+          className="mt-4 px-3.5 py-1.5 text-xs text-[#0d1b3d] hover:bg-[#ffd84d] bg-[#fbf9f4] border border-[#d8d4c8] rounded-full transition-colors cursor-pointer font-semibold"
         >
           Skip to home &rarr;
         </button>
