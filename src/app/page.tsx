@@ -6,9 +6,9 @@ import { useHistoryStore } from "@/store/history-store";
 import { UploadHomepage } from "@/components/upload/UploadHomepage";
 import { ScrollytellingLandingPage } from "@/components/landing/ScrollytellingLandingPage";
 import { TopToolbar } from "@/components/editor/TopToolbar";
+import { EditorToolRail } from "@/components/editor/EditorToolRail";
 import { ThumbnailSidebar } from "@/components/editor/ThumbnailSidebar";
 import { PdfCanvasViewport } from "@/components/editor/PdfCanvasViewport";
-import { StatusBar } from "@/components/editor/StatusBar";
 import { PasswordModal } from "@/components/modals/PasswordModal";
 import { TextEditModal } from "@/components/modals/TextEditModal";
 import { ExportModal } from "@/components/modals/ExportModal";
@@ -245,16 +245,19 @@ export default function Home() {
         )
       ) : (
         <>
-          {/* Top Application Toolbar */}
+          {/* Top Application Header Bar */}
           <TopToolbar containerRef={viewportContainerRef} />
 
-          {/* Main Workspace: Left Thumbnails + Center Canvas + Right Analysis Panel */}
-          <div className="flex flex-1 overflow-hidden relative">
-            {/* Left Thumbnail Sidebar */}
+          {/* Main Workspace: 72px Tool Rail + 172px Thumbnails + Center Viewport + 310px Properties Panel */}
+          <div className="flex flex-1 overflow-hidden relative min-h-0 bg-[#f4f1ea]">
+            {/* 72px Left Tool Rail */}
+            <EditorToolRail />
+
+            {/* Left Thumbnail Sidebar (172px) */}
             {showThumbnails && (
               <div
                 className={`${
-                  mobileShowThumbnails ? "fixed inset-y-0 left-0 z-30 flex shadow-2xl" : "hidden md:flex"
+                  mobileShowThumbnails ? "fixed inset-y-0 left-[72px] z-30 flex shadow-2xl" : "hidden md:flex"
                 } shrink-0 transition-all duration-200`}
               >
                 <ThumbnailSidebar />
@@ -272,7 +275,7 @@ export default function Home() {
             {/* Central Viewport */}
             <PdfCanvasViewport containerRef={viewportContainerRef} />
 
-            {/* Right Style & Document Analysis Panel */}
+            {/* Right Style & Document Analysis / Properties Panel (310px) */}
             {showAnalysisPanel && (
               <div
                 className={`${
@@ -292,29 +295,26 @@ export default function Home() {
             )}
 
             {/* Floating Mobile Panel Toggle Buttons (Only on smaller screens) */}
-            <div className="absolute bottom-10 left-3 z-20 flex md:hidden items-center space-x-2">
+            <div className="absolute bottom-16 left-20 z-20 flex md:hidden items-center space-x-2">
               <button
                 onClick={() => setMobileShowThumbnails((v) => !v)}
-                className="px-3 py-1.5 bg-white/95 border border-slate-200 rounded-full shadow-md text-xs font-semibold text-slate-700 flex items-center space-x-1.5"
+                className="px-3.5 py-1.5 bg-[#fbf9f4] border border-[#d8d4c8] rounded-full shadow-md text-xs font-semibold text-[#0d1b3d] flex items-center space-x-1.5"
               >
-                <LayoutList className="w-3.5 h-3.5 text-blue-600" />
+                <LayoutList className="w-3.5 h-3.5 text-[#2447f5]" />
                 <span>Pages</span>
               </button>
             </div>
 
-            <div className="absolute bottom-10 right-3 z-20 flex lg:hidden items-center space-x-2">
+            <div className="absolute bottom-16 right-4 z-20 flex lg:hidden items-center space-x-2">
               <button
                 onClick={() => setMobileShowAnalysis((v) => !v)}
-                className="px-3 py-1.5 bg-white/95 border border-slate-200 rounded-full shadow-md text-xs font-semibold text-slate-700 flex items-center space-x-1.5"
+                className="px-3.5 py-1.5 bg-[#fbf9f4] border border-[#d8d4c8] rounded-full shadow-md text-xs font-semibold text-[#0d1b3d] flex items-center space-x-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Analysis</span>
+                <Sparkles className="w-3.5 h-3.5 text-[#2447f5]" />
+                <span>Inspector</span>
               </button>
             </div>
           </div>
-
-          {/* Bottom Status Bar */}
-          <StatusBar />
         </>
       )}
     </div>

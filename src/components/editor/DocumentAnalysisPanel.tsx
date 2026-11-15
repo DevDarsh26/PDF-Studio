@@ -6,21 +6,22 @@ import {
   Palette,
   Image as ImageIcon,
   Link as LinkIcon,
-  ChevronRight,
-  ChevronLeft,
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
-  ShieldCheck,
   Sparkles,
-  Info,
-  Download,
-  Plus,
+  RotateCw,
+  RotateCcw,
+  Trash2,
   Copy,
-  Navigation,
-  Edit3,
-  Loader2,
+  Plus,
+  Layers,
   X,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { useEditorStore } from "@/store/editor-store";
 import { ImageInfo, HyperlinkInfo } from "@/core/models/style-profile";
@@ -72,26 +73,6 @@ const ImagePreviewCard: React.FC<ImagePreviewCardProps> = ({
     };
   }, [adapter, pageNumber, img.rect]);
 
-  const handleCopy = async () => {
-    if (!previewUrl) return;
-    try {
-      const res = await fetch(previewUrl);
-      const blob = await res.blob();
-      if (typeof window !== "undefined" && navigator.clipboard && (window as any).ClipboardItem) {
-        await navigator.clipboard.write([
-          new (window as any).ClipboardItem({ [blob.type]: blob }),
-        ]);
-        showToast("Image copied to clipboard!");
-      } else {
-        await navigator.clipboard.writeText(previewUrl);
-        showToast("Image data URL copied to clipboard");
-      }
-    } catch {
-      await navigator.clipboard.writeText(previewUrl);
-      showToast("Image data copied to clipboard");
-    }
-  };
-
   const handleInsert = async () => {
     if (!previewUrl || isInserting) return;
     setIsInserting(true);
@@ -104,81 +85,37 @@ const ImagePreviewCard: React.FC<ImagePreviewCardProps> = ({
   };
 
   return (
-    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5 hover:border-slate-300 transition">
+    <div className="p-3 bg-[#f4f1ea] rounded-xl border border-[#d8d4c8] space-y-2 hover:border-[#2447f5] transition">
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-slate-800 text-xs">
+        <span className="font-semibold text-[#0d1b3d] text-xs">
           Image #{index + 1} ({img.format})
         </span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-mono">
-          {img.aspectRatio}:1 AR
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#e7e3d8] text-[#0d1b3d] font-mono">
+          {img.aspectRatio}:1
         </span>
       </div>
 
-      {/* Visual Image Preview */}
-      <div className="w-full h-32 rounded-lg border border-slate-200/80 overflow-hidden flex items-center justify-center bg-[repeating-conic-gradient(#f8fafc_0%_25%,#fff_0%_50%)] bg-[length:12px_12px] relative group">
+      <div className="w-full h-24 rounded-lg border border-[#d8d4c8] overflow-hidden flex items-center justify-center bg-white relative">
         {isLoading ? (
-          <div className="flex flex-col items-center space-y-1.5 text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-            <span className="text-[10px]">Rendering preview...</span>
-          </div>
+          <Loader2 className="w-4 h-4 animate-spin text-[#2447f5]" />
         ) : previewUrl ? (
           <img
             src={previewUrl}
-            alt={`Extracted page element ${index + 1}`}
+            alt={`Extracted element ${index + 1}`}
             className="w-full h-full object-contain p-1"
           />
         ) : (
-          <div className="text-slate-400 text-[10px]">Preview unavailable</div>
+          <span className="text-[10px] text-[#4a5168]">Preview unavailable</span>
         )}
       </div>
 
-      {/* Metadata info */}
-      <div className="text-[10.5px] text-slate-600 grid grid-cols-2 gap-1 font-mono">
-        <span>
-          X: {Math.round(img.rect.x)}pt | Y: {Math.round(img.rect.y)}pt
-        </span>
-        <span className="text-right">
-          {Math.round(img.rect.width)} × {Math.round(img.rect.height)} pt
-        </span>
-      </div>
-
-      <div className="text-[9.5px] text-slate-400 pt-1 border-t border-slate-200">
-        Color: {img.colorSpace} | Bits: {img.bitsPerComponent}bpc
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center space-x-1.5 pt-1">
-        {previewUrl && (
-          <a
-            href={previewUrl}
-            download={`page-${pageNumber}-image-${index + 1}.png`}
-            className="flex-1 flex items-center justify-center space-x-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[10.5px] font-medium transition"
-            title="Download PNG to disk"
-          >
-            <Download className="w-3 h-3 text-slate-500" />
-            <span>Download</span>
-          </a>
-        )}
-
-        <button
-          onClick={handleInsert}
-          disabled={!previewUrl || isInserting}
-          className="flex-1 flex items-center justify-center space-x-1 py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10.5px] font-medium transition disabled:opacity-50"
-          title="Place a copy of this image onto page canvas"
-        >
-          <Plus className="w-3 h-3 text-blue-600" />
-          <span>Insert</span>
-        </button>
-
-        <button
-          onClick={handleCopy}
-          disabled={!previewUrl}
-          className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition disabled:opacity-50"
-          title="Copy image to clipboard"
-        >
-          <Copy className="w-3 h-3" />
-        </button>
-      </div>
+      <button
+        onClick={handleInsert}
+        disabled={!previewUrl || isInserting}
+        className="w-full py-1 text-xs font-semibold rounded-lg bg-[#2447f5] hover:bg-[#0d1b3d] text-white transition disabled:opacity-50"
+      >
+        Insert Copy
+      </button>
     </div>
   );
 };
@@ -187,571 +124,491 @@ export const DocumentAnalysisPanel: React.FC = () => {
   const {
     currentStyleProfile,
     currentPageNumber,
-    setActiveFormatting,
-    executeAddOperation,
-    openEditLinkModal,
-    setCurrentPage,
-    showToast,
     toggleAnalysisPanel,
+    executeAddOperation,
+    showToast,
+    selectedElementId,
+    selectedTokenId,
+    operations,
+    activeFormatting,
+    setActiveFormatting,
+    deleteSelected,
+    duplicateSelected,
+    rotatePageInDocument,
+    deletePageFromDocument,
+    openPageManager,
+    pageInfos,
   } = useEditorStore();
 
-  const [activeTab, setActiveTab] = useState<
-    "fonts" | "colors" | "images" | "links" | "accuracy"
-  >("fonts");
+  const [panelTab, setPanelTab] = useState<"edit" | "pages" | "inspect">("edit");
+  const [inspectSubTab, setInspectSubTab] = useState<"fonts" | "colors" | "media" | "links">("fonts");
 
-  if (!currentStyleProfile) {
-    return null;
-  }
+  // Determine currently selected element details if any
+  const selectedOp = selectedElementId
+    ? operations.find((op) => op.id === selectedElementId)
+    : null;
 
-  const {
-    detectedFonts,
-    frequentlyUsedColors,
-    images,
-    hyperlinks,
-    inferredProperties,
-    accuracyReport,
-  } = currentStyleProfile;
-
-  const fontList = Array.from(detectedFonts.values());
-
-  const handleInsertExtractedImage = async (
-    img: ImageInfo,
-    dataUrl: string
-  ) => {
-    const op: AddImageOperation = {
-      id: `op-img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      type: "add_image",
-      pageNumber: currentPageNumber,
-      rect: {
-        x: Math.max(20, Math.min(img.rect.x + 20, 200)),
-        y: Math.max(20, Math.min(img.rect.y + 20, 300)),
-        width: Math.max(40, Math.min(img.rect.width, 250)),
-        height: Math.max(40, Math.min(img.rect.height, 250)),
-      },
-      imageDataUrl: dataUrl,
-      mimeType: "image/png",
-      opacity: 1,
-      timestamp: Date.now(),
-    };
-    await executeAddOperation(op);
-  };
+  const fontOptions = [
+    "Inter Tight",
+    "Helvetica",
+    "Arial",
+    "Times New Roman",
+    "Courier",
+    "Instrument Serif",
+  ];
 
   return (
-    <aside className="w-80 border-l border-slate-200 bg-white flex flex-col shrink-0 select-none z-10 shadow-xs">
-      {/* Panel Header */}
-      <div className="h-11 border-b border-slate-200 px-3.5 flex items-center justify-between bg-slate-50/70">
-        <div className="flex items-center space-x-2">
-          <Sparkles className="w-4 h-4 text-blue-600" />
-          <span className="font-semibold text-xs text-slate-800 tracking-tight">
-            Document Style Profile
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-mono">
-            Pg {currentPageNumber}
-          </span>
-        </div>
+    <aside className="w-[310px] bg-[#fbf9f4] border-l border-[#d8d4c8] p-5 flex flex-col gap-5 overflow-y-auto z-10 shrink-0 select-none">
+      <style jsx>{`
+        .serif {
+          font-family: 'Instrument Serif', Georgia, serif;
+          font-weight: 400;
+          letter-spacing: -0.02em;
+        }
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          height: 44px;
+          padding: 0 16px;
+          border-radius: 99px;
+          font: 600 13px 'Inter Tight', sans-serif;
+          border: 1px solid #d8d4c8;
+          background: transparent;
+          color: #0d1b3d;
+          cursor: pointer;
+          transition: transform .2s, background .2s, color .2s;
+        }
+        .btn:hover {
+          background: #e7e3d8;
+        }
+        .btn.danger {
+          color: #e11d48;
+          border-color: #fecdd3;
+        }
+        .btn.danger:hover {
+          background: #ffe4e6;
+        }
+        .ib {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid transparent;
+          background: transparent;
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          color: #0d1b3d;
+          transition: background .2s, transform .2s;
+        }
+        .ib:hover {
+          background: #e7e3d8;
+          transform: translateY(-1px);
+        }
+        .ib.on {
+          background: #0d1b3d;
+          color: #ffd84d;
+        }
+        .sw {
+          width: 28px;
+          height: 28px;
+          border-radius: 14px;
+          display: inline-block;
+          cursor: pointer;
+          transition: transform .2s, box-shadow .2s;
+          border: 2px solid transparent;
+        }
+        .sw:hover {
+          transform: scale(1.2);
+        }
+        .sw.active {
+          border-color: #0d1b3d;
+          box-shadow: 0 0 0 2px #ffd84d;
+        }
+      `}</style>
+
+      {/* Close button for inspector header */}
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-xs font-semibold text-[#4a5168] uppercase tracking-wider">
+          Properties & Tools
+        </span>
         <button
           onClick={toggleAnalysisPanel}
-          title="Close Inspector"
-          className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200/50 transition"
+          className="ib !w-7 !h-7 text-[#4a5168] hover:text-[#0d1b3d]"
+          title="Close Panel"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex border-b border-slate-200 bg-slate-50/50 p-1 space-x-1 text-xs">
+      {/* Top 3-Way Mode Switcher Pill */}
+      <div className="grid grid-cols-3 bg-[#e7e3d8] rounded-full p-1 text-center font-bold text-sm">
         <button
-          onClick={() => setActiveTab("fonts")}
-          className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-[11px] transition flex items-center justify-center space-x-1 ${
-            activeTab === "fonts"
-              ? "bg-white text-blue-600 shadow-2xs border border-slate-200/80"
-              : "text-slate-600 hover:text-slate-900"
+          onClick={() => setPanelTab("edit")}
+          className={`py-2 rounded-full transition ${
+            panelTab === "edit"
+              ? "bg-[#0d1b3d] text-[#f4f1ea] shadow-sm"
+              : "text-[#4a5168] hover:text-[#0d1b3d]"
           }`}
         >
-          <Type className="w-3.5 h-3.5" />
-          <span>Fonts ({fontList.length})</span>
+          Edit
         </button>
         <button
-          onClick={() => setActiveTab("colors")}
-          className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-[11px] transition flex items-center justify-center space-x-1 ${
-            activeTab === "colors"
-              ? "bg-white text-blue-600 shadow-2xs border border-slate-200/80"
-              : "text-slate-600 hover:text-slate-900"
+          onClick={() => setPanelTab("pages")}
+          className={`py-2 rounded-full transition ${
+            panelTab === "pages"
+              ? "bg-[#0d1b3d] text-[#f4f1ea] shadow-sm"
+              : "text-[#4a5168] hover:text-[#0d1b3d]"
           }`}
         >
-          <Palette className="w-3.5 h-3.5" />
-          <span>Colors</span>
+          Pages
         </button>
         <button
-          onClick={() => setActiveTab("images")}
-          className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-[11px] transition flex items-center justify-center space-x-1 ${
-            activeTab === "images"
-              ? "bg-white text-blue-600 shadow-2xs border border-slate-200/80"
-              : "text-slate-600 hover:text-slate-900"
+          onClick={() => setPanelTab("inspect")}
+          className={`py-2 rounded-full transition ${
+            panelTab === "inspect"
+              ? "bg-[#0d1b3d] text-[#f4f1ea] shadow-sm"
+              : "text-[#4a5168] hover:text-[#0d1b3d]"
           }`}
         >
-          <ImageIcon className="w-3.5 h-3.5" />
-          <span>Media ({images.length})</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("links")}
-          className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-[11px] transition flex items-center justify-center space-x-1 ${
-            activeTab === "links"
-              ? "bg-white text-blue-600 shadow-2xs border border-slate-200/80"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <LinkIcon className="w-3.5 h-3.5" />
-          <span>Links ({hyperlinks.length})</span>
-        </button>
-        <button
-          onClick={() => setActiveTab("accuracy")}
-          className={`py-1.5 px-2 rounded-md font-medium text-[11px] transition flex items-center justify-center ${
-            activeTab === "accuracy"
-              ? "bg-white text-blue-600 shadow-2xs border border-slate-200/80"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-          title="Analysis Accuracy & Limitations"
-        >
-          <Info className="w-3.5 h-3.5" />
+          Inspect
         </button>
       </div>
 
-      {/* Tab Content Body */}
-      <div className="flex-1 overflow-y-auto p-4 text-xs space-y-4">
-        {/* FONTS TAB */}
-        {activeTab === "fonts" && (
-          <div className="space-y-3">
-            <div className="text-[11px] text-slate-500 flex items-center justify-between pb-1 border-b border-slate-100">
-              <span className="font-semibold uppercase tracking-wider text-[10px]">
-                Detected Fonts ({fontList.length})
-              </span>
-              <span className="text-[10px] text-blue-600 font-medium">100% Extracted</span>
-            </div>
+      {/* TAB 1: EDIT / ELEMENT PROPERTIES */}
+      {panelTab === "edit" && (
+        <div className="flex flex-col gap-5 flex-1">
+          <div className="serif text-[28px] leading-none text-[#0d1b3d]">
+            {selectedOp
+              ? selectedOp.type === "add_text"
+                ? "Text Element"
+                : selectedOp.type === "add_shape"
+                ? "Vector Shape"
+                : "Element"
+              : selectedTokenId
+              ? "Selected Text"
+              : "Typography & Style"}
+          </div>
 
-            {fontList.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                No embedded font resources on this page.
+          {/* Font Family Selector */}
+          <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+            <span>Font</span>
+            <select
+              value={activeFormatting.fontFamily || "Inter Tight"}
+              onChange={(e) => setActiveFormatting({ fontFamily: e.target.value })}
+              className="h-11 border border-[#d8d4c8] rounded-xl px-3 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
+            >
+              {fontOptions.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Font Size & Bold/Italic */}
+          <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+            <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+              <span>Size</span>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="6"
+                  max="120"
+                  value={activeFormatting.fontSize || 14}
+                  onChange={(e) =>
+                    setActiveFormatting({ fontSize: Number(e.target.value) || 14 })
+                  }
+                  className="h-11 w-full border border-[#d8d4c8] rounded-xl px-3 pr-8 text-sm font-medium bg-[#f4f1ea] text-[#0d1b3d] outline-none focus:border-[#2447f5]"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4a5168] font-mono">
+                  pt
+                </span>
               </div>
-            ) : (
-              fontList.map((font) => (
-                <div
-                  key={font.id}
-                  className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 space-y-2 hover:border-slate-300 transition"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-xs tracking-tight">
-                        {font.family}
-                      </h4>
-                      <p
-                        className="text-[10px] font-mono text-slate-500 truncate max-w-[190px]"
-                        title={font.postScriptName}
-                      >
-                        {font.postScriptName}
-                      </p>
-                    </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 font-mono text-slate-700">
-                      {font.weight}
-                    </span>
-                  </div>
+            </label>
 
-                  {/* Reusability status badge */}
-                  <div
-                    className={`px-2 py-1 rounded-md text-[10.5px] flex items-center space-x-1.5 border ${
-                      font.canBeReusedForEditing
-                        ? "bg-emerald-50/80 text-emerald-800 border-emerald-200/80"
-                        : "bg-amber-50/80 text-amber-800 border-amber-200/80"
-                    }`}
-                  >
-                    {font.canBeReusedForEditing ? (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-                    )}
-                    <span className="truncate" title={font.reusabilityReason}>
-                      {font.canBeReusedForEditing ? "Safe for native text modification" : "Subset font: Original glyphs only"}
-                    </span>
-                  </div>
+            <div className="flex gap-1">
+              <button
+                onClick={() =>
+                  setActiveFormatting({
+                    fontWeight:
+                      activeFormatting.fontWeight === "bold" ? "normal" : "bold",
+                  })
+                }
+                className={`ib ${activeFormatting.fontWeight === "bold" ? "on" : ""}`}
+                title="Bold"
+              >
+                <Bold className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() =>
+                  setActiveFormatting({
+                    fontStyle:
+                      activeFormatting.fontStyle === "italic" ? "normal" : "italic",
+                  })
+                }
+                className={`ib ${activeFormatting.fontStyle === "italic" ? "on" : ""}`}
+                title="Italic"
+              >
+                <Italic className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {font.isSubset && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-50 text-purple-700 border border-purple-200 font-mono">
-                        Subset Font
-                      </span>
-                    )}
-                    {font.isEmbedded && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 border border-blue-200">
-                        Embedded
-                      </span>
-                    )}
-                    {font.isStandard14 && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 text-slate-800 font-mono">
-                        Standard 14
-                      </span>
-                    )}
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 border border-slate-200">
-                      Freq: {font.frequency}
-                    </span>
-                  </div>
+          {/* Color Palette Swatches */}
+          <div>
+            <div className="font-bold text-sm text-[#0d1b3d] mb-2.5">Color</div>
+            <div className="flex items-center gap-2.5">
+              {[
+                { hex: "#0d1b3d", title: "Midnight Navy" },
+                { hex: "#2447f5", title: "Electric Cobalt" },
+                { hex: "#ffd84d", title: "Golden Yellow" },
+                { hex: "#f3c9c0", title: "Soft Coral" },
+                { hex: "#ffffff", title: "White" },
+              ].map((c) => (
+                <button
+                  key={c.hex}
+                  onClick={() =>
+                    setActiveFormatting({
+                      fontColorHex: c.hex,
+                      strokeColorHex: c.hex,
+                      fillColorHex: c.hex,
+                    })
+                  }
+                  title={c.title}
+                  className={`sw ${activeFormatting.fontColorHex === c.hex ? "active" : ""}`}
+                  style={{
+                    backgroundColor: c.hex,
+                    border: c.hex === "#ffffff" ? "1px solid #d8d4c8" : "none",
+                  }}
+                />
+              ))}
 
-                  {/* Character coverage */}
-                  {font.characterCoverage.count > 0 && (
-                    <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200/50">
-                      <span className="font-medium text-slate-700">
-                        Coverage ({font.characterCoverage.count} glyphs):{" "}
-                      </span>
-                      <span className="font-mono text-slate-600">
-                        {font.characterCoverage.sampleCharacters.join(" ")}...
-                      </span>
-                    </div>
-                  )}
+              {/* Native Color Picker */}
+              <label
+                className="w-7 h-7 rounded-full border border-[#d8d4c8] grid place-items-center cursor-pointer hover:scale-110 transition bg-white"
+                title="Custom color"
+              >
+                <span className="text-[11px] font-bold text-[#4a5168]">+</span>
+                <input
+                  type="color"
+                  value={activeFormatting.fontColorHex || "#0d1b3d"}
+                  onChange={(e) =>
+                    setActiveFormatting({
+                      fontColorHex: e.target.value,
+                      strokeColorHex: e.target.value,
+                      fillColorHex: e.target.value,
+                    })
+                  }
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
 
-                  {/* Interactive Buttons */}
-                  <div className="flex items-center space-x-1.5 pt-1.5 border-t border-slate-200/60">
-                    <button
-                      onClick={() => {
-                        setActiveFormatting({
-                          fontFamily: font.family,
-                          fontWeight: font.weight === "bold" ? "bold" : "normal",
-                          fontStyle: font.style === "italic" ? "italic" : "normal",
-                        });
-                        showToast(`Set active font to "${font.family}"`);
-                      }}
-                      className="flex-1 flex items-center justify-center space-x-1 py-1 px-2 text-[10.5px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 rounded-lg transition"
-                      title="Use this font in the active text tool"
-                    >
-                      <Sparkles className="w-3 h-3 text-blue-600" />
-                      <span>Use in Editor</span>
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(font.family);
-                        showToast(`Copied font name: ${font.family}`);
-                      }}
-                      className="p-1 px-2 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition flex items-center space-x-1 text-[10.5px]"
-                      title="Copy font name"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>Copy</span>
-                    </button>
-                  </div>
-                </div>
-              ))
+          {/* Opacity Slider */}
+          <label className="flex flex-col gap-2 font-bold text-sm text-[#0d1b3d]">
+            <div className="flex justify-between items-center">
+              <span>Opacity</span>
+              <span className="text-xs font-mono text-[#4a5168]">
+                {Math.round((activeFormatting.opacity ?? 1) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.05"
+              value={activeFormatting.opacity ?? 1}
+              onChange={(e) =>
+                setActiveFormatting({ opacity: Number(e.target.value) })
+              }
+              className="accent-[#2447f5] h-1.5 rounded-full bg-[#d8d4c8] cursor-pointer"
+            />
+          </label>
+
+          {/* Delete Element Button */}
+          {selectedElementId ? (
+            <button
+              onClick={() => deleteSelected()}
+              className="btn danger mt-auto w-full"
+            >
+              <Trash2 className="w-4 h-4 text-red-600" />
+              <span>Delete Element</span>
+            </button>
+          ) : (
+            <div className="mt-auto p-3.5 rounded-xl bg-[#f4f1ea] border border-[#d8d4c8] text-xs text-[#4a5168] text-center">
+              Click any element or text on the page to adjust properties.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: PAGE MANAGEMENT */}
+      {panelTab === "pages" && (
+        <div className="flex flex-col gap-4 flex-1">
+          <div className="serif text-[28px] leading-none text-[#0d1b3d]">
+            Page {currentPageNumber} of {pageInfos.length}
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              onClick={() => rotatePageInDocument(currentPageNumber, 90)}
+              className="btn justify-start"
+            >
+              <RotateCw className="w-4 h-4 text-[#2447f5]" />
+              <span>Rotate 90° Clockwise</span>
+            </button>
+
+            <button
+              onClick={() => rotatePageInDocument(currentPageNumber, 270)}
+              className="btn justify-start"
+            >
+              <RotateCcw className="w-4 h-4 text-[#2447f5]" />
+              <span>Rotate 90° Counter-Clockwise</span>
+            </button>
+
+            <button
+              onClick={openPageManager}
+              className="btn justify-start"
+            >
+              <Layers className="w-4 h-4 text-[#0d1b3d]" />
+              <span>Page Organizer Grid</span>
+            </button>
+
+            {pageInfos.length > 1 && (
+              <button
+                onClick={() => deletePageFromDocument(currentPageNumber)}
+                className="btn danger justify-start mt-2"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+                <span>Delete This Page</span>
+              </button>
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* COLORS TAB */}
-        {activeTab === "colors" && (
-          <div className="space-y-4">
-            <div>
-              <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 block mb-2">
-                Color Palette & Color Spaces
-              </span>
-              <div className="space-y-2">
-                {frequentlyUsedColors.map((color, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2.5">
-                        <div
-                          className="w-6 h-6 rounded-md border border-black/10 shadow-2xs"
-                          style={{ backgroundColor: color.colorHex }}
-                        />
-                        <div>
-                          <span className="font-mono font-semibold text-slate-800 text-xs block">
-                            {color.colorHex}
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-medium">
-                            Space: {color.colorSpace}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 font-mono text-slate-700 inline-block">
-                          Freq: {color.frequency}
-                        </span>
-                        <div className="text-[9px] text-slate-400 capitalize mt-0.5">
-                          {color.contexts.join(", ")}
-                        </div>
-                      </div>
-                    </div>
+      {/* TAB 3: DOCUMENT ANALYSIS & DETECTED STYLES */}
+      {panelTab === "inspect" && (
+        <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+          <div className="serif text-[28px] leading-none text-[#0d1b3d]">
+            Document Profile
+          </div>
 
-                    {/* Interactive Color Actions */}
-                    <div className="flex items-center space-x-1.5 pt-1.5 border-t border-slate-200/60">
-                      <button
-                        onClick={() => {
-                          setActiveFormatting({ fontColorHex: color.colorHex });
-                          showToast(`Applied text color: ${color.colorHex}`);
-                        }}
-                        className="flex-1 py-1 px-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-medium transition text-center"
-                        title="Set as active text color"
-                      >
-                        Text Color
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveFormatting({ strokeColorHex: color.colorHex });
-                          showToast(`Applied stroke color: ${color.colorHex}`);
-                        }}
-                        className="flex-1 py-1 px-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-medium transition text-center"
-                        title="Set as active stroke color"
-                      >
-                        Stroke
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveFormatting({ fillColorHex: color.colorHex });
-                          showToast(`Applied fill color: ${color.colorHex}`);
-                        }}
-                        className="flex-1 py-1 px-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-medium transition text-center"
-                        title="Set as active fill color"
-                      >
-                        Fill
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(color.colorHex);
-                          showToast(`Copied ${color.colorHex} to clipboard`);
-                        }}
-                        className="p-1 bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 rounded transition"
-                        title="Copy Hex"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Inferred Background Color */}
-            <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/80 space-y-2">
-              <span className="text-[10px] font-semibold text-blue-900 block uppercase tracking-wider">
-                Inferred Page Background
-              </span>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div
-                    className="w-5 h-5 rounded border border-slate-300 shadow-2xs"
-                    style={{ backgroundColor: inferredProperties.pageBackgroundHex }}
-                  />
-                  <span className="font-mono text-xs text-blue-900 font-medium">
-                    {inferredProperties.pageBackgroundHex}
-                  </span>
-                  <span className="text-[10px] text-blue-600">(Heuristic)</span>
-                </div>
+          {currentStyleProfile ? (
+            <div className="flex flex-col gap-3 overflow-y-auto pr-1">
+              {/* Sub-tabs */}
+              <div className="flex gap-1 border-b border-[#d8d4c8] pb-1 text-xs">
                 <button
-                  onClick={() => {
-                    setActiveFormatting({ fillColorHex: inferredProperties.pageBackgroundHex });
-                    showToast(`Set fill color to background ${inferredProperties.pageBackgroundHex}`);
-                  }}
-                  className="px-2 py-1 text-[10px] font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                  onClick={() => setInspectSubTab("fonts")}
+                  className={`px-2 py-1 rounded font-semibold transition ${
+                    inspectSubTab === "fonts"
+                      ? "bg-[#0d1b3d] text-white"
+                      : "text-[#4a5168] hover:text-[#0d1b3d]"
+                  }`}
                 >
-                  Use for Whiteout
+                  Fonts ({currentStyleProfile.detectedFonts.size})
+                </button>
+                <button
+                  onClick={() => setInspectSubTab("colors")}
+                  className={`px-2 py-1 rounded font-semibold transition ${
+                    inspectSubTab === "colors"
+                      ? "bg-[#0d1b3d] text-white"
+                      : "text-[#4a5168] hover:text-[#0d1b3d]"
+                  }`}
+                >
+                  Colors
+                </button>
+                <button
+                  onClick={() => setInspectSubTab("media")}
+                  className={`px-2 py-1 rounded font-semibold transition ${
+                    inspectSubTab === "media"
+                      ? "bg-[#0d1b3d] text-white"
+                      : "text-[#4a5168] hover:text-[#0d1b3d]"
+                  }`}
+                >
+                  Media ({currentStyleProfile.images.length})
                 </button>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* IMAGES TAB */}
-        {activeTab === "images" && (
-          <div className="space-y-3">
-            <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 block mb-1">
-              Embedded Images on Page {currentPageNumber} ({images.length})
-            </span>
-
-            {images.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                No raster images or XObjects found on this page.
-              </div>
-            ) : (
-              images.map((img, idx) => (
-                <ImagePreviewCard
-                  key={idx}
-                  img={img}
-                  index={idx}
-                  pageNumber={currentPageNumber}
-                  onInsert={(dataUrl) => handleInsertExtractedImage(img, dataUrl)}
-                  showToast={showToast}
-                />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* LINKS TAB */}
-        {activeTab === "links" && (
-          <div className="space-y-3">
-            <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 block mb-1">
-              Hyperlinks & Internal Destinations ({hyperlinks.length})
-            </span>
-
-            {hyperlinks.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                No interactive link annotations found on this page.
-              </div>
-            ) : (
-              hyperlinks.map((link, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 hover:border-blue-300 transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
-                      {link.targetType === "external_url" ? "External URL" : "Internal Jump"}
-                    </span>
-                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono">
-                      Preserved
-                    </span>
-                  </div>
-
-                  {link.targetType === "external_url" ? (
-                    <a
-                      href={String(link.target)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 font-medium hover:underline text-xs flex items-center space-x-1 truncate block"
-                      title={String(link.target)}
+              {/* Sub-tab content */}
+              {inspectSubTab === "fonts" && (
+                <div className="space-y-2">
+                  {Array.from(currentStyleProfile.detectedFonts.values()).map((f, i) => (
+                    <div
+                      key={i}
+                      className="p-2.5 bg-[#f4f1ea] rounded-xl border border-[#d8d4c8] text-xs"
                     >
-                      <span className="truncate">{String(link.target)}</span>
-                      <ExternalLink className="w-3 h-3 shrink-0" />
-                    </a>
-                  ) : (
-                    <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-800">
-                      <Navigation className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Destination Page {link.target}</span>
+                      <div className="font-bold text-[#0d1b3d] truncate">{f.family || f.postScriptName}</div>
+                      <div className="text-[11px] text-[#4a5168] mt-0.5">
+                        {f.isBold ? "Bold" : "Regular"} • {f.isEmbedded ? "Embedded" : "Standard 14"}
+                      </div>
                     </div>
-                  )}
+                  ))}
+                </div>
+              )}
 
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Bounds: {Math.round(link.rect.x)}, {Math.round(link.rect.y)} (
-                    {Math.round(link.rect.width)}×{Math.round(link.rect.height)}pt)
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center space-x-1.5 pt-1 border-t border-slate-200/60">
-                    {link.targetType === "internal_page" && (
-                      <button
-                        onClick={() => {
-                          const targetPage = Number(link.target);
-                          if (targetPage > 0) {
-                            setCurrentPage(targetPage);
-                            showToast(`Navigated to page ${targetPage}`);
-                          }
-                        }}
-                        className="flex-1 py-1 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-[10.5px] font-medium transition flex items-center justify-center space-x-1"
-                      >
-                        <Navigation className="w-3 h-3 text-blue-600" />
-                        <span>Jump to Page</span>
-                      </button>
-                    )}
-
+              {inspectSubTab === "colors" && (
+                <div className="grid grid-cols-2 gap-2">
+                  {currentStyleProfile.frequentlyUsedColors.map((col, i) => (
                     <button
-                      onClick={() => openEditLinkModal(link)}
-                      className="flex-1 py-1 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10.5px] font-medium transition flex items-center justify-center space-x-1"
-                      title="Edit link properties"
+                      key={i}
+                      onClick={() =>
+                        setActiveFormatting({
+                          fontColorHex: col.colorHex,
+                          strokeColorHex: col.colorHex,
+                          fillColorHex: col.colorHex,
+                        })
+                      }
+                      className="p-2 rounded-xl bg-[#f4f1ea] border border-[#d8d4c8] flex items-center gap-2 hover:scale-[1.02] transition"
                     >
-                      <Edit3 className="w-3 h-3 text-slate-500" />
-                      <span>Edit Link</span>
+                      <span
+                        className="w-5 h-5 rounded-md border border-[#d8d4c8]"
+                        style={{ backgroundColor: col.colorHex }}
+                      />
+                      <span className="text-xs font-mono font-bold text-[#0d1b3d]">
+                        {col.colorHex}
+                      </span>
                     </button>
+                  ))}
+                </div>
+              )}
 
-                    <button
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(String(link.target));
-                        showToast("Copied link target to clipboard");
+              {inspectSubTab === "media" && (
+                <div className="space-y-2.5">
+                  {currentStyleProfile.images.map((img, i) => (
+                    <ImagePreviewCard
+                      key={i}
+                      img={img}
+                      index={i}
+                      pageNumber={currentPageNumber}
+                      onInsert={async (url) => {
+                        const op: AddImageOperation = {
+                          id: `img_${Date.now()}`,
+                          type: "add_image",
+                          pageNumber: currentPageNumber,
+                          imageDataUrl: url,
+                          mimeType: "image/png",
+                          rect: { x: 50, y: 50, width: 200, height: 150 },
+                          opacity: 1,
+                          rotation: 0,
+                          timestamp: Date.now(),
+                        };
+                        await executeAddOperation(op);
                       }}
-                      className="p-1 bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 rounded transition"
-                      title="Copy target URL/page"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
+                      showToast={showToast}
+                    />
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* ACCURACY & PROVENANCE TAB */}
-        {activeTab === "accuracy" && (
-          <div className="space-y-4">
-            <div>
-              <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 block mb-2">
-                Extraction Accuracy Summary
-              </span>
-              <div className="grid grid-cols-2 gap-2 text-center font-mono">
-                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="text-base font-bold text-slate-900 block">
-                    {accuracyReport.totalTokensExtracted}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-sans">Text Tokens</span>
-                </div>
-                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="text-base font-bold text-slate-900 block">
-                    {accuracyReport.fontsDirectlyExtractedCount}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-sans">Extracted Fonts</span>
-                </div>
-                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="text-base font-bold text-amber-600 block">
-                    {accuracyReport.nonReusableSubsetFontCount}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-sans">Subset Fonts</span>
-                </div>
-                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                  <span className="text-base font-bold text-slate-900 block">
-                    {accuracyReport.imagesDetectedCount}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-sans">Images Extracted</span>
-                </div>
-              </div>
+              )}
             </div>
-
-            {/* Inferred vs Extracted Distinction Notice */}
-            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-amber-900">
-              <div className="flex items-center space-x-1.5 font-semibold text-xs">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span>Extracted vs. Inferred Data</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-amber-800">
-                PDF files store absolute coordinate glyph drawing commands. Text coordinates, font
-                descriptors, and link dictionaries are <strong>directly extracted</strong>.
-                Paragraph flows, column arrangements, and background rectangles are{" "}
-                <strong>heuristically inferred</strong>.
-              </p>
-            </div>
-
-            {/* Known Limitations */}
-            <div>
-              <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-500 block mb-1.5">
-                Known Technical Limitations
-              </span>
-              <ul className="space-y-1.5 text-[11px] text-slate-600 list-disc list-inside">
-                {accuracyReport.knownLimitations.map((lim, i) => (
-                  <li key={i} className="leading-snug">
-                    {lim}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Panel Status Footer */}
-      <div className="h-8 border-t border-slate-200 px-4 bg-slate-50 flex items-center justify-between text-[10px] text-slate-500">
-        <span>Analysis: Background Worker</span>
-        <span className="text-emerald-700 font-medium flex items-center space-x-1">
-          <ShieldCheck className="w-3 h-3" />
-          <span>Local Engine</span>
-        </span>
-      </div>
+          ) : (
+            <div className="text-xs text-[#4a5168]">Analyzing document structure...</div>
+          )}
+        </div>
+      )}
     </aside>
   );
 };

@@ -1658,9 +1658,9 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
             height={28}
             className="overflow-visible pointer-events-auto z-40"
           >
-            <div className="inline-flex items-center space-x-1.5 bg-slate-900/95 text-white px-2 py-1 rounded-md shadow-lg text-xs font-medium backdrop-blur-xs whitespace-nowrap border border-slate-700/60">
-              <span className="text-[10px] text-slate-300 flex items-center space-x-1 pr-1.5 border-r border-slate-700">
-                <Move className="w-3 h-3 text-blue-400" />
+            <div className="inline-flex items-center space-x-2 bg-[#0d1b3d] text-[#f4f1ea] px-3 py-1.5 rounded-full shadow-xl text-xs font-medium whitespace-nowrap border border-[#2a3a66]">
+              <span className="text-[11px] text-[#ffd84d] font-semibold flex items-center space-x-1 pr-2 border-r border-[#2a3a66]">
+                <Move className="w-3 h-3 text-[#ffd84d]" />
                 <span>
                   {selectedOp && "rect" in selectedOp
                     ? `${Math.round(selectedOp.rect.width)} × ${Math.round(selectedOp.rect.height)} pt`
@@ -1680,10 +1680,10 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                   e.stopPropagation();
                   duplicateSelected();
                 }}
-                className="p-1 hover:bg-slate-700 rounded transition text-slate-200 hover:text-white"
+                className="p-1 hover:bg-white/20 rounded transition text-[#f4f1ea]"
                 title="Duplicate element (Ctrl+D)"
               >
-                <Copy className="w-3 h-3" />
+                <Copy className="w-3.5 h-3.5" />
               </button>
 
               {/* Delete element */}
@@ -1692,10 +1692,10 @@ export const InteractiveOverlay: React.FC<InteractiveOverlayProps> = ({
                   e.stopPropagation();
                   deleteSelected();
                 }}
-                className="p-1 hover:bg-red-900/50 rounded transition text-red-400 hover:text-red-300"
+                className="p-1 hover:bg-red-500/20 rounded transition text-red-400 hover:text-red-300"
                 title="Delete element (Delete/Backspace)"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </foreignObject>

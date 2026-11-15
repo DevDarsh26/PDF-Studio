@@ -233,7 +233,8 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   const [showAllTools, setShowAllTools] = useState(false);
   const [activeRunnerTool, setActiveRunnerTool] = useState<ToolId | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState<"dashboard" | "files" | "signatures" | "shared" | "vault">("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeNav, setActiveNav] = useState<"dashboard" | "files">("dashboard");
 
   // Dynamic time greeting & date
   const [greeting, setGreeting] = useState("morning");
@@ -435,7 +436,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   }, [query, sampleFiles]);
 
   return (
-    <div className="pdf-dashboard-shell min-h-screen w-full relative flex flex-col lg:grid lg:grid-cols-[264px_1fr] bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+    <div className="pdf-dashboard-shell min-h-screen w-full relative flex flex-col lg:flex-row bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
       <style jsx global>{`
         .serif {
           font-family: 'Instrument Serif', Georgia, serif;
@@ -636,12 +637,14 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
         </div>
       </div>
 
-      {/* Sidebar (Desktop sticky, Mobile drawer) */}
+      {/* Sidebar (Desktop sticky sliding, Mobile drawer) */}
       <aside
-        className={`bg-[#fbf9f4] border-r border-[#d8d4c8] p-6 lg:p-7 flex flex-col gap-1.5 transition-all z-40 ${
+        className={`bg-[#fbf9f4] border-r border-[#d8d4c8] p-6 lg:p-7 flex flex-col gap-1.5 transition-all duration-300 ease-in-out z-40 will-change-transform ${
           mobileMenuOpen
             ? "fixed inset-0 w-80 max-w-[85vw] shadow-2xl overflow-y-auto"
-            : "hidden lg:flex lg:h-screen lg:sticky lg:top-0"
+            : sidebarCollapsed
+            ? "hidden lg:flex lg:w-0 lg:p-0 lg:overflow-hidden lg:border-r-0 lg:-translate-x-full"
+            : "hidden lg:flex lg:w-[264px] lg:h-screen lg:sticky lg:top-0 lg:translate-x-0"
         }`}
       >
         {mobileMenuOpen && (
@@ -656,32 +659,24 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           </div>
         )}
 
-        {/* Brand / Logo */}
-        <div className="flex items-center justify-between px-4 pb-6">
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              if (onBackToLanding) onBackToLanding();
-            }}
-            className="serif text-[34px] leading-none hover:opacity-85 transition-opacity"
-            title="Return to Landing Page"
+        {/* Brand / Logo + Collapse Button */}
+        <div className="flex items-center justify-between px-2 pb-6">
+          <span
+            className="serif text-[34px] leading-none select-none cursor-default"
           >
             PDF Suite
-          </a>
-          {onBackToLanding && (
-            <button
-              onClick={onBackToLanding}
-              className="text-xs text-[#4a5168] hover:text-[#0d1b3d] font-semibold flex items-center gap-1 transition"
-              title="Back to Landing Page"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">Overview</span>
-            </button>
-          )}
+          </span>
+          <button
+            onClick={() => setSidebarCollapsed(true)}
+            className="hidden lg:flex ib !w-8 !h-8 text-[#4a5168] hover:text-[#0d1b3d]"
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Navigation Items */}
+        {/* Navigation Items (Only Dashboard & My files) */}
         <a
           href="#dashboard"
           onClick={(e) => {
@@ -711,89 +706,10 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           <span>My files</span>
           <i />
         </a>
-
-        <a
-          href="#signatures"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveNav("signatures");
-            setMobileMenuOpen(false);
-            loadSample("single");
-          }}
-          className={`nv ${activeNav === "signatures" ? "on" : ""}`}
-        >
-          <PenTool className="w-5 h-5" />
-          <span>Signatures</span>
-          <i />
-        </a>
-
-        <a
-          href="#shared"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveNav("shared");
-            setMobileMenuOpen(false);
-            showToast("Zero-server sharing: all files remain local");
-          }}
-          className={`nv ${activeNav === "shared" ? "on" : ""}`}
-        >
-          <Share2 className="w-5 h-5" />
-          <span>Shared</span>
-          <i />
-        </a>
-
-        <a
-          href="#vault"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveNav("vault");
-            setMobileMenuOpen(false);
-            setActiveRunnerTool("protect-pdf");
-          }}
-          className={`nv ${activeNav === "vault" ? "on" : ""}`}
-        >
-          <Lock className="w-5 h-5" />
-          <span>Vault</span>
-          <i />
-        </a>
-
-        {/* Storage Card at Bottom */}
-        <div className="mt-auto bg-[#0d1b3d] text-[#f4f1ea] rounded-3xl p-5 shadow-lg">
-          <div className="flex items-center justify-between font-semibold">
-            <span>Storage</span>
-            <span className="text-[11px] font-mono uppercase tracking-wider text-[#ffd84d]">
-              100% Local
-            </span>
-          </div>
-
-          <div className="h-2 rounded-full bg-[#2a3a66] my-3 overflow-hidden">
-            <div
-              className="h-2 rounded-full bg-[#ffd84d]"
-              style={{
-                width: recentSession ? "42%" : "18%",
-                animation: "grow 1.4s cubic-bezier(.2,.8,.2,1) both",
-              }}
-            />
-          </div>
-
-          <div className="text-[13px] text-[#aeb3c4]">
-            {recentSession?.byteSize
-              ? `${(recentSession.byteSize / (1024 * 1024)).toFixed(1)} MB of local memory used`
-              : "0.8 MB of local memory used"}
-          </div>
-
-          <button
-            onClick={handleClearStorage}
-            className="btn !h-10 mt-4 w-full !bg-[#ffd84d] !border-[#ffd84d] !text-[#0d1b3d] font-bold text-xs hover:!bg-white"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Storage</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main Workspace Area */}
-      <main className="p-6 sm:p-8 lg:p-11 flex flex-col gap-6 overflow-y-auto max-w-[1400px]">
+      <main className="flex-1 p-6 sm:p-8 lg:p-11 flex flex-col gap-6 overflow-y-auto max-w-[1400px] transition-all duration-300">
         {/* Error Alert Notice */}
         {errorMessage && (
           <div className="w-full bg-red-100 border border-red-300 rounded-2xl p-4 flex items-center justify-between text-red-900 shadow-sm animate-fade-in">
@@ -815,12 +731,24 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
 
         {/* Header: Date + Greeting + Search & Actions */}
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div>
-            <div className="muted font-semibold text-sm">{formattedDate}</div>
-            <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05]">
-              Good {greeting},{" "}
-              <i style={{ color: "#2447f5", fontStyle: "italic" }}>Darsh.</i>
-            </h1>
+          <div className="flex items-center gap-3">
+            {sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="hidden lg:flex ib !w-10 !h-10 border border-[#d8d4c8] bg-[#fbf9f4] rounded-xl hover:bg-[#e7e3d8]"
+                title="Open sidebar"
+                aria-label="Open sidebar"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <div className="muted font-semibold text-sm">{formattedDate}</div>
+              <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05]">
+                Good {greeting},{" "}
+                <i style={{ color: "#2447f5", fontStyle: "italic" }}>Darsh.</i>
+              </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
