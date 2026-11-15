@@ -473,9 +473,6 @@ export const ScrollytellingLandingPage: React.FC<ScrollytellingLandingPageProps>
             <span className="serif text-3xl font-normal text-[#0d1b3d]">
               PDF Suite
             </span>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2447f5]/10 text-[#2447f5] border border-[#2447f5]/20">
-              100% In-Browser
-            </span>
           </div>
 
           <nav className="hidden md:flex items-center gap-9">

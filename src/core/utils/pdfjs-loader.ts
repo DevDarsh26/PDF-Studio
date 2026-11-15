@@ -13,9 +13,12 @@ function isChunkLoadError(err: any): boolean {
   const name = err.name || "";
   return (
     name === "ChunkLoadError" ||
+    (name === "TypeError" && msg.includes("__webpack_modules__")) ||
+    msg.includes("is not a function") ||
     msg.includes("loading chunk") ||
     msg.includes("failed to fetch dynamically imported module") ||
-    msg.includes("error loading dynamic import")
+    msg.includes("error loading dynamic import") ||
+    msg.includes("unexpected token")
   );
 }
 
@@ -31,11 +34,21 @@ export function configurePdfjsWorker(pdfjsLib: any): void {
 }
 
 /**
- * Loads pdfjs-dist with automatic retry on chunk loading failure.
+ * Loads pdfjs-dist with automatic fallback and retry on chunk loading failure.
+ * In browser environments, it prioritizes the stable static /pdf.min.mjs bundle to bypass
+ * Webpack HMR dynamic chunk hash mismatches and __webpack_modules__ errors entirely.
  */
 export async function getPdfjs(): Promise<any> {
   if (cachedPdfjsLib) {
     return cachedPdfjsLib;
+  }
+
+  // If already attached to window by a previous load
+  if (typeof window !== "undefined" && (window as any).pdfjsLib?.getDocument) {
+    const lib = (window as any).pdfjsLib;
+    configurePdfjsWorker(lib);
+    cachedPdfjsLib = lib;
+    return lib;
   }
 
   if (inFlightPromise) {
@@ -44,8 +57,28 @@ export async function getPdfjs(): Promise<any> {
 
   inFlightPromise = (async () => {
     let lastError: any = null;
-    const maxAttempts = 3;
+    const isRealBrowser =
+      typeof window !== "undefined" &&
+      typeof document !== "undefined" &&
+      !(typeof process !== "undefined" && process.env?.VITEST);
 
+    // Attempt 1 (Browser-first): Native browser ES dynamic import bypassing Vite & Webpack chunk splitting
+    if (isRealBrowser) {
+      try {
+        const importDynamic = new Function("u", "return import(u)");
+        const lib = await importDynamic("/pdf.min.mjs");
+        if (lib && (lib.getDocument || (lib as any).default?.getDocument)) {
+          const resolved = lib.getDocument ? lib : (lib as any).default;
+          configurePdfjsWorker(resolved);
+          cachedPdfjsLib = resolved;
+          return resolved;
+        }
+      } catch (browserStaticErr: any) {
+        console.warn("[PDF.js Loader] Static /pdf.min.mjs load failed, falling back to bundler import:", browserStaticErr?.message || browserStaticErr);
+      }
+    }
+
+    const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const lib = await import("pdfjs-dist");
@@ -57,14 +90,12 @@ export async function getPdfjs(): Promise<any> {
         console.warn(`[PDF.js Loader] Attempt ${attempt}/${maxAttempts} failed:`, err?.message || err);
 
         if (isChunkLoadError(err)) {
-          // If this is a chunk load error due to dev server restart or HMR mismatch,
-          // wait with exponential backoff before retrying
           if (attempt < maxAttempts) {
-            await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+            await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
             continue;
           }
 
-          // If exhausted in browser and still chunk loading failed, attempt fallback to legacy build
+          // Fallback to legacy build if Webpack module resolution failed
           try {
             console.info("[PDF.js Loader] Attempting fallback to pdfjs-dist legacy build...");
             const legacyLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
