@@ -234,7 +234,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
   const [activeRunnerTool, setActiveRunnerTool] = useState<ToolId | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeNav, setActiveNav] = useState<"dashboard" | "files">("dashboard");
+  const [activeNav, setActiveNav] = useState<"dashboard">("dashboard");
 
   // Dynamic time greeting & date
   const [greeting, setGreeting] = useState("morning");
@@ -399,41 +399,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
     });
   }, [activeCategory, query]);
 
-  // Filtered recent files
-  const sampleFiles = [
-    {
-      name: recentSession ? recentSession.documentName : "Service-agreement.pdf",
-      date: "Today",
-      size: recentSession?.byteSize ? `${(recentSession.byteSize / (1024 * 1024)).toFixed(1)} MB` : "1.2 MB",
-      badge: "Draft",
-      badgeBg: "#f3c9c0",
-      badgeColor: "#0d1b3d",
-      action: () => (recentSession ? restoreSession() : loadSample("single")),
-    },
-    {
-      name: "Invoice-0042.pdf",
-      date: "Yesterday",
-      size: "340 KB",
-      badge: "Signed",
-      badgeBg: "#ffd84d",
-      badgeColor: "#0d1b3d",
-      action: () => loadSample("single"),
-    },
-    {
-      name: "Annual-Report-2026.pdf",
-      date: "3 days ago",
-      size: "4.8 MB",
-      badge: "Protected",
-      badgeBg: "#2447f5",
-      badgeColor: "#f4f1ea",
-      action: () => loadSample("multi"),
-    },
-  ];
 
-  const filteredRecentFiles = useMemo(() => {
-    if (!query) return sampleFiles;
-    return sampleFiles.filter((f) => f.name.toLowerCase().includes(query));
-  }, [query, sampleFiles]);
 
   return (
     <div className="pdf-dashboard-shell min-h-screen w-full relative flex flex-col lg:flex-row bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
@@ -676,7 +642,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           </button>
         </div>
 
-        {/* Navigation Items (Only Dashboard & My files) */}
+        {/* Navigation Item */}
         <a
           href="#dashboard"
           onClick={(e) => {
@@ -684,26 +650,10 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
             setActiveNav("dashboard");
             setMobileMenuOpen(false);
           }}
-          className={`nv ${activeNav === "dashboard" ? "on" : ""}`}
+          className="nv on"
         >
           <Home className="w-5 h-5" />
           <span>Dashboard</span>
-          <i />
-        </a>
-
-        <a
-          href="#files"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveNav("files");
-            setMobileMenuOpen(false);
-            const el = document.getElementById("recent-files-card");
-            el?.scrollIntoView({ behavior: "smooth" });
-          }}
-          className={`nv ${activeNav === "files" ? "on" : ""}`}
-        >
-          <FileText className="w-5 h-5" />
-          <span>My files</span>
           <i />
         </a>
       </aside>
@@ -744,9 +694,8 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
             )}
             <div>
               <div className="muted font-semibold text-sm">{formattedDate}</div>
-              <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05]">
-                Good {greeting},{" "}
-                <i style={{ color: "#2447f5", fontStyle: "italic" }}>Darsh.</i>
+              <h1 className="serif in text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.05] capitalize">
+                Good {greeting}.
               </h1>
             </div>
           </div>
@@ -781,35 +730,27 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
               <FilePlus2 className="w-4 h-4" />
               <span>Upload PDF</span>
             </button>
-
-            {/* User Avatar */}
-            <div
-              className="w-12 h-12 rounded-full bg-[#f3c9c0] text-[#0d1b3d] font-black text-base grid place-items-center shadow-sm shrink-0 select-none cursor-default"
-              title="Darsh Modi (darshmodii.in)"
-            >
-              D
-            </div>
           </div>
         </div>
 
         {/* Hero 2-Column Action Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Card 1: Dropzone (Span 2) */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`in lg:col-span-2 border-2 border-dashed rounded-[28px] min-h-[172px] flex items-center gap-6 px-6 sm:px-9 py-6 cursor-pointer transition-all duration-300 ${
-              isDragging
-                ? "border-[#2447f5] bg-[#eef3ff] scale-[1.01] shadow-xl"
-                : "border-[#2447f5] bg-[#fbf9f4] hover:bg-[#f6f3eb]"
-            }`}
-            style={{ animationDelay: "0.05s" }}
-          >
+        {/* Hero Dropzone Action Card */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`in w-full border-2 border-dashed rounded-[28px] min-h-[160px] flex flex-col sm:flex-row items-center justify-between gap-6 px-6 sm:px-10 py-7 cursor-pointer transition-all duration-300 ${
+            isDragging
+              ? "border-[#2447f5] bg-[#eef3ff] scale-[1.005] shadow-xl"
+              : "border-[#2447f5] bg-[#fbf9f4] hover:bg-[#f6f3eb]"
+          }`}
+          style={{ animationDelay: "0.05s" }}
+        >
+          <div className="flex items-center gap-6 w-full sm:w-auto">
             <span
               className="w-[72px] h-[72px] rounded-full bg-[#2447f5] text-[#f4f1ea] grid place-items-center shrink-0 shadow-lg shadow-blue-600/25"
               style={{ animation: "bob 2.4s ease-in-out infinite" }}
@@ -820,12 +761,12 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
               <div className="serif text-[32px] sm:text-[38px] leading-tight text-[#0d1b3d]">
                 Drop a PDF to begin
               </div>
-              <div className="muted text-sm sm:text-base mt-1.5">
-                or browse your device. Up to 100MB.
+              <div className="muted text-sm sm:text-base mt-1">
+                or browse your device to open instantly. Fast, private, and 100% offline. Up to 100MB.
               </div>
 
               {isLoading && (
-                <div className="mt-3 max-w-xs">
+                <div className="mt-3 max-w-sm">
                   <div className="flex justify-between text-xs text-[#2447f5] font-semibold mb-1">
                     <span>Parsing structure...</span>
                     <span>{loadingProgress}%</span>
@@ -841,43 +782,9 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
             </div>
           </div>
 
-          {/* Card 2: Continue Editing (Span 1) */}
-          <div
-            onClick={async () => {
-              if (recentSession) {
-                await restoreSession();
-              } else {
-                await loadSample("single");
-              }
-            }}
-            className="in bg-[#0d1b3d] text-[#f4f1ea] rounded-[28px] min-h-[172px] p-6 sm:p-7 flex flex-col justify-between cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#0d1b3d]/25 transition-all group"
-            style={{ animationDelay: "0.12s" }}
-          >
-            <div className="flex items-center justify-between font-semibold text-[#ffd84d]">
-              <span>Continue editing</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </div>
-
-            <div>
-              <div className="serif text-[28px] sm:text-[32px] leading-tight truncate">
-                {recentSession?.documentName || "Service-agreement.pdf"}
-              </div>
-
-              <div className="flex items-center gap-3 mt-3 text-sm text-[#aeb3c4]">
-                <div className="flex-1 h-1.5 rounded-full bg-[#2a3a66] overflow-hidden">
-                  <div
-                    className="h-1.5 rounded-full bg-[#ffd84d]"
-                    style={{
-                      width: recentSession ? "75%" : "62%",
-                      animation: "grow 1.6s 0.3s cubic-bezier(.2,.8,.2,1) both",
-                    }}
-                  />
-                </div>
-                <span>
-                  Page {recentSession?.currentPageNumber || 2} of 3
-                </span>
-              </div>
-            </div>
+          <div className="hidden sm:flex items-center gap-2 px-6 py-3 rounded-full bg-[#0d1b3d] text-[#f4f1ea] font-semibold text-sm shrink-0 hover:bg-[#2447f5] transition shadow-sm">
+            <span>Browse files</span>
+            <ArrowRight className="w-4 h-4" />
           </div>
         </div>
 
@@ -1196,81 +1103,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
           )}
         </div>
 
-        {/* Recent Files Section (Matching Mockup) */}
-        <div
-          id="recent-files-card"
-          className="bg-[#fbf9f4] border border-[#d8d4c8] rounded-[28px] overflow-hidden shadow-sm"
-        >
-          <div className="flex justify-between items-center p-5 sm:p-6 pb-4">
-            <h2 className="serif text-[26px] sm:text-[30px]">Recent files</h2>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => loadSample("single")}
-                className="text-xs font-bold text-[#4a5168] hover:text-[#0d1b3d] transition"
-              >
-                + Load Sample
-              </button>
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  showToast("Showing all recent files");
-                }}
-                className="font-semibold text-[#2447f5] hover:underline text-sm"
-              >
-                View all
-              </button>
-            </div>
-          </div>
 
-          {/* Table Header for Mobile/Desktop Clarity */}
-          <div className="overflow-x-auto">
-            {filteredRecentFiles.length === 0 ? (
-              <div className="p-8 text-center text-[#4a5168] text-sm">
-                No recent files matching &quot;{searchQuery}&quot;
-              </div>
-            ) : (
-              filteredRecentFiles.map((file, idx) => (
-                <div key={idx} className="rw min-w-[600px]">
-                  {/* Thumbnail */}
-                  <div className="w-8 h-10 rounded-md bg-[#f4f1ea] border border-[#d8d4c8] p-1.5 flex flex-col gap-1 shrink-0">
-                    <div className="bar !h-[3px] w-full" />
-                    <div className="bar !h-[3px] w-3/5" />
-                  </div>
-
-                  {/* Name */}
-                  <b className="truncate pr-3 text-[#0d1b3d]">{file.name}</b>
-
-                  {/* Date */}
-                  <span className="muted text-sm">{file.date}</span>
-
-                  {/* Size */}
-                  <span className="muted text-sm">{file.size}</span>
-
-                  {/* Chip */}
-                  <span
-                    className="ch"
-                    style={{
-                      backgroundColor: file.badgeBg,
-                      color: file.badgeColor,
-                    }}
-                  >
-                    {file.badge}
-                  </span>
-
-                  {/* Action Icon */}
-                  <button
-                    onClick={file.action}
-                    className="ib"
-                    aria-label={`Open ${file.name}`}
-                    title={`Open ${file.name}`}
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
 
         {/* Global Keyboard Shortcuts Pill Strip */}
         <div className="mt-2 bg-[#fbf9f4] border border-[#d8d4c8] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[#4a5168]">

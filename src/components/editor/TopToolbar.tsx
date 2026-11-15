@@ -181,14 +181,6 @@ export const TopToolbar: React.FC<TopToolbarProps> = () => {
           <Download className="w-4 h-4" />
           <span>Download</span>
         </button>
-
-        {/* User Avatar Circle */}
-        <div
-          className="w-9 h-9 rounded-full bg-[#f3c9c0] text-[#0d1b3d] font-black text-xs grid place-items-center border-2 border-[#fbf9f4] shadow-sm select-none"
-          title="Darsh Modi"
-        >
-          D
-        </div>
       </div>
     </header>
   );
