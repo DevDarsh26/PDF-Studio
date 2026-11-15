@@ -397,7 +397,7 @@ export const UploadHomepage: React.FC<UploadHomepageProps> = ({ onBackToLanding 
 
 
   return (
-    <div className="pdf-dashboard-shell min-h-screen w-full flex flex-col bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d]">
+    <div className="pdf-dashboard-shell min-h-screen w-full flex flex-col bg-[#f4f1ea] text-[#0d1b3d] antialiased selection:bg-[#ffd84d] selection:text-[#0d1b3d] overflow-x-hidden">
       <style jsx global>{`
         .serif {
           font-family: 'Instrument Serif', Georgia, serif;

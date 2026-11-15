@@ -223,8 +223,8 @@ export default function Home() {
     <div
       className={`editor-app-shell flex flex-col text-slate-800 antialiased ${
         hasDocument
-          ? "h-screen w-screen overflow-hidden select-none"
-          : "min-h-screen w-full overflow-x-hidden"
+          ? "fixed inset-0 h-screen w-screen overflow-hidden select-none"
+          : "min-h-screen w-full overflow-y-auto overflow-x-hidden"
       }`}
     >
       {/* Modals & Toasts */}
