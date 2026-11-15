@@ -39,16 +39,7 @@ export default function Home() {
   } = useEditorStore();
 
   const viewportContainerRef = useRef<HTMLDivElement>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return localStorage.getItem("pdf_has_session") === "1";
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  });
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<"landing" | "dashboard">("landing");
 
   // Sync view with URL hash or search params
@@ -76,6 +67,15 @@ export default function Home() {
   // Restore previous editing session on initial mount so reload NEVER loses work or redirects to home
   useEffect(() => {
     let isCancelled = false;
+
+    // Trigger splash only after client mount to prevent SSR hydration mismatch
+    try {
+      if (typeof window !== "undefined" && localStorage.getItem("pdf_has_session") === "1" && !useEditorStore.getState().rawBytes) {
+        setIsCheckingSession(true);
+      }
+    } catch {
+      // Ignore localStorage access restrictions
+    }
 
     // Safety timeout: never let splash screen stay stuck for more than 500ms under any circumstances
     const safetyTimer = setTimeout(() => {
@@ -197,7 +197,7 @@ export default function Home() {
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm text-white shadow-lg shadow-blue-500/30">
             PS
           </div>
-          <span className="font-bold text-lg tracking-tight text-white">PDF Studio</span>
+          <span className="font-bold text-lg tracking-tight text-white">PDF Suite</span>
         </div>
         <div className="flex items-center space-x-2 text-slate-400 text-xs">
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
