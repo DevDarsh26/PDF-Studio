@@ -1,7 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
+    // In development mode on Windows, use in-memory caching to eliminate
+    // PackFileCacheStrategy disk collisions and ENOENT *.pack.gz errors
+    if (dev) {
+      config.cache = {
+        type: "memory",
+      };
+    }
+
     // Support WebAssembly loading
     config.experiments = {
       ...config.experiments,
