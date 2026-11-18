@@ -12,11 +12,6 @@ Edit text, manage pages, convert files, and work with PDFs — all from one work
 
 <br />
 
-<p>
-  <img src="https://img.shields.io/badge/Processing-Local-blue?style=flat-square" />
-  <img src="https://img.shields.io/badge/Privacy-First-success?style=flat-square" />
-  <img src="https://img.shields.io/badge/Open%20Source-MIT-lightgrey?style=flat-square" />
-</p>
 
 <p>
   <a href="https://github.com/DevDarsh26/PDF-Studio">
@@ -210,13 +205,6 @@ The application may still load external libraries or other resources depending o
 
 ---
 
-## 📄 License
-
-This project is open-source under the **MIT License**.
-
-See the [LICENSE](LICENSE) file for more information.
-
----
 
 <div align="center">
 
