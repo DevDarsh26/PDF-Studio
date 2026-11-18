@@ -1,60 +1,87 @@
-<div align="center">
+ <div align="center">
+
+<br />
 
 # PDF Studio
 
-### A browser-based PDF editor built for precise editing and privacy.
+### A better way to work with PDFs.
 
-PDF Studio is a PDF workspace that brings editing, page management, conversions, and document tools together in one place. It runs directly in the browser, so documents can be processed locally without having to upload them to a server.
+A browser-based PDF editor focused on **precision, privacy, and keeping documents intact.**
 
-The goal was to build something more than a basic PDF viewer — a tool that makes working with PDFs easier while keeping the original document quality intact.
+Edit text, manage pages, convert files, and work with PDFs — all from one workspace, without sending your documents to a processing server.
 
----
+<br />
+
+<p>
+  <img src="https://img.shields.io/badge/Processing-Local-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Privacy-First-success?style=flat-square" />
+  <img src="https://img.shields.io/badge/Open%20Source-MIT-lightgrey?style=flat-square" />
+</p>
+
+<p>
+  <a href="https://github.com/DevDarsh26/PDF-Studio">
+    <img src="https://img.shields.io/badge/View%20Source-GitHub-181717?style=for-the-badge&logo=github" />
+  </a>
+  <a href="https://darshmodii.in">
+    <img src="https://img.shields.io/badge/Developer-Darsh%20Modi-2563eb?style=for-the-badge" />
+  </a>
+</p>
+
+<br />
 
 </div>
 
-## Features
+---
 
-### Text editing
+## ✨ Features
+
+### 01. Text Editing
+
 - Edit existing text directly within a PDF.
 - Work with PDF text operators such as `Tj` and `TJ`.
 - Preserve text positioning, baselines, and formatting as closely as possible.
 - Combine fragmented text into more usable editing selections.
 
-### Image editing
+### 02. Image Editing
+
 - Select embedded images, logos, and graphics.
 - Move, resize, and replace images.
 - Maintain aspect ratio while resizing.
 - Adjust opacity and position.
 
-### Page management
+### 03. Page Management
+
 - Reorder pages with drag and drop.
 - Rotate pages.
 - Duplicate or delete pages.
 - Insert blank pages.
 - Merge multiple PDFs and split documents.
 
-### Conversion tools
+### 04. Conversion Tools
+
 - Convert PDF content into Word documents.
 - Export tables to Excel or CSV.
 - Export pages as PNG or JPG.
 - Download image exports in a ZIP archive.
 
-### Additional tools
+### 05. Additional Tools
+
 - Password protection and encryption.
 - Flatten PDF documents.
 - Add watermarks and stamps.
 - Manage document pages and content.
 
-### Responsive interface
+### 06. Responsive Interface
+
 PDF Studio is designed to work across different screen sizes, with a desktop workspace for detailed editing and a more touch-friendly layout for smaller devices.
 
 ---
 
-## How it works
+## 🛠️ Tech Stack
 
-PDF Studio uses a combination of PDF parsing, rendering, and document editing libraries to handle different parts of the workflow.
+PDF Studio combines several technologies to handle PDF rendering, editing, and document processing.
 
-| Component | Purpose |
+| Technology | Purpose |
 |---|---|
 | React 19 | User interface |
 | Tailwind CSS | Styling and layout |
@@ -63,42 +90,40 @@ PDF Studio uses a combination of PDF parsing, rendering, and document editing li
 | WebAssembly | Browser-side processing support |
 | IndexedDB | Local document session persistence |
 
-The document is rendered for viewing, while editing operations are applied to the underlying PDF data where possible. This helps avoid the quality loss that comes with converting entire pages into images before editing.
-
-The application also uses separate conversion workflows for document, spreadsheet, and image exports.
-
 ---
 
-## Architecture
+## 🏗️ Architecture
+
+The application separates document rendering, editing, conversion, and local persistence into different parts of the workflow.
 
 ```mermaid
 flowchart TD
     A[User opens PDF] --> B[PDF Processing]
     B --> C[Rendering & Text Analysis]
     C --> D[Interactive Editor]
-    D --> E[Edit Document]
-    E --> F[Export PDF]
 
-    D --> G[Page Tools]
-    D --> H[Image Tools]
-    D --> I[Conversion Tools]
+    D --> E[Text Editing]
+    D --> F[Image Editing]
+    D --> G[Page Management]
+    D --> H[Conversion Tools]
 
-    G --> J[Merge / Split / Rotate]
-    H --> K[Resize / Replace]
-    I --> L[Word / Excel / Images]
+    E --> I[PDF Export]
+    F --> I
+    G --> I
+    H --> J[Word / Excel / Images]
 
-    E --> M[Local Session Storage]
+    D <--> K[Local Session Storage]
 ```
 
 ---
 
-## Keyboard shortcuts
+## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |
 |---|---|
 | `V` | Select / Pointer tool |
 | `E` | Edit existing text |
-| `T` | Add text |
+| `T` | Add new text |
 | `Space` | Hold to pan |
 | `Arrow Keys` | Move selected element |
 | `Shift + Arrow Keys` | Move selected element faster |
@@ -111,53 +136,59 @@ flowchart TD
 
 ---
 
-## Getting started
+## 🚀 Getting Started
 
-### Requirements
+### Prerequisites
+
+Make sure you have the following installed:
 
 - Node.js 18.18+ or Node.js 20+
 - npm or pnpm
 
 ### Installation
 
-Clone the repository:
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/DevDarsh26/PDF-Studio.git
 cd PDF-Studio
 ```
 
-Install dependencies:
+**2. Install dependencies**
 
 ```bash
 npm install
 ```
 
-Start the development server:
+**3. Start the development server**
 
 ```bash
 npm run dev
 ```
 
-Open the local URL shown in your terminal — usually:
+**4. Open the application**
+
+Visit the local URL displayed in your terminal, usually:
 
 ```text
 http://localhost:3000
 ```
 
-### Running tests
+### Running Tests
+
+Run the test suite:
 
 ```bash
 npm test
 ```
 
-To run tests in watch mode:
+Run tests in watch mode:
 
 ```bash
 npm run test:watch
 ```
 
-### Production build
+### Production Build
 
 ```bash
 npm run build
@@ -166,7 +197,7 @@ npm run start
 
 ---
 
-## Privacy
+## 🔒 Privacy
 
 PDF Studio is designed around local document processing.
 
@@ -179,17 +210,26 @@ The application may still load external libraries or other resources depending o
 
 ---
 
-## License
+## 📄 License
 
-Released under the MIT License. See [LICENSE](LICENSE) for details.
+This project is open-source under the **MIT License**.
+
+See the [LICENSE](LICENSE) file for more information.
 
 ---
 
-## Author
+<div align="center">
 
-**Darsh Modi**
+## 👨‍💻 Built by Darsh Modi
 
-- Portfolio: [darshmodii.in](https://darshmodii.in)
-- GitHub: [@DevDarsh26](https://github.com/DevDarsh26)
+An independent project exploring PDF rendering, document editing, browser-side processing, and the challenges of working with PDF internals.
 
-Built as an independent project to explore PDF rendering, document editing, browser-side processing, and the challenges of working with PDF internals.
+<br />
+
+[**Portfolio**](https://darshmodii.in) · [**GitHub**](https://github.com/DevDarsh26)
+
+<br />
+
+<sub>Thanks for checking out PDF Studio!</sub>
+
+</div>
